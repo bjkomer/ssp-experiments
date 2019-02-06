@@ -38,7 +38,7 @@ def dir_to_vec(direction):
 
 def path_function(coord, path, xs, ys):
     ind_x = (np.abs(xs - coord[0])).argmin()
-    ind_y = (np.abs(ys - coord[0])).argmin()
+    ind_y = (np.abs(ys - coord[1])).argmin()
 
     return dir_to_vec(path[ind_x, ind_y])
 
