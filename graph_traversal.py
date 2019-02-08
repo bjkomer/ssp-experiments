@@ -4,6 +4,7 @@ from spatial_semantic_pointers.utils import encode_point, make_good_unitary, ssp
 from spatial_semantic_pointers.plots import plot_heatmap
 import nengo.spa as spa
 from graphs import Graph, Node
+from algorithms import EllipticExpansion
 import matplotlib.pyplot as plt
 
 dim = 512
@@ -94,6 +95,38 @@ con_sp.normalize()
 
 graph.nodes = nodes
 graph.n_nodes = 7
+
+
+elliptic_expansion = EllipticExpansion(
+    start_landmark_id=landmark_ids[0],
+    end_landmark_id=landmark_ids[6],
+    landmark_map_sp=landmark_map_sp,
+    con_sp=con_sp,
+    landmark_vectors=vocab_vectors,
+    x_axis_sp=x_axis_sp,
+    y_axis_sp=y_axis_sp,
+    xs=xs,
+    ys=ys,
+    heatmap_vectors=heatmap_vectors,
+)
+
+path = elliptic_expansion.find_path()
+
+
+# def ssp_graph_search(start_landmark_id, end_landmark_id):
+#     current_loc_sp = landmark_map_sp *~ start_landmark_id
+#     goal_loc_sp = landmark_map_sp *~ end_landmark_id
+#
+#     # egocentric displacements to nearby landmarks
+#     ego_connections_sp = con_sp *~ start_landmark_id
+#
+#     # allocentric coordinates of nearby landmarks
+#     allo_connections_sp = current_loc_sp * ego_connections_sp
+#
+#     # IDs of nearby landmarks in a single vector
+#     connected_landmarks = landmark_map_sp *~ allo_connections_sp
+
+
 
 # misc debugging things
 
