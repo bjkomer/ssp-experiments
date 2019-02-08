@@ -23,6 +23,7 @@ parser.add_argument('--n-test-samples', type=int, default=1000, help='Number of 
 parser.add_argument('--batch-size', type=int, default=32)
 parser.add_argument('--lr', type=float, default=0.001)
 parser.add_argument('--weight-histogram', action='store_true', help='Save histogram of the weights')
+parser.add_argument('--path-type', type=str, default='example', choices=['example', 'random'], help='path to learn')
 parser.add_argument('--logdir', type=str, default='path_function',
                     help='Directory for saved model and tensorboard log')
 
@@ -48,7 +49,12 @@ torch.manual_seed(args.seed)
 
 
 # Choose path and linspace
-path = example_path
+if args.path_type == 'example':
+    path = example_path
+elif args.path_type == 'random':
+    path = np.random.randint(low=0, high=5, size=example_path.shape)
+else:
+    raise NotImplementedError
 xs = example_xs
 ys = example_ys
 
