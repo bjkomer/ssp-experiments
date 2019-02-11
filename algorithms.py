@@ -1,10 +1,12 @@
-from spatial_semantic_pointers.utils import generate_elliptic_region, ssp_to_loc
+from spatial_semantic_pointers.utils import generate_elliptic_region_vector, ssp_to_loc
 import numpy as np
+import nengo.spa as spa
+
 
 class ExpandingNode(object):
 
     def __init__(self, current_loc_sp, goal_loc_sp, closest_landmark_id, allo_connections_sp, landmark_map_sp, landmark_vectors,
-                 x_axis_sp, y_axis_sp, xs, ys, heatmap_vectors, diameter_increment=1):
+                 x_axis_sp, y_axis_sp, xs, ys, heatmap_vectors, diameter_increment=1, expanded_list=[], threshold=0.1):
 
         self.current_loc_sp = current_loc_sp
         self.goal_loc_sp = goal_loc_sp
@@ -12,6 +14,13 @@ class ExpandingNode(object):
         self.allo_connections_sp = allo_connections_sp
         self.landmark_map_sp = landmark_map_sp
         self.landmark_vectors = landmark_vectors
+
+        # List of the indices of already expanded nodes (as they appear in 'landmark_vectors'
+        self.expanded_list = expanded_list
+
+        # Similarity threshold for finding a match with the elliptic region
+        # TODO: threshold should decrease with region size
+        self.threshold = threshold
 
         self.x_axis_sp = x_axis_sp
         self.y_axis_sp = y_axis_sp
@@ -41,7 +50,7 @@ class ExpandingNode(object):
         # start it as the distance between the current node and the goal, forming a line
         self.diameter = np.linalg.norm(self.current_loc - self.goal_loc)
 
-        self.ellipse_sp = generate_elliptic_region(
+        self.ellipse_sp = generate_elliptic_region_vector(
             xs=self.xs,
             ys=self.ys,
             x_axis_sp=self.x_axis_sp,
@@ -54,7 +63,7 @@ class ExpandingNode(object):
     def step(self):
         self.diameter += self.diameter_increment
 
-        self.ellipse_sp = generate_elliptic_region(
+        self.ellipse_sp = generate_elliptic_region_vector(
             xs=self.xs,
             ys=self.ys,
             x_axis_sp=self.x_axis_sp,
@@ -66,13 +75,22 @@ class ExpandingNode(object):
 
         potential_landmark = self.allo_connections_sp *~ self.ellipse_sp
 
-        # Get closest vocab match that is above a threshold and that hasn't been found already
-        #TODO
-        if 'found':
-            'add to list of already found landmarks'
-            return 'landmark'
-        else:
-            return None
+
+        sim = np.tensordot(potential_landmark.v, self.landmark_vectors, axes=([0], [1]))
+
+        # argsort sorts from lowest to highest, so create a view that reverses it
+        inds = np.argsort(sim)[::-1]
+
+        for i in inds:
+            if sim[i] < self.threshold:
+                # The next closest match is below threshold, so all others will be too
+                return None
+            elif i not in self.expanded_list:
+                # Above threshold and has not been expanded yet, add it to the list now
+                self.expanded_list.append(i)
+
+                # Return the ID and the semantic pointer
+                return i, spa.SemanticPointer(data=self.landmark_vectors[i])
 
 
 class EllipticExpansion(object):
@@ -100,8 +118,11 @@ class EllipticExpansion(object):
         self.ys = ys
         self.heatmap_vectors = heatmap_vectors
 
-        current_loc_sp = self.landmark_map_sp * ~ self.start_landmark_id
-        self.goal_loc_sp = self.landmark_map_sp * ~ self.end_landmark_id
+        start_landmark_sp = spa.SemanticPointer(self.landmark_vectors[self.start_landmark_id])
+        end_landmark_sp = spa.SemanticPointer(self.landmark_vectors[self.end_landmark_id])
+
+        current_loc_sp = self.landmark_map_sp * ~ start_landmark_sp
+        self.goal_loc_sp = self.landmark_map_sp * ~ end_landmark_sp
 
         self.goal_loc = ssp_to_loc(
             self.goal_loc_sp,
@@ -111,7 +132,7 @@ class EllipticExpansion(object):
         )
 
         # egocentric displacements to nearby landmarks
-        ego_connections_sp = con_sp * ~ start_landmark_id
+        ego_connections_sp = con_sp * ~ start_landmark_sp
 
         # allocentric coordinates of nearby landmarks
         allo_connections_sp = current_loc_sp * ego_connections_sp
@@ -135,15 +156,20 @@ class EllipticExpansion(object):
 
     def step(self):
 
-        for key, val in self.expanding_nodes.iteritems():
-            landmark_id = val.step()
+        # dictionary is modified in loop, so get a snapshot of the keys before iterating
+        for key in list(self.expanding_nodes.keys()):
+            # Will be None, or a tuple of (id, sp)
+            landmark = self.expanding_nodes[key].step()
 
             # Check to see if the goal is found
-            if landmark_id == self.end_landmark_id:
+            # if np.allclose(landmark_id.v, self.end_landmark_id.v):
+            if landmark[0] == self.end_landmark_id:
+                print("Goal is found")
+                print(self.expanding_nodes.keys())
                 # goal is found, so build the path
-                path = [landmark_id]
+                path = [landmark[0]]
 
-                cur_id = landmark_id
+                cur_id = key#landmark[0] #FIXME
 
                 while cur_id != self.start_landmark_id:
                     cur_id = self.expanding_nodes[cur_id].closest_landmark_id
@@ -152,20 +178,21 @@ class EllipticExpansion(object):
                 return path
 
             # If a new landmark is found, start expanding it
-            elif landmark_id is not None and landmark_id not in self.expanding_nodes.keys():
+            elif landmark is not None and landmark[0] not in self.expanding_nodes.keys():
+                print("Found a new landmark")
                 # location of the landmark in allocentric space
-                current_loc_sp = self.landmark_map_sp * ~ landmark_id
+                current_loc_sp = self.landmark_map_sp * ~ landmark[1]
 
                 # egocentric displacements to nearby landmarks
-                ego_connections_sp = self.con_sp * ~ landmark_id
+                ego_connections_sp = self.con_sp * ~ landmark[1]
 
                 # allocentric coordinates of nearby landmarks
                 allo_connections_sp = current_loc_sp * ego_connections_sp
 
-                self.expanding_nodes[landmark_id] = ExpandingNode(
+                self.expanding_nodes[landmark[0]] = ExpandingNode(
                     current_loc_sp=current_loc_sp,
                     goal_loc_sp=self.goal_loc_sp,
-                    closest_landmark_id=self.start_landmark_id,
+                    closest_landmark_id=key,
                     allo_connections_sp=allo_connections_sp,
                     landmark_map_sp=self.landmark_map_sp,
                     landmark_vectors=self.landmark_vectors,
@@ -182,6 +209,7 @@ class EllipticExpansion(object):
     def find_path(self, max_steps=1000):
 
         for i in range(max_steps):
+            print("Step {0} of {1}".format(i + 1, max_steps))
 
             ret = self.step()
 

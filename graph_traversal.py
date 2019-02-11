@@ -98,8 +98,8 @@ graph.n_nodes = 7
 
 
 elliptic_expansion = EllipticExpansion(
-    start_landmark_id=landmark_ids[0],
-    end_landmark_id=landmark_ids[6],
+    start_landmark_id=0,#landmark_ids[0],
+    end_landmark_id=6,#landmark_ids[6],
     landmark_map_sp=landmark_map_sp,
     con_sp=con_sp,
     landmark_vectors=vocab_vectors,
@@ -111,6 +111,8 @@ elliptic_expansion = EllipticExpansion(
 )
 
 path = elliptic_expansion.find_path()
+
+print(path)
 
 
 # def ssp_graph_search(start_landmark_id, end_landmark_id):
