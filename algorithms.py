@@ -78,9 +78,9 @@ class ExpandingNode(object):
             diameter=self.diameter,
         )
 
-        potential_landmark = self.allo_connections_sp *~ self.ellipse_sp
+        potential_landmark = self.allo_connections_sp * ~self.ellipse_sp
 
-        # NOTE: this is not correct, allo_connections_sp does not have any landmark_id information in it!!
+        # NOTE: this is only correct if allo_connections has landmark_id_sp information in it
         sim = np.tensordot(potential_landmark.v, self.landmark_vectors, axes=([0], [1]))
 
         # argsort sorts from lowest to highest, so create a view that reverses it
@@ -113,7 +113,8 @@ class EllipticExpansion(object):
                  landmark_vectors, x_axis_sp, y_axis_sp, xs, ys, heatmap_vectors,
                  # params for debugging
                  true_allo_con_sps,
-                 con_calculation='true_allo'
+                 connectivity_list,
+                 con_calculation='true_allo',
                  ):
 
         # Various methods for calculating the connectivity of a particular node. Used for debugging
@@ -134,6 +135,7 @@ class EllipticExpansion(object):
         self.heatmap_vectors = heatmap_vectors
 
         self.true_allo_con_sps = true_allo_con_sps
+        self.connectivity_list = connectivity_list
 
         start_landmark_sp = spa.SemanticPointer(self.landmark_vectors[self.start_landmark_id])
         end_landmark_sp = spa.SemanticPointer(self.landmark_vectors[self.end_landmark_id])
@@ -287,6 +289,14 @@ class EllipticExpansion(object):
                         vocab_vectors=self.landmark_vectors,
                         ax=ax[2, key],
                     )
+
+                    connections = np.array(self.connectivity_list[key])
+
+                    # Plot a dot on the bars that correspond to landmarks that should be connected
+                    # These bars should be higher than the rest if the output is correct
+                    # Note that they should only be high if the ellipse overlaps the node, which often isn't the case
+                    # for backward connections. This is desirable as backwards connections are likely not the shortest
+                    ax[2, key].scatter(x=connections, y=np.zeros((len(connections))))
 
                 plt.draw()
                 plt.pause(0.001)

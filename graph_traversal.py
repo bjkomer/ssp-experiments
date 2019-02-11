@@ -7,7 +7,9 @@ from graphs import Graph, Node
 from algorithms import EllipticExpansion
 import matplotlib.pyplot as plt
 
-np.random.seed(17)
+# np.random.seed(13)
+# np.random.seed(17)
+np.random.seed(42)
 
 dim = 512
 # dim = 1024
@@ -68,7 +70,11 @@ for i, loc in enumerate(node_locs):
     map_sp += encode_point(loc[0], loc[1], x_axis_sp, y_axis_sp)
 
     # Note: the landmark IDs don't have to be 'good' unitaries
-    landmark_ids.append(make_good_unitary(dim))
+    # landmark_ids.append(make_good_unitary(dim))
+    # landmark_ids.append(spa.SemanticPointer(dim))
+    sp = spa.SemanticPointer(dim)
+    sp.make_unitary()
+    landmark_ids.append(sp)
 
     landmark_map_sp += landmark_ids[i] * encode_point(loc[0], loc[1], x_axis_sp, y_axis_sp)
 
@@ -130,6 +136,7 @@ elliptic_expansion = EllipticExpansion(
     heatmap_vectors=heatmap_vectors,
     # params for debugging
     true_allo_con_sps=true_allo_con_sps,
+    connectivity_list=connectivity_list,
 )
 
 # looking at the self-similarity of the landmark vectors as a sanity check
