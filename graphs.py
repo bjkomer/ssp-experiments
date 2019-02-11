@@ -125,7 +125,7 @@ class Graph(object):
         # ))
         return closest_node
 
-    def plot_graph(self, ax, xlim=(0, 10), ylim=(0, 10)):
+    def plot_graph(self, ax, xlim=(0, 10), ylim=(0, 10), invert=False):
         """
         plots the graph structure of connected nodes on an a pyplot axis
         assumes that each node has a x-y location in its data
@@ -141,22 +141,24 @@ class Graph(object):
             y = n.data['location'][1]
 
             # Draw a dot at the node location
-            # ax.scatter(x, y)
-            # Invert y for plotting
-            # Flip x and y axes for plotting
-            # ax.scatter(ylim[1] - y, x)
-            ax.scatter(y, ylim[1] - x)
+            if invert:
+                # Invert y for plotting
+                # Flip x and y axes for plotting
+                ax.scatter(y, ylim[1] - x)
+            else:
+                ax.scatter(x, y)
 
             # Go through the neighbor indices of each neighbor
             for ni in n.get_neighbors():
                 # Draw a line between the current node and the neighbor node
                 nx = self.nodes[ni].data['location'][0]
                 ny = self.nodes[ni].data['location'][1]
-                # ax.plot([x, nx], [y, ny])
-                # Invert y for plotting
-                # Flip x and y axes for plotting
-                # ax.plot([ylim[1] - y, ylim[1] - ny], [x, nx])
-                ax.plot([y, ny], [ylim[1] - x, ylim[1] - nx])
+                if invert:
+                    # Invert y for plotting
+                    # Flip x and y axes for plotting
+                    ax.plot([y, ny], [ylim[1] - x, ylim[1] - nx])
+                else:
+                    ax.plot([x, nx], [y, ny])
 
     def graph_image(self, xs, ys):
         """
