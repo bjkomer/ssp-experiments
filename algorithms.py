@@ -8,7 +8,9 @@ import nengo.spa as spa
 class ExpandingNode(object):
 
     def __init__(self, current_loc_sp, goal_loc_sp, closest_landmark_id, allo_connections_sp, landmark_map_sp, landmark_vectors,
-                 x_axis_sp, y_axis_sp, xs, ys, heatmap_vectors, diameter_increment=1, expanded_list=[], threshold=0.08):
+                 x_axis_sp, y_axis_sp, xs, ys, heatmap_vectors, diameter_increment=1, expanded_list=[], threshold=0.08,
+                 normalize=True
+                 ):
 
         self.current_loc_sp = current_loc_sp
         self.goal_loc_sp = goal_loc_sp
@@ -23,6 +25,9 @@ class ExpandingNode(object):
         # Similarity threshold for finding a match with the elliptic region
         # TODO: threshold should decrease with region size
         self.threshold = threshold
+
+        # Whether or not to normalize the ellipse region SP
+        self.normalize = normalize
 
         self.x_axis_sp = x_axis_sp
         self.y_axis_sp = y_axis_sp
@@ -63,6 +68,7 @@ class ExpandingNode(object):
             f1=self.current_loc,
             f2=self.goal_loc,
             diameter=self.diameter,
+            normalize=self.normalize,
         )
 
     def step(self):
@@ -76,6 +82,7 @@ class ExpandingNode(object):
             f1=self.current_loc,
             f2=self.goal_loc,
             diameter=self.diameter,
+            normalize=self.normalize,
         )
 
         potential_landmark = self.allo_connections_sp * ~self.ellipse_sp
@@ -115,7 +122,14 @@ class EllipticExpansion(object):
                  true_allo_con_sps,
                  connectivity_list,
                  con_calculation='true_allo',
+                 normalize=True,
+                 debug_mode=False,
+                 # ellipse params
+                 diameter_increment=1,
+                 **unused_params
                  ):
+
+        self.debug_mode = debug_mode
 
         # Various methods for calculating the connectivity of a particular node. Used for debugging
         assert con_calculation in ['ego', 'allo', 'true_allo']
@@ -136,6 +150,10 @@ class EllipticExpansion(object):
 
         self.true_allo_con_sps = true_allo_con_sps
         self.connectivity_list = connectivity_list
+        # Whether or not to normalize the ellipse region SP
+        self.normalize = normalize
+
+        self.diameter_increment = diameter_increment
 
         start_landmark_sp = spa.SemanticPointer(self.landmark_vectors[self.start_landmark_id])
         end_landmark_sp = spa.SemanticPointer(self.landmark_vectors[self.end_landmark_id])
@@ -179,7 +197,8 @@ class EllipticExpansion(object):
                 y_axis_sp=self.y_axis_sp,
                 xs=self.xs,
                 ys=self.ys,
-                heatmap_vectors=self.heatmap_vectors
+                heatmap_vectors=self.heatmap_vectors,
+                normalize=self.normalize,
             )
         }
 
@@ -197,8 +216,9 @@ class EllipticExpansion(object):
             # Check to see if the goal is found
             # if np.allclose(landmark_id.v, self.end_landmark_id.v):
             elif landmark[0] == self.end_landmark_id:
-                print("Goal is found, connecting {} to {}".format(key, landmark[0]))
-                print(self.expanding_nodes.keys())
+                if self.debug_mode:
+                    print("Goal is found, connecting {} to {}".format(key, landmark[0]))
+                    print(self.expanding_nodes.keys())
                 # goal is found, so build the path
                 path = [landmark[0], key]
 
@@ -212,7 +232,8 @@ class EllipticExpansion(object):
 
             # If a new landmark is found, start expanding it
             elif landmark[0] not in self.expanding_nodes.keys():
-                print("Found a new landmark, connecting {} to {}".format(key, landmark[0]))
+                if self.debug_mode:
+                    print("Found a new landmark, connecting {} to {}".format(key, landmark[0]))
                 # location of the landmark in allocentric space
                 current_loc_sp = self.landmark_map_sp * ~landmark[1]
 
@@ -243,7 +264,9 @@ class EllipticExpansion(object):
                     y_axis_sp=self.y_axis_sp,
                     xs=self.xs,
                     ys=self.ys,
-                    heatmap_vectors=self.heatmap_vectors
+                    heatmap_vectors=self.heatmap_vectors,
+                    normalize=self.normalize,
+                    diameter_increment=self.diameter_increment,
                 )
 
         # The path wasn't found this iteration, so return None
@@ -257,7 +280,8 @@ class EllipticExpansion(object):
             plt.show()
 
         for i in range(max_steps):
-            print("Step {0} of {1}".format(i + 1, max_steps))
+            if self.debug_mode:
+                print("Step {0} of {1}".format(i + 1, max_steps))
 
             ret = self.step()
 
@@ -303,7 +327,11 @@ class EllipticExpansion(object):
                 input("Press [enter] to continue.")
 
             if ret is not None:
-                return ret
+                if display:
+                    print("Path found: ", ret[::-1])
+                    input("Press [enter] to exit.")
+                # Reverse the found path to be from start to goal rather than goal to start
+                return ret[::-1]
 
         # No path found in the number of steps
         return None

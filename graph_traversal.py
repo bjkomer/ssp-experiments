@@ -7,6 +7,10 @@ from graphs import Graph, Node
 from algorithms import EllipticExpansion
 import matplotlib.pyplot as plt
 
+# Whether or not to normalize the ellipse region SP, as well as all other vectors summed together
+normalize = False
+# normalize = True
+
 # np.random.seed(13)
 # np.random.seed(17)
 np.random.seed(42)
@@ -64,6 +68,7 @@ node_locs.append(np.array([7.1, 5.0]))
 nodes = []
 # Vocab of landmark IDs
 vocab_vectors = np.zeros((len(node_locs), dim))
+vocab = spa.Vocabulary(dim, max_similarity=0.01)
 for i, loc in enumerate(node_locs):
     nodes.append(Node(index=i, data={'location': loc}))
 
@@ -72,16 +77,20 @@ for i, loc in enumerate(node_locs):
     # Note: the landmark IDs don't have to be 'good' unitaries
     # landmark_ids.append(make_good_unitary(dim))
     # landmark_ids.append(spa.SemanticPointer(dim))
-    sp = spa.SemanticPointer(dim)
-    sp.make_unitary()
+
+    # sp = spa.SemanticPointer(dim)
+    # sp.make_unitary()
+
+    sp = vocab.parse("Landmark{}".format(i))
     landmark_ids.append(sp)
 
     landmark_map_sp += landmark_ids[i] * encode_point(loc[0], loc[1], x_axis_sp, y_axis_sp)
 
     vocab_vectors[i, :] = landmark_ids[i].v
 
-map_sp.normalize()
-landmark_map_sp.normalize()
+if normalize:
+    map_sp.normalize()
+    landmark_map_sp.normalize()
 
 
 connectivity_list = [
@@ -108,15 +117,18 @@ for i, node in enumerate(nodes):
         # links_sp += encode_point(vec_diff[0], vec_diff[1], x_axis_sp, y_axis_sp)
         links_ego_sp += landmark_ids[j]*encode_point(vec_diff[0], vec_diff[1], x_axis_sp, y_axis_sp)
         links_allo_sp += landmark_ids[j] * encode_point(node_locs[j][0], node_locs[j][1], x_axis_sp, y_axis_sp)
-    links_ego_sp.normalize()
-    links_allo_sp.normalize()
+
+    if normalize:
+        links_ego_sp.normalize()
+        links_allo_sp.normalize()
     con_ego_sp += landmark_ids[i] * links_ego_sp
     con_allo_sp += landmark_ids[i] * links_allo_sp
 
     true_allo_con_sps.append(links_allo_sp)
 
-con_ego_sp.normalize()
-con_allo_sp.normalize()
+if normalize:
+    con_ego_sp.normalize()
+    con_allo_sp.normalize()
 
 graph.nodes = nodes
 graph.n_nodes = 7
@@ -149,7 +161,10 @@ print("Landmark vectors self-similarity")
 print(sim_arr)
 
 
-path = elliptic_expansion.find_path(display=True, graph=graph, xs=xs, ys=ys, heatmap_vectors=heatmap_vectors)
+path = elliptic_expansion.find_path(
+    display=True, graph=graph, xs=xs, ys=ys,
+    heatmap_vectors=heatmap_vectors, debug_mode=True
+)
 
 print(path)
 

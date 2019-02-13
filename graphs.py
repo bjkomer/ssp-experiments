@@ -125,6 +125,20 @@ class Graph(object):
         # ))
         return closest_node
 
+    def is_valid_path(self, path):
+        """
+        Given a sequence of node indices, return true if they represent a valid path in the graph and false otherwise
+        :param path: list of node indices
+        :return: boolean
+        """
+
+        for i in range(len(path) - 1):
+            if path[i + 1] not in self.nodes[path[i]].get_neighbors():
+                return False
+
+        return True
+
+
     def plot_graph(self, ax, xlim=(0, 10), ylim=(0, 10), invert=False):
         """
         plots the graph structure of connected nodes on an a pyplot axis
