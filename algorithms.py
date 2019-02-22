@@ -8,7 +8,7 @@ import nengo.spa as spa
 class ExpandingNode(object):
 
     def __init__(self, current_loc_sp, goal_loc_sp, closest_landmark_id, allo_connections_sp, landmark_map_sp, landmark_vectors,
-                 x_axis_sp, y_axis_sp, xs, ys, heatmap_vectors, diameter_increment=1, expanded_list=[], threshold=0.08,
+                 x_axis_sp, y_axis_sp, xs, ys, heatmap_vectors, diameter_increment=1, expanded_list=list(), threshold=0.08,
                  normalize=True
                  ):
 
@@ -19,8 +19,9 @@ class ExpandingNode(object):
         self.landmark_map_sp = landmark_map_sp
         self.landmark_vectors = landmark_vectors
 
-        # List of the indices of already expanded nodes (as they appear in 'landmark_vectors'
-        self.expanded_list = expanded_list
+        # List of the indices of already expanded nodes (as they appear in 'landmark_vectors')
+        # self.expanded_list = expanded_list
+        self.expanded_list = []  # fixing shared list bug
 
         # Similarity threshold for finding a match with the elliptic region
         # TODO: threshold should decrease with region size
