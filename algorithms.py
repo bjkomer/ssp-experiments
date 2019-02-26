@@ -8,8 +8,10 @@ import nengo.spa as spa
 class ExpandingNode(object):
 
     def __init__(self, current_loc_sp, goal_loc_sp, closest_landmark_id, allo_connections_sp, landmark_map_sp, landmark_vectors,
-                 x_axis_sp, y_axis_sp, xs, ys, heatmap_vectors, diameter_increment=1, expanded_list=list(), threshold=0.08,
-                 normalize=True
+                 x_axis_sp, y_axis_sp, xs, ys, heatmap_vectors, diameter_increment=1, expanded_list=list(),
+                 threshold=0.08,
+                 # threshold=0.68,
+                 normalize=True,
                  ):
 
         self.current_loc_sp = current_loc_sp

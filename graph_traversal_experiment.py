@@ -19,11 +19,14 @@ def main():
     parser.add_argument('--seed', type=int, default=13, help='Seed for training and generating axis SSPs')
     parser.add_argument('--dim', type=int, default=512, help='Dimensionality of the SSPs')
     parser.add_argument('--res', type=int, default=128, help='Resolution of the linspaces used')
+    parser.add_argument('--normalize', type=int, default=1, choices=[0, 1], help='Whether or not to normalize SPs')
     parser.add_argument('--diameter-increment', type=float, default=1.0,
                         help='How much to expand ellipse diameter by on each step')
 
     args = parser.parse_args()
 
+    # Convert to boolean
+    args.normalize = args.normalize == 1
 
     # Metrics
     # set to 1 if the found path is the shortest
@@ -48,13 +51,6 @@ def main():
     # TEMP: putting this outside the loop for debugging
     graph_params = generate_graph(dim=args.dim, x_axis_sp=x_axis_sp, y_axis_sp=y_axis_sp)
 
-    graph_params2 = graph_params.copy()
-    x_axis_sp2 = x_axis_sp.copy()
-    y_axis_sp2 = y_axis_sp.copy()
-    xs2 = xs.copy()
-    ys2 = ys.copy()
-    heatmap_vectors2 = heatmap_vectors.copy()
-
     for n in range(args.n_samples):
 
         print("Sample {} of {}".format(n+1, args.n_samples))
@@ -68,6 +64,7 @@ def main():
             ys=ys,
             heatmap_vectors=heatmap_vectors,
             diameter_increment=args.diameter_increment,
+            normalize=args.normalize,
             debug_mode=True,
             **graph_params
         )
@@ -103,49 +100,6 @@ def main():
                 print("path is optimal")
             else:
                 print("path is not optimal")
-
-    elliptic_expansion2 = EllipticExpansion(
-        x_axis_sp=x_axis_sp2,
-        y_axis_sp=y_axis_sp2,
-        xs=xs2,
-        ys=ys2,
-        heatmap_vectors=heatmap_vectors2,
-        diameter_increment=args.diameter_increment,
-        debug_mode=True,
-        **graph_params2
-    )
-
-    path2 = elliptic_expansion2.find_path(
-        max_steps=10,  # 15,#20,
-        display=False,
-        graph=graph_params2['graph'],
-        xs=xs2,
-        ys=ys2,
-        heatmap_vectors=heatmap_vectors
-    )
-
-    optimal_path2 = graph_params['graph'].search_graph(
-        start_node=graph_params['start_landmark_id'],
-        end_node=graph_params['end_landmark_id'],
-    )
-
-    print("found path is: {}".format(path2))
-    print("optimal path is: {}".format(optimal_path2))
-
-    if path2 is not None:
-        found_path[n] = 1
-
-        if graph_params['graph'].is_valid_path(path2):
-            valid_path[n] = 1
-            print("path is valid")
-        else:
-            print("path is invalid")
-
-        if path2 == optimal_path2:
-            shortest_path[n] = 1
-            print("path is optimal")
-        else:
-            print("path is not optimal")
 
     print("Found path: {}".format(found_path.mean()))
     print("Valid path: {}".format(valid_path.mean()))
