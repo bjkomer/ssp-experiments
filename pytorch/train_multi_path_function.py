@@ -68,7 +68,7 @@ train_outputs = np.zeros((args.n_train_samples, 2))
 train_coords = np.zeros((args.n_train_samples, 2))
 
 test_inputs = np.zeros((args.n_test_samples, args.dim))
-test_path_indices = np.zeros((args.n_train_samples, 1)).astype(np.int32)  # must be integer to use as index
+test_path_indices = np.zeros((args.n_test_samples, 1)).astype(np.int32)  # must be integer to use as index
 test_outputs = np.zeros((args.n_test_samples, 2))
 test_coords = np.zeros((args.n_test_samples, 2))
 
