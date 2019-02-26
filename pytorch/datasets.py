@@ -28,7 +28,11 @@ class MultiPathDataset(data.Dataset):
 
         # convert to one-hot encoding
         self.path_choice = np.zeros((path_indices.shape[0], n_paths)).astype(np.float32)
-        self.path_choice[np.arange(path_indices.shape[0]), path_indices] = 1
+        # Note that the transpose on path_indices is required for this to work
+        self.path_choice[np.arange(path_indices.shape[0]), path_indices.T] = 1
+
+        # check that the correct number of 1s are in the array
+        assert(np.sum(self.path_choice) == path_indices.shape[0])
 
         # Concatenate input
         self.combined_input = np.hstack([self.ssp_inputs, self.path_choice])

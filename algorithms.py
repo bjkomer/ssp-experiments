@@ -60,9 +60,9 @@ class ExpandingNode(object):
         # start it as the distance between the current node and the goal, forming a line
         self.diameter = np.linalg.norm(self.current_loc - self.goal_loc)
 
-        print("starting diameter", self.diameter)
-        print("current_loc", self.current_loc)
-        print("goal_loc", self.goal_loc)
+        # print("starting diameter", self.diameter)
+        # print("current_loc", self.current_loc)
+        # print("goal_loc", self.goal_loc)
 
         # add some diameter to give it a width:
         self.diameter += self.diameter_increment
