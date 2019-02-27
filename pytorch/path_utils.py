@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+from spatial_semantic_pointers.utils import generate_region_vector
+from gridworlds.maze_generation import generate_maze
 
 # Up, Down, Left, Right
 U = 1
@@ -69,3 +71,33 @@ def plot_path_predictions(directions, coords, name='', min_val=-1, max_val=1):
         fig.suptitle(name)
 
     return fig
+
+
+def generate_maze_sp(size, xs, ys, x_axis_sp, y_axis_sp, normalize=True, obstacle_ratio=.2, map_style='blocks'):
+    """
+    Returns a maze ssp as well as an occupancy grid for the maze (both fine and coarse)
+    """
+
+    # Create a random maze with no inaccessible regions
+    maze = generate_maze(map_style=map_style, side_len=size, obstacle_ratio=obstacle_ratio)
+
+    # Map the maze structure to the resolution of xs and ys
+    x_range = xs[-1] - xs[0]
+    y_range = ys[-1] - ys[0]
+    fine_maze = np.zeros((len(xs), len(ys)))
+
+    for i, x in enumerate(xs):
+        for j, y in enumerate(ys):
+            xi = np.clip(int(np.round(((x - xs[0]) / x_range) * size)), 0, size - 1)
+            yi = np.clip(int(np.round(((y - ys[0]) / y_range) * size)), 0, size - 1)
+            # If the corresponding location on the coarse maze is a wall, make it a wall on the fine maze as well
+            if maze[xi, yi] == 1:
+                fine_maze[i, j] = 1
+
+    # Create a region vector for the maze
+    sp = generate_region_vector(
+        desired=fine_maze, xs=xs, ys=ys,
+        x_axis_sp=x_axis_sp, y_axis_sp=y_axis_sp, normalize=normalize
+    )
+
+    return sp, maze, fine_maze
