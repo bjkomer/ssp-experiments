@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from spatial_semantic_pointers.utils import generate_region_vector
 from gridworlds.maze_generation import generate_maze
 
+from skimage.draw import line
+
 # Up, Down, Left, Right
 U = 1
 L = 2
@@ -101,3 +103,90 @@ def generate_maze_sp(size, xs, ys, x_axis_sp, y_axis_sp, normalize=True, obstacl
     )
 
     return sp, maze, fine_maze
+
+
+def expand_node(distances, solved_maze, maze, node, wall_value=1000):
+    current_value = distances[node[0], node[1]]
+
+    # Generate list of indices for all nodes around the current node
+    # NOTE: shouldn't need a bounds check since the edge of all mazes is walls
+
+    dist_sorted_indices = np.dstack(np.unravel_index(np.argsort(distances.ravel()), distances.shape))
+
+    checks = [
+        (node[0] + 1, node[1], current_value + 1),
+        (node[0] - 1, node[1], current_value + 1),
+        (node[0], node[1] + 1, current_value + 1),
+        (node[0], node[1] - 1, current_value + 1),
+    ]
+
+    new_nodes = []
+
+    for c in checks:
+        x, y, value = c
+        if (0 <= x < distances.shape[0]) and (0 <= y < distances.shape[1]):
+            if distances[x, y] != wall_value and (distances[x, y] == -1 or distances[x, y] > value):
+                new_nodes.append((x, y))
+                # space is free, now find the shortest distance to get here
+                # attempt to draw a line to the closest nodes to the goal
+                for i in range(dist_sorted_indices.shape[0]):
+                    # attempt to draw line
+
+                    rr, cc = line(x, y, dist_sorted_indices[i][0], dist_sorted_indices[i][1])
+
+                    if len(rr) > 2:
+                        if np.all(distances[rr[1:-1], cc[1:-1]] <= wall_value):
+                            connectivity_matrix[i, j] = dist / zoom_level
+                            connectivity_matrix[j, i] = dist / zoom_level
+                    else:
+                        if np.all(distances[rr, cc] <= wall_value):
+                            connectivity_matrix[i, j] = dist / zoom_level
+                            connectivity_matrix[j, i] = dist / zoom_level
+                    
+                    if True:
+                        distances[x, y] = value
+                        solved_maze[x, y, :] = direction
+                        break
+                # assert(distances[dist_sorted_indices[i, :]] < wall_value)
+
+
+    return new_nodes
+
+# TODO: make some tests and visualizations to make sure this function is doing the correct thing
+def solve_maze(maze, start_indices, goal_indices, wall_value=1000):
+
+    # Direction to move for each cell in the maze
+    solved_maze = np.zeros((maze.shape[0], maze.shape[1], 2))
+
+    # distances from every point to the goal, along the shortest path
+    # value of 'wall_value' corresponds to unknown. Large value (double wall_value) corresponds to impassable wall
+    # both unknown and wall are set to high values so sorting by distance can work correctly
+    distances = wall_value * np.ones((maze.shape[0], maze.shape[1]))
+
+    distances[goal_indices] = 0
+
+    distances += wall_value * maze
+
+    # Algorithm:
+    # Each expanded node will be assigned a distance to the goal, as well as a direction to move to get to the goal
+    # To assign distance, find the closest already expanded node to the goal
+    # that a straight line can be drawn to from the current node
+    # Add the distance of that line to the distance recorded in that node to be the distance of this new node
+    # The direction will be the direction of the line
+    # Maintain an ordered list of closest nodes to make checking easier
+    # Start off with the goal node as expanded with distance of 0.
+    # Expand only direct neighbors of expanded nodes (direct adjacent, not including diagonals)
+    # Can optionally stop once the start node is expanded and assigned a direction
+
+    to_expand = [goal_indices]
+
+    while len(to_expand) > 0:
+        next_node = to_expand.pop()
+        new_nodes = expand_node(distances, solved_maze, maze, next_node, wall_value=wall_value)
+        to_expand += new_nodes
+
+        # break out early if the start has been found
+        if (next_node[0] == start_indices[0]) and (next_node[1] == start_indices[1]):
+            break
+
+    return solved_maze

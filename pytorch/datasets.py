@@ -44,6 +44,32 @@ class MultiPathDataset(data.Dataset):
         return self.ssp_inputs.shape[0]
 
 
+class MazeDataset(data.Dataset):
+
+    def __init__(self, maze_ssp, loc_ssps, goal_ssps, locs, goals, direction_outputs):
+
+        # self.maze_ssp = maze_ssp.astype(np.float32)
+        # NOTE: this is currently assuming only one fixed maze
+        self.maze_ssp = np.zeros((loc_ssps.shape[0], maze_ssp.shape[0])).astype(np.float32)
+        for i in range(loc_ssps.shape[0]):
+            self.maze_ssp[i, :] = maze_ssp
+        self.loc_ssps = loc_ssps.astype(np.float32)
+        self.goal_ssps = goal_ssps.astype(np.float32)
+        self.locs = locs.astype(np.float32)
+        self.goals = goals.astype(np.float32)
+        self.direction_outputs = direction_outputs.astype(np.float32)
+
+        # Concatenate input
+        self.combined_input = np.hstack([self.maze_ssp, self.loc_ssps, self.goal_ssps])
+
+    def __getitem__(self, index):
+        # return self.maze_ssp, self.loc_ssps[index], self.goal_ssps[index], self.direction_outputs[index], self.locs[index], self.goals[index]
+        return self.combined_input[index], self.direction_outputs[index], self.locs[index], self.goals[index]
+
+    def __len__(self):
+        return self.goals.shape[0]
+
+
 class GenericDataset(data.Dataset):
 
     def __init__(self, inputs, outputs):
