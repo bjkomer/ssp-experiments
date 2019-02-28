@@ -47,7 +47,7 @@ x_axis_sp = make_good_unitary(dim=args.dim, rng=rng)
 y_axis_sp = make_good_unitary(dim=args.dim, rng=rng)
 
 np.random.seed(args.seed)
-torch.manual_seed(args.seed)
+# torch.manual_seed(args.seed)
 
 xs = np.linspace(args.limit_low, args.limit_high, args.res)
 ys = np.linspace(args.limit_low, args.limit_high, args.res)
