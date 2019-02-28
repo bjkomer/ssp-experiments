@@ -110,7 +110,6 @@ def expand_node(distances, solved_maze, maze, node, wall_value=1000):
 
     # Generate list of indices for all nodes around the current node
     # NOTE: shouldn't need a bounds check since the edge of all mazes is walls
-
     dist_sorted_indices = np.dstack(np.unravel_index(np.argsort(distances.ravel()), distances.shape))
 
     checks = [
@@ -125,32 +124,42 @@ def expand_node(distances, solved_maze, maze, node, wall_value=1000):
     for c in checks:
         x, y, value = c
         if (0 <= x < distances.shape[0]) and (0 <= y < distances.shape[1]):
-            if distances[x, y] != wall_value and (distances[x, y] == -1 or distances[x, y] > value):
+            if distances[x, y] != 2*wall_value and (distances[x, y] == -1 or distances[x, y] > value):
                 new_nodes.append((x, y))
                 # space is free, now find the shortest distance to get here
                 # attempt to draw a line to the closest nodes to the goal
                 for i in range(dist_sorted_indices.shape[0]):
                     # attempt to draw line
 
-                    rr, cc = line(x, y, dist_sorted_indices[i][0], dist_sorted_indices[i][1])
+                    # print(x)
+                    # print(dist_sorted_indices[i][0])
+                    # print(dist_sorted_indices[i])
+                    # print(dist_sorted_indices)
+                    # print(dist_sorted_indices.shape)
+                    # rr, cc = line(int(x), int(y), int(dist_sorted_indices[0][i][0]), int(dist_sorted_indices[0][i][1]))
+                    rr, cc = line(int(x), int(y), int(dist_sorted_indices[0, i, 0]), int(dist_sorted_indices[0, i, 1]))
 
-                    if len(rr) > 2:
-                        if np.all(distances[rr[1:-1], cc[1:-1]] <= wall_value):
-                            connectivity_matrix[i, j] = dist / zoom_level
-                            connectivity_matrix[j, i] = dist / zoom_level
-                    else:
-                        if np.all(distances[rr, cc] <= wall_value):
-                            connectivity_matrix[i, j] = dist / zoom_level
-                            connectivity_matrix[j, i] = dist / zoom_level
-                    
-                    if True:
-                        distances[x, y] = value
+                    if ((len(rr) > 2) and np.all(distances[rr[1:-1], cc[1:-1]] <= 2*wall_value)) or np.all(distances[rr, cc] <= 2*wall_value):
+
+                        # x_best = dist_sorted_indices[0][i][0]
+                        # y_best = dist_sorted_indices[0][i][1]
+                        x_best = dist_sorted_indices[0, i, 0]
+                        y_best = dist_sorted_indices[0, i, 1]
+                        # TODO: should there be a version that uses the displacement vector rather than normalizing direction?
+                        direction = np.array([x_best - x, y_best - y]).astype(np.float32)
+                        direction /= np.linalg.norm(direction)
+                        distance = np.sqrt((x_best - x)**2 + (y_best - y)**2)
+
+                        # distance to the best node + the distance from the best node to the goal
+                        distances[x, y] = distance + distances[x_best, y_best]
+                        # direction to the best node
                         solved_maze[x, y, :] = direction
+                        # print(direction)
                         break
-                # assert(distances[dist_sorted_indices[i, :]] < wall_value)
+                assert(distances[dist_sorted_indices[0, i, 0], dist_sorted_indices[0, i, 1]] < wall_value)
 
+    return new_nodes, distances, solved_maze
 
-    return new_nodes
 
 # TODO: make some tests and visualizations to make sure this function is doing the correct thing
 def solve_maze(maze, start_indices, goal_indices, wall_value=1000):
@@ -163,7 +172,7 @@ def solve_maze(maze, start_indices, goal_indices, wall_value=1000):
     # both unknown and wall are set to high values so sorting by distance can work correctly
     distances = wall_value * np.ones((maze.shape[0], maze.shape[1]))
 
-    distances[goal_indices] = 0
+    distances[goal_indices[0], goal_indices[1]] = 0
 
     distances += wall_value * maze
 
@@ -182,7 +191,13 @@ def solve_maze(maze, start_indices, goal_indices, wall_value=1000):
 
     while len(to_expand) > 0:
         next_node = to_expand.pop()
-        new_nodes = expand_node(distances, solved_maze, maze, next_node, wall_value=wall_value)
+        new_nodes, distances, solved_maze = expand_node(
+            distances=distances,
+            solved_maze=solved_maze,
+            maze=maze,
+            node=next_node,
+            wall_value=wall_value
+        )
         to_expand += new_nodes
 
         # break out early if the start has been found
@@ -190,3 +205,32 @@ def solve_maze(maze, start_indices, goal_indices, wall_value=1000):
             break
 
     return solved_maze
+
+
+if __name__ == '__main__':
+    # Run some tests
+    maze = np.array([
+        [1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 1, 0, 1, 0, 1],
+        [1, 0, 0, 1, 0, 0, 0, 1],
+        [1, 1, 1, 1, 0, 0, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1],
+    ])
+    solved_maze = solve_maze(maze=maze, start_indices=np.array([1, 1]), goal_indices=np.array([6, 6]))
+
+    directions = np.zeros((maze.shape[0]*maze.shape[1], 2))
+    locs = np.zeros((maze.shape[0]*maze.shape[1], 2))
+
+    for i in range(maze.shape[0]):
+        for j in range(maze.shape[1]):
+            directions[i*maze.shape[1] + j, :] = solved_maze[i, j, :]
+            locs[i * maze.shape[1] + j, :] = np.array([i, j])
+
+    fig_truth = plot_path_predictions(
+        directions=directions, coords=locs,
+    )
+    # print(solved_maze)
+    plt.show()

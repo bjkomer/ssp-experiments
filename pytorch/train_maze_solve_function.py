@@ -10,6 +10,7 @@ from spatial_semantic_pointers.utils import make_good_unitary, encode_point
 from path_utils import plot_path_predictions, generate_maze_sp, solve_maze
 from models import FeedForward
 from datasets import MazeDataset
+import nengo.spa as spa
 
 parser = argparse.ArgumentParser(
     'Train a function that given a maze and a goal location, computes the direction to move to get to that goal'
@@ -31,6 +32,8 @@ parser.add_argument('--limit-high', type=float, default=5, help='highest coordin
 parser.add_argument('--logdir', type=str, default='maze_solve_function',
                     help='Directory for saved model and tensorboard log')
 parser.add_argument('--load-saved-model', type=str, default='', help='Saved model to load from')
+parser.add_argument('--save-generated-data', action='store_true',
+                    help='Save train/test/vis data so it does not need to be regenerated')
 
 args = parser.parse_args()
 
@@ -90,91 +93,142 @@ test_goal_indices = np.random.randint(low=0, high=n_free_spaces, size=args.n_tes
 
 # Visualization
 viz_locs = np.zeros((args.n_test_samples, 2))
-viz_goals = np.zeros((args.n_test__samples, 2))
-viz_loc_sps = np.zeros((args.n_test__samples, args.dim))
-viz_goal_sps = np.zeros((args.n_test__samples, args.dim))
+viz_goals = np.zeros((args.n_test_samples, 2))
+viz_loc_sps = np.zeros((args.n_test_samples, args.dim))
+viz_goal_sps = np.zeros((args.n_test_samples, args.dim))
 viz_output_dirs = np.zeros((args.n_test_samples, 2))
 
 viz_current_loc_indices = np.random.randint(low=0, high=n_free_spaces, size=args.n_test_samples)
-viz_goal_index = np.random.randint(low=0, high=n_free_spaces, size=1)
-
+viz_goal_index = np.random.randint(low=0, high=n_free_spaces)
+viz_goal_index = free_spaces[viz_goal_index, :]
 
 # TODO: since optimal paths are expensive to generate, save the data and load it if it already exists
+data_fname = os.path.join(
+    args.logdir, 'data_seed{}_dim{}_ntrain{}_ntest{}.npz'.format(
+        args.seed, args.dim, args.n_train_samples, args.n_test_samples
+    )
+)
+if os.path.isfile(data_fname):
+    data = np.load(data_fname)
+    maze_ssp = spa.SemanticPointer(data['maze_ssp'])
+    train_loc_ssps = data['train_loc_ssps']
+    train_goal_ssps = data['train_goal_ssps']
+    train_locs = data['train_locs']
+    train_goals = data['train_goals']
+    train_output_dirs = data['train_output_dirs']
+    test_loc_ssps = data['test_loc_ssps']
+    test_goal_ssps = data['test_goal_ssps']
+    test_locs = data['test_locs']
+    test_goals = data['test_goals']
+    test_output_dirs = data['test_output_dirs']
+    viz_loc_ssps = data['viz_loc_ssps']
+    viz_goal_ssps = data['viz_goal_ssps']
+    viz_locs = data['viz_locs']
+    viz_goals = data['viz_goals']
+    viz_output_dirs = data['viz_output_dirs']
+else:
 
-for n in range(args.n_train_samples):
-    # 2D coordinate of the goal
-    goal_index = free_spaces[train_goal_indices[n], :]
-    goal_x = xs[goal_index[0]]
-    goal_y = ys[goal_index[1]]
+    for n in range(args.n_train_samples):
+        print("Train Sample {} of {}".format(n+1, args.n_train_samples))
+        # 2D coordinate of the goal
+        goal_index = free_spaces[train_goal_indices[n], :]
+        goal_x = xs[goal_index[0]]
+        goal_y = ys[goal_index[1]]
 
-    # 2D coordinate of the agent's current location
-    loc_index = free_spaces[train_current_loc_indices[n], :]
-    loc_x = xs[loc_index[0]]
-    loc_y = ys[loc_index[1]]
+        # 2D coordinate of the agent's current location
+        loc_index = free_spaces[train_current_loc_indices[n], :]
+        loc_x = xs[loc_index[0]]
+        loc_y = ys[loc_index[1]]
 
-    # Compute the optimal path given this goal
-    solved_maze = solve_maze(fine_maze, start_indices=loc_index, goal_indices=goal_index)
+        # Compute the optimal path given this goal
+        solved_maze = solve_maze(fine_maze, start_indices=loc_index, goal_indices=goal_index)
 
-    train_locs[n, 0] = loc_x
-    train_locs[n, 1] = loc_y
-    train_goals[n, 0] = goal_x
-    train_goals[n, 1] = goal_y
-    train_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
-    train_goal_sps[n, :] = encode_point(goal_x, goal_y, x_axis_sp, y_axis_sp).v
+        train_locs[n, 0] = loc_x
+        train_locs[n, 1] = loc_y
+        train_goals[n, 0] = goal_x
+        train_goals[n, 1] = goal_y
+        train_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
+        train_goal_sps[n, :] = encode_point(goal_x, goal_y, x_axis_sp, y_axis_sp).v
 
-    train_output_dirs[n, :] = solved_maze[loc_index[0], loc_index[1], :]
+        train_output_dirs[n, :] = solved_maze[loc_index[0], loc_index[1], :]
 
-for n in range(args.n_test_samples):
-    # 2D coordinate of the goal
-    goal_index = free_spaces[test_goal_indices[n], :]
-    goal_x = xs[goal_index[0]]
-    goal_y = ys[goal_index[1]]
+    for n in range(args.n_test_samples):
+        print("Test Sample {} of {}".format(n+1, args.n_train_samples))
+        # 2D coordinate of the goal
+        goal_index = free_spaces[test_goal_indices[n], :]
+        goal_x = xs[goal_index[0]]
+        goal_y = ys[goal_index[1]]
 
-    # 2D coordinate of the agent's current location
-    loc_index = free_spaces[test_current_loc_indices[n], :]
-    loc_x = xs[loc_index[0]]
-    loc_y = ys[loc_index[1]]
+        # 2D coordinate of the agent's current location
+        loc_index = free_spaces[test_current_loc_indices[n], :]
+        loc_x = xs[loc_index[0]]
+        loc_y = ys[loc_index[1]]
 
-    # Compute the optimal path given this goal
-    solved_maze = solve_maze(fine_maze, start_indices=loc_index, goal_indices=goal_index)
+        # Compute the optimal path given this goal
+        solved_maze = solve_maze(fine_maze, start_indices=loc_index, goal_indices=goal_index)
 
-    test_locs[n, 0] = loc_x
-    test_locs[n, 1] = loc_y
-    test_goals[n, 0] = goal_x
-    test_goals[n, 1] = goal_y
-    test_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
-    test_goal_sps[n, :] = encode_point(goal_x, goal_y, x_axis_sp, y_axis_sp).v
+        test_locs[n, 0] = loc_x
+        test_locs[n, 1] = loc_y
+        test_goals[n, 0] = goal_x
+        test_goals[n, 1] = goal_y
+        test_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
+        test_goal_sps[n, :] = encode_point(goal_x, goal_y, x_axis_sp, y_axis_sp).v
 
-    test_output_dirs[n, :] = solved_maze[loc_index[0], loc_index[1], :]
+        test_output_dirs[n, :] = solved_maze[loc_index[0], loc_index[1], :]
 
-# Note: for ease of plotting for testing, would be helpful to just have a single or few goals
-#       because of this a separate 'visualization' set will be used
-for n in range(args.n_test_samples):
-    # 2D coordinate of the goal
-    goal_x = xs[viz_goal_index[0]]
-    goal_y = ys[viz_goal_index[1]]
+    # Note: for ease of plotting for testing, would be helpful to just have a single or few goals
+    #       because of this a separate 'visualization' set will be used
+    for n in range(args.n_test_samples):
+        print("Viz Sample {} of {}".format(n+1, args.n_train_samples))
+        # 2D coordinate of the goal
+        goal_x = xs[viz_goal_index[0]]
+        goal_y = ys[viz_goal_index[1]]
 
-    # 2D coordinate of the agent's current location
-    loc_index = free_spaces[viz_current_loc_indices[n], :]
-    loc_x = xs[loc_index[0]]
-    loc_y = ys[loc_index[1]]
+        # 2D coordinate of the agent's current location
+        loc_index = free_spaces[viz_current_loc_indices[n], :]
+        loc_x = xs[loc_index[0]]
+        loc_y = ys[loc_index[1]]
 
-    # Compute the optimal path given this goal
-    solved_maze = solve_maze(fine_maze, start_indices=loc_index, goal_indices=viz_goal_index)
+        # Compute the optimal path given this goal
+        solved_maze = solve_maze(fine_maze, start_indices=loc_index, goal_indices=viz_goal_index)
 
-    viz_locs[n, 0] = loc_x
-    viz_locs[n, 1] = loc_y
-    viz_goals[n, 0] = goal_x
-    viz_goals[n, 1] = goal_y
-    viz_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
-    viz_goal_sps[n, :] = encode_point(goal_x, goal_y, x_axis_sp, y_axis_sp).v
+        viz_locs[n, 0] = loc_x
+        viz_locs[n, 1] = loc_y
+        viz_goals[n, 0] = goal_x
+        viz_goals[n, 1] = goal_y
+        viz_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
+        viz_goal_sps[n, :] = encode_point(goal_x, goal_y, x_axis_sp, y_axis_sp).v
 
-    viz_output_dirs[n, :] = solved_maze[loc_index[0], loc_index[1], :]
+        viz_output_dirs[n, :] = solved_maze[loc_index[0], loc_index[1], :]
+
+    if not os.path.exists(args.logdir):
+        os.makedirs(args.logdir)
+
+    if args.save_generated_data:
+        np.savez(
+            data_fname,
+            maze_ssp=maze_ssp.v,
+            train_loc_ssps=train_loc_sps,
+            train_goal_ssps=train_goal_sps,
+            train_locs=train_locs,
+            train_goals=train_goals,
+            train_output_dirs=train_output_dirs,
+            test_loc_ssps=train_loc_sps,
+            test_goal_ssps=train_goal_sps,
+            test_locs=train_locs,
+            test_goals=train_goals,
+            test_output_dirs=train_output_dirs,
+            viz_loc_ssps=train_loc_sps,
+            viz_goal_ssps=train_goal_sps,
+            viz_locs=train_locs,
+            viz_goals=train_goals,
+            viz_output_dirs=train_output_dirs,
+        )
 
 
 #TODO fix to correct datasets
 dataset_train = MazeDataset(
-    maze_ssp=maze_ssp,
+    maze_ssp=maze_ssp.v,
     loc_ssps=train_loc_sps,
     goal_ssps=train_goal_sps,
     locs=train_locs,
@@ -182,7 +236,7 @@ dataset_train = MazeDataset(
     direction_outputs=train_output_dirs,
 )
 dataset_test = MazeDataset(
-    maze_ssp=maze_ssp,
+    maze_ssp=maze_ssp.v,
     loc_ssps=test_loc_sps,
     goal_ssps=test_goal_sps,
     locs=test_locs,
@@ -190,7 +244,7 @@ dataset_test = MazeDataset(
     direction_outputs=test_output_dirs,
 )
 dataset_viz = MazeDataset(
-    maze_ssp=maze_ssp,
+    maze_ssp=maze_ssp.v,
     loc_ssps=viz_loc_sps,
     goal_ssps=viz_goal_sps,
     locs=viz_locs,
@@ -256,6 +310,7 @@ for e in range(args.epochs):
     if args.logdir != '':
         if n_batches > 0:
             avg_loss /= n_batches
+            print(avg_loss)
             writer.add_scalar('avg_loss', avg_loss, e + 1)
 
         if args.weight_histogram and (e + 1) % 10 == 0:
