@@ -47,27 +47,33 @@ def path_function(coord, path, xs, ys):
     return dir_to_vec(path[ind_x, ind_y])
 
 
-def plot_path_predictions(directions, coords, name='', min_val=-1, max_val=1):
+def plot_path_predictions(directions, coords, name='', min_val=-1, max_val=1, type='quiver', dcell=1):
     """
     plot direction predictions by colouring based on direction, and putting the dot at the coord
     both directions and coords are (n_samples, 2) vectors
+    dcell: distance between two neighboring cells, used for scaling arrors on a quiver plot
     """
     fig, ax = plt.subplots()
 
-    for n in range(directions.shape[0]):
-        x = coords[n, 0]
-        y = coords[n, 1]
+    if type == 'quiver':
+        ax.quiver(coords[:, 0], coords[:, 1], directions[:, 0], directions[:, 1], scale=1./dcell, units='xy')
+    elif type == 'colour':
+        for n in range(directions.shape[0]):
+            x = coords[n, 0]
+            y = coords[n, 1]
 
-        # Note: this clipping shouldn't be necessary
-        xa = np.clip(directions[n, 0], min_val, max_val)
-        ya = np.clip(directions[n, 1], min_val, max_val)
+            # Note: this clipping shouldn't be necessary
+            xa = np.clip(directions[n, 0], min_val, max_val)
+            ya = np.clip(directions[n, 1], min_val, max_val)
 
-        r = float(((xa - min_val) / (max_val - min_val)))
-        # g = float(((ya - min_val) / (max_val - min_val)))
-        b = float(((ya - min_val) / (max_val - min_val)))
+            r = float(((xa - min_val) / (max_val - min_val)))
+            # g = float(((ya - min_val) / (max_val - min_val)))
+            b = float(((ya - min_val) / (max_val - min_val)))
 
-        # ax.scatter(x, y, color=(r, g, 0))
-        ax.scatter(x, y, color=(r, 0, b))
+            # ax.scatter(x, y, color=(r, g, 0))
+            ax.scatter(x, y, color=(r, 0, b))
+    else:
+        raise NotImplementedError
 
     if name:
         fig.suptitle(name)
@@ -159,7 +165,7 @@ def expand_node(distances, solved_maze, maze, node, wall_value=1000):
                         break
                 assert(distances[dist_sorted_indices[0, i, 0], dist_sorted_indices[0, i, 1]] < wall_value)
 
-    return new_nodes, distances, solved_maze
+    return new_nodes
 
 
 # TODO: make some tests and visualizations to make sure this function is doing the correct thing
@@ -192,7 +198,7 @@ def solve_maze(maze, start_indices, goal_indices, full_solve=False, wall_value=1
 
     while len(to_expand) > 0:
         next_node = to_expand.pop()
-        new_nodes, distances, solved_maze = expand_node(
+        new_nodes = expand_node(
             distances=distances,
             solved_maze=solved_maze,
             maze=maze,
@@ -209,8 +215,7 @@ def solve_maze(maze, start_indices, goal_indices, full_solve=False, wall_value=1
     return solved_maze
 
 
-if __name__ == '__main__':
-    # Run some tests
+def test_solve_maze():
     maze = np.array([
         [1, 1, 1, 1, 1, 1, 1, 1],
         [1, 0, 0, 0, 0, 0, 0, 1],
@@ -247,7 +252,42 @@ if __name__ == '__main__':
     #     directions=directions, coords=locs,
     # )
     fig, ax = plt.subplots()
-    q = ax.quiver(locs[:, 0], locs[:, 1], directions[:, 0], directions[:, 1], scale=10)
+    q = ax.quiver(locs[:, 0], locs[:, 1], directions[:, 0], directions[:, 1], scale=2, units='xy')
     # ax.quiverkey(q, X=0.3, Y=1.1, U=1, label='')
     # print(solved_maze)
     plt.show()
+
+
+def test_generate_maze_sp(size=10, limit_low=-5, limit_high=5, res=64, dim=512, seed=13):
+    from spatial_semantic_pointers.utils import make_good_unitary, get_heatmap_vectors
+    from spatial_semantic_pointers.plots import plot_heatmap
+
+    rng = np.random.RandomState(seed=seed)
+
+    x_axis_sp = make_good_unitary(dim=dim, rng=rng)
+    y_axis_sp = make_good_unitary(dim=dim, rng=rng)
+
+    xs = np.linspace(limit_low, limit_high, res)
+    ys = np.linspace(limit_low, limit_high, res)
+
+    sp, maze, fine_maze = generate_maze_sp(
+        size, xs, ys, x_axis_sp, y_axis_sp, normalize=True, obstacle_ratio=.2, map_style='blocks'
+    )
+
+    fig, ax = plt.subplots(1, 4)
+
+    ax[0].imshow(maze)
+    ax[1].imshow(fine_maze)
+    heatmap_vectors = get_heatmap_vectors(xs, ys, x_axis_sp, y_axis_sp)
+    plot_heatmap(sp.v, heatmap_vectors, ax[2], xs, ys, name='', vmin=-1, vmax=1, cmap='plasma', invert=True)
+    plot_heatmap(sp.v, heatmap_vectors, ax[3], xs, ys, name='', vmin=None, vmax=None, cmap='plasma', invert=True)
+
+    plt.show()
+
+
+if __name__ == '__main__':
+    # Run some tests
+    # test_solve_maze()
+    test_generate_maze_sp(dim=512, seed=13, res=256)
+    # test_generate_maze_sp(dim=2048, seed=13)
+

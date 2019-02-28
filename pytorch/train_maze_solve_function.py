@@ -346,13 +346,23 @@ with torch.no_grad():
 
     if args.logdir != '':
         fig_pred = plot_path_predictions(
-            directions=outputs, coords=locs,
+            directions=outputs, coords=locs, type='colour'
         )
         writer.add_figure('viz set predictions', fig_pred)
         fig_truth = plot_path_predictions(
-            directions=directions, coords=locs,
+            directions=directions, coords=locs, type='colour'
         )
         writer.add_figure('ground truth', fig_truth)
+
+        fig_pred_quiver = plot_path_predictions(
+            directions=outputs, coords=locs, dcell=xs[1] - xs[0]
+        )
+        writer.add_figure('viz set predictions quiver', fig_pred_quiver)
+        fig_truth_quiver = plot_path_predictions(
+            directions=directions, coords=locs, dcell=xs[1] - xs[0]
+        )
+        writer.add_figure('ground truth quiver', fig_truth_quiver)
+
         writer.add_scalar('viz_loss', loss.data.item())
 
 # Close tensorboard writer
