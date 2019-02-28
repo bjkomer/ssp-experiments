@@ -128,7 +128,7 @@ def expand_node(distances, solved_maze, maze, node, wall_value=1000):
                 new_nodes.append((x, y))
                 # space is free, now find the shortest distance to get here
                 # attempt to draw a line to the closest nodes to the goal
-                for i in range(dist_sorted_indices.shape[0]):
+                for i in range(dist_sorted_indices.shape[1]):  # note that the first dimension has shape 1, using 2nd
                     # attempt to draw line
 
                     # print(x)
@@ -139,8 +139,9 @@ def expand_node(distances, solved_maze, maze, node, wall_value=1000):
                     # rr, cc = line(int(x), int(y), int(dist_sorted_indices[0][i][0]), int(dist_sorted_indices[0][i][1]))
                     rr, cc = line(int(x), int(y), int(dist_sorted_indices[0, i, 0]), int(dist_sorted_indices[0, i, 1]))
 
-                    if ((len(rr) > 2) and np.all(distances[rr[1:-1], cc[1:-1]] <= 2*wall_value)) or np.all(distances[rr, cc] <= 2*wall_value):
+                    if ((len(rr) > 2) and np.all(distances[rr[1:-1], cc[1:-1]] < 2*wall_value)) or np.all(distances[rr, cc] < 2*wall_value):
 
+                        # print("found a connection to sorted index {}".format(i))
                         # x_best = dist_sorted_indices[0][i][0]
                         # y_best = dist_sorted_indices[0][i][1]
                         x_best = dist_sorted_indices[0, i, 0]
@@ -162,7 +163,7 @@ def expand_node(distances, solved_maze, maze, node, wall_value=1000):
 
 
 # TODO: make some tests and visualizations to make sure this function is doing the correct thing
-def solve_maze(maze, start_indices, goal_indices, wall_value=1000):
+def solve_maze(maze, start_indices, goal_indices, full_solve=False, wall_value=1000):
 
     # Direction to move for each cell in the maze
     solved_maze = np.zeros((maze.shape[0], maze.shape[1], 2))
@@ -199,9 +200,10 @@ def solve_maze(maze, start_indices, goal_indices, wall_value=1000):
             wall_value=wall_value
         )
         to_expand += new_nodes
-
+        # print(np.round(distances).astype(np.int32))
+        # print("")
         # break out early if the start has been found
-        if (next_node[0] == start_indices[0]) and (next_node[1] == start_indices[1]):
+        if not full_solve and (next_node[0] == start_indices[0]) and (next_node[1] == start_indices[1]):
             break
 
     return solved_maze
@@ -219,7 +221,19 @@ if __name__ == '__main__':
         [1, 0, 0, 0, 0, 0, 0, 1],
         [1, 1, 1, 1, 1, 1, 1, 1],
     ])
-    solved_maze = solve_maze(maze=maze, start_indices=np.array([1, 1]), goal_indices=np.array([6, 6]))
+    maze = np.array([
+        [1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 1, 1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1],
+    ])
+    # solved_maze = solve_maze(maze=maze, start_indices=np.array([1, 1]), goal_indices=np.array([6, 6]))
+    # solved_maze = solve_maze(maze=maze, start_indices=np.array([1, 1]), goal_indices=np.array([4, 4]), full_solve=True)
+    solved_maze = solve_maze(maze=maze, start_indices=np.array([1, 1]), goal_indices=np.array([6, 1]), full_solve=True)
 
     directions = np.zeros((maze.shape[0]*maze.shape[1], 2))
     locs = np.zeros((maze.shape[0]*maze.shape[1], 2))
@@ -229,8 +243,11 @@ if __name__ == '__main__':
             directions[i*maze.shape[1] + j, :] = solved_maze[i, j, :]
             locs[i * maze.shape[1] + j, :] = np.array([i, j])
 
-    fig_truth = plot_path_predictions(
-        directions=directions, coords=locs,
-    )
+    # fig_truth = plot_path_predictions(
+    #     directions=directions, coords=locs,
+    # )
+    fig, ax = plt.subplots()
+    q = ax.quiver(locs[:, 0], locs[:, 1], directions[:, 0], directions[:, 1], scale=10)
+    # ax.quiverkey(q, X=0.3, Y=1.1, U=1, label='')
     # print(solved_maze)
     plt.show()
