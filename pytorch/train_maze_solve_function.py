@@ -104,25 +104,27 @@ viz_goal_index = free_spaces[viz_goal_index, :]
 
 # TODO: since optimal paths are expensive to generate, save the data and load it if it already exists
 data_fname = os.path.join(
-    args.logdir, 'data_seed{}_dim{}_ntrain{}_ntest{}.npz'.format(
-        args.seed, args.dim, args.n_train_samples, args.n_test_samples
+    args.logdir, 'debug_data_seed{}_dim{}_res{}_ntrain{}_ntest{}.npz'.format(
+        args.seed, args.dim, args.res, args.n_train_samples, args.n_test_samples
     )
 )
 if os.path.isfile(data_fname):
     data = np.load(data_fname)
-    maze_ssp = spa.SemanticPointer(data['maze_ssp'])
-    train_loc_ssps = data['train_loc_ssps']
-    train_goal_ssps = data['train_goal_ssps']
+    maze_ssp = spa.SemanticPointer(data=data['maze_ssp'])
+    x_axis_sp = spa.SemanticPointer(data=data['x_axis_sp'])
+    y_axis_sp = spa.SemanticPointer(data=data['y_axis_sp'])
+    train_loc_sps = data['train_loc_ssps']
+    train_goal_sps = data['train_goal_ssps']
     train_locs = data['train_locs']
     train_goals = data['train_goals']
     train_output_dirs = data['train_output_dirs']
-    test_loc_ssps = data['test_loc_ssps']
-    test_goal_ssps = data['test_goal_ssps']
+    test_loc_sps = data['test_loc_ssps']
+    test_goal_sps = data['test_goal_ssps']
     test_locs = data['test_locs']
     test_goals = data['test_goals']
     test_output_dirs = data['test_output_dirs']
-    viz_loc_ssps = data['viz_loc_ssps']
-    viz_goal_ssps = data['viz_goal_ssps']
+    viz_loc_sps = data['viz_loc_ssps']
+    viz_goal_sps = data['viz_goal_ssps']
     viz_locs = data['viz_locs']
     viz_goals = data['viz_goals']
     viz_output_dirs = data['viz_output_dirs']
@@ -153,7 +155,7 @@ else:
         train_output_dirs[n, :] = solved_maze[loc_index[0], loc_index[1], :]
 
     for n in range(args.n_test_samples):
-        print("Test Sample {} of {}".format(n+1, args.n_train_samples))
+        print("Test Sample {} of {}".format(n+1, args.n_test_samples))
         # 2D coordinate of the goal
         goal_index = free_spaces[test_goal_indices[n], :]
         goal_x = xs[goal_index[0]]
@@ -179,7 +181,7 @@ else:
     # Note: for ease of plotting for testing, would be helpful to just have a single or few goals
     #       because of this a separate 'visualization' set will be used
     for n in range(args.n_test_samples):
-        print("Viz Sample {} of {}".format(n+1, args.n_train_samples))
+        print("Viz Sample {} of {}".format(n+1, args.n_test_samples))
         # 2D coordinate of the goal
         goal_x = xs[viz_goal_index[0]]
         goal_y = ys[viz_goal_index[1]]
@@ -208,6 +210,8 @@ else:
         np.savez(
             data_fname,
             maze_ssp=maze_ssp.v,
+            x_axis_sp=x_axis_sp.v,
+            y_axis_sp=y_axis_sp.v,
             train_loc_ssps=train_loc_sps,
             train_goal_ssps=train_goal_sps,
             train_locs=train_locs,
@@ -225,6 +229,10 @@ else:
             viz_output_dirs=viz_output_dirs,
         )
 
+
+# Reset seeds here after generating data
+torch.manual_seed(args.seed)
+np.random.seed(args.seed)
 
 #TODO fix to correct datasets
 dataset_train = MazeDataset(
