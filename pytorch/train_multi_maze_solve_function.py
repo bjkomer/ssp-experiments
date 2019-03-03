@@ -8,7 +8,7 @@ from tensorboardX import SummaryWriter
 from datetime import datetime
 from spatial_semantic_pointers.utils import make_good_unitary, encode_point
 from path_utils import plot_path_predictions, generate_maze_sp, solve_maze
-from models import FeedForward
+from models import FeedForward, MLP
 from datasets import MazeDataset
 import nengo.spa as spa
 
@@ -17,10 +17,14 @@ parser = argparse.ArgumentParser(
 )
 
 parser.add_argument('--epochs', type=int, default=50, help='Number of epochs to train for')
+parser.add_argument('--epoch-offset', type=int, default=0,
+                    help='Optional offset to start epochs counting from. To be used when continuing training')
 parser.add_argument('--seed', type=int, default=13, help='Seed for training and generating axis SSPs')
 parser.add_argument('--dim', type=int, default=512, help='Dimensionality of the SSPs')
 parser.add_argument('--n-train-samples', type=int, default=1000, help='Number of training samples')
 parser.add_argument('--n-test-samples', type=int, default=1000, help='Number of testing samples')
+parser.add_argument('--hidden-size', type=int, default=512, help='Size of the hidden layer in the model')
+parser.add_argument('--n-hidden-layers', type=int, default=1, help='Number of hidden layers in the model')
 parser.add_argument('--batch-size', type=int, default=32)
 parser.add_argument('--lr', type=float, default=0.001)
 parser.add_argument('--weight-histogram', action='store_true', help='Save histogram of the weights')
@@ -207,7 +211,7 @@ dataset_train = MazeDataset(
     direction_outputs=train_output_dirs,
 )
 dataset_test = MazeDataset(
-    maze_ssp=test_mazez_sps,
+    maze_ssp=test_maze_sps,
     loc_ssps=test_loc_sps,
     goal_ssps=test_goal_sps,
     locs=test_locs,
@@ -237,7 +241,10 @@ vizloader = torch.utils.data.DataLoader(
 )
 
 # input is maze, loc, goal ssps, output is 2D direction to move
-model = FeedForward(input_size=args.dim * 3, output_size=2)
+if args.n_hidden_layers > 1:
+    model = MLP(input_size=args.dim * 3, hidden_size=args.hidden_size, output_size=2, n_layers=args.n_hidden_layers)
+else:
+    model = FeedForward(input_size=args.dim * 3, hidden_size=args.hidden_size, output_size=2)
 
 if args.load_saved_model:
     model.load_state_dict(torch.load(args.load_saved_model), strict=False)
@@ -255,7 +262,7 @@ if args.logdir != '':
 criterion = nn.MSELoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
 
-for e in range(args.epochs):
+for e in range(args.epoch_offset, args.epochs + args.epoch_offset):
     print('Epoch: {0}'.format(e + 1))
 
     avg_loss = 0

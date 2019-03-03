@@ -24,3 +24,33 @@ class FeedForward(nn.Module):
         prediction = self.output_layer(features)
 
         return prediction
+
+
+class MLP(nn.Module):
+    """
+    Multi-layer feed-forward model
+    """
+
+    def __init__(self, input_size=512, hidden_size=512, output_size=512, n_layers=2):
+        super(MLP, self).__init__()
+
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.output_size = output_size
+        self.n_layers = n_layers
+
+        self.inner_layers = []
+
+        self.input_layer = nn.Linear(self.input_size, self.hidden_size)
+        for i in range(self.n_layers - 1):
+            self.inner_layers.append(nn.Linear(self.hidden_size, self.hidden_size))
+        self.output_layer = nn.Linear(self.hidden_size, self.output_size)
+
+    def forward(self, inputs):
+
+        features = F.relu(self.input_layer(inputs))
+        for i in range(self.n_layers - 1):
+            features = F.relu(self.inner_layers[i](features))
+        prediction = self.output_layer(features)
+
+        return prediction
