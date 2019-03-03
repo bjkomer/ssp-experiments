@@ -38,6 +38,7 @@ ys = np.linspace(args.limit_low, args.limit_high, args.res)
 coarse_mazes = np.zeros((args.n_mazes, args.maze_size, args.maze_size))
 fine_mazes = np.zeros((args.n_mazes, args.res, args.res))
 solved_mazes = np.zeros((args.n_mazes, args.n_goals, args.res, args.res, 2))
+maze_sps = np.zeros((args.n_mazes, args.dim))
 
 # locs = np.zeros((args.n_mazes, args.n_goals, 2))
 goals = np.zeros((args.n_mazes, args.n_goals, 2))
@@ -56,6 +57,8 @@ for mi in range(args.n_mazes):
         obstacle_ratio=.2,
         map_style='blocks'
     )
+
+    maze_sps[mi, :] = maze_ssp.v
 
     # Get a list of possible goal locations to choose (will correspond to all free spaces in the coarse maze)
     # free_spaces = np.argwhere(coarse_maze == 0)
@@ -90,8 +93,11 @@ np.savez(
     coarse_mazes=coarse_mazes,
     fine_mazes=fine_mazes,
     solved_mazes=solved_mazes,
+    maze_sps=maze_sps,
     x_axis_sp=x_axis_sp.v,
     y_axis_sp=y_axis_sp.v,
     goal_sps=goal_sps,
     goals=goals,
+    xs=xs,
+    ys=ys,
 )

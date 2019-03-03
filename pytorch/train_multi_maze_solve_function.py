@@ -29,45 +29,57 @@ parser.add_argument('--maze-size', type=int, default=10, help='Size of the coars
 parser.add_argument('--res', type=int, default=64, help='resolution of the fine maze')
 parser.add_argument('--limit-low', type=float, default=-5, help='lowest coordinate value')
 parser.add_argument('--limit-high', type=float, default=5, help='highest coordinate value')
-parser.add_argument('--logdir', type=str, default='maze_solve_function',
+parser.add_argument('--dataset', type=str, default='maze_datasets/maze_dataset_10mazes_25goals_64res_13seed.npz')
+parser.add_argument('--logdir', type=str, default='multi_maze_solve_function',
                     help='Directory for saved model and tensorboard log')
 parser.add_argument('--load-saved-model', type=str, default='', help='Saved model to load from')
-parser.add_argument('--save-generated-data', action='store_true',
-                    help='Save train/test/vis data so it does not need to be regenerated')
 
 args = parser.parse_args()
 
-
 assert(args.limit_low < args.limit_high)
+
+data = np.load(args.dataset)
 
 rng = np.random.RandomState(seed=args.seed)
 torch.manual_seed(args.seed)
-
-x_axis_sp = make_good_unitary(dim=args.dim, rng=rng)
-y_axis_sp = make_good_unitary(dim=args.dim, rng=rng)
-
 np.random.seed(args.seed)
-# torch.manual_seed(args.seed)
 
-xs = np.linspace(args.limit_low, args.limit_high, args.res)
-ys = np.linspace(args.limit_low, args.limit_high, args.res)
+x_axis_sp = spa.SemanticPointer(data=data['x_axis_sp'])
+y_axis_sp = spa.SemanticPointer(data=data['y_axis_sp'])
 
-# Generate a random maze
-maze_ssp, coarse_maze, fine_maze = generate_maze_sp(
-    size=args.maze_size,
-    xs=xs,
-    ys=ys,
-    x_axis_sp=x_axis_sp,
-    y_axis_sp=y_axis_sp,
-    normalize=True,
-    obstacle_ratio=.2,
-    map_style='blocks'
-)
 
-# Get a list of possible goal locations to choose (will correspond to all free spaces in the coarse maze)
-# free_spaces = np.argwhere(coarse_maze == 0)
-# Get a list of possible goal locations to choose (will correspond to all free spaces in the fine maze)
-free_spaces = np.argwhere(fine_maze == 0)
+# n_mazes by size by size
+coarse_mazes = data['coarse_mazes']
+
+# n_mazes by res by res
+fine_mazes = data['fine_mazes']
+
+# n_mazes by res by res by 2
+solved_mazes = data['solved_mazes']
+
+# n_mazes by dim
+maze_sps = data['maze_sps']
+
+# n_mazes by n_goals by dim
+goal_sps = data['goal_sps']
+
+# n_mazes by n_goals by 2
+goals = data['goals']
+
+n_goals = goals.shape[1]
+
+if 'xs' in data.keys():
+    xs = data['xs']
+    ys = data['ys']
+else:
+    # backwards compatibility
+    xs = np.linspace(args.limit_low, args.limit_high, args.res)
+    ys = np.linspace(args.limit_low, args.limit_high, args.res)
+
+
+
+# Get a list of possible start locations to choose (will correspond to all free spaces in all fine mazes)
+free_spaces = np.argwhere(fine_mazes == 0)
 print(free_spaces.shape)
 n_free_spaces = free_spaces.shape[0]
 
@@ -77,9 +89,9 @@ train_goals = np.zeros((args.n_train_samples, 2))
 train_loc_sps = np.zeros((args.n_train_samples, args.dim))
 train_goal_sps = np.zeros((args.n_train_samples, args.dim))
 train_output_dirs = np.zeros((args.n_train_samples, 2))
+train_maze_sps = np.zeros((args.n_train_samples, args.dim))
 
-train_current_loc_indices = np.random.randint(low=0, high=n_free_spaces, size=args.n_train_samples)
-train_goal_indices = np.random.randint(low=0, high=n_free_spaces, size=args.n_train_samples)
+train_indices = np.random.randint(low=0, high=n_free_spaces, size=args.n_train_samples)
 
 # Testing
 test_locs = np.zeros((args.n_test_samples, 2))
@@ -87,9 +99,9 @@ test_goals = np.zeros((args.n_test_samples, 2))
 test_loc_sps = np.zeros((args.n_test_samples, args.dim))
 test_goal_sps = np.zeros((args.n_test_samples, args.dim))
 test_output_dirs = np.zeros((args.n_test_samples, 2))
+test_maze_sps = np.zeros((args.n_test_samples, args.dim))
 
-test_current_loc_indices = np.random.randint(low=0, high=n_free_spaces, size=args.n_test_samples)
-test_goal_indices = np.random.randint(low=0, high=n_free_spaces, size=args.n_test_samples)
+test_indices = np.random.randint(low=0, high=n_free_spaces, size=args.n_test_samples)
 
 # Visualization
 viz_locs = np.zeros((args.n_test_samples, 2))
@@ -97,137 +109,88 @@ viz_goals = np.zeros((args.n_test_samples, 2))
 viz_loc_sps = np.zeros((args.n_test_samples, args.dim))
 viz_goal_sps = np.zeros((args.n_test_samples, args.dim))
 viz_output_dirs = np.zeros((args.n_test_samples, 2))
+viz_maze_sps = np.zeros((args.n_test_samples, args.dim))
 
-viz_current_loc_indices = np.random.randint(low=0, high=n_free_spaces, size=args.n_test_samples)
-viz_goal_index = np.random.randint(low=0, high=n_free_spaces)
-viz_goal_index = free_spaces[viz_goal_index, :]
+viz_free_spaces = np.argwhere(fine_mazes[0, :, :] == 0)
+print(viz_free_spaces.shape)
+n_viz_free_spaces = viz_free_spaces.shape[0]
+viz_indices = np.random.randint(low=0, high=n_viz_free_spaces, size=args.n_test_samples)
+viz_goal_index = np.random.randint(low=0, high=n_viz_free_spaces)
+viz_goal_index = viz_free_spaces[viz_goal_index, :]
 
-# TODO: since optimal paths are expensive to generate, save the data and load it if it already exists
-data_fname = os.path.join(
-    args.logdir, 'debug_data_seed{}_dim{}_res{}_ntrain{}_ntest{}.npz'.format(
-        args.seed, args.dim, args.res, args.n_train_samples, args.n_test_samples
-    )
-)
-if os.path.isfile(data_fname):
-    data = np.load(data_fname)
-    maze_ssp = spa.SemanticPointer(data=data['maze_ssp'])
-    x_axis_sp = spa.SemanticPointer(data=data['x_axis_sp'])
-    y_axis_sp = spa.SemanticPointer(data=data['y_axis_sp'])
-    train_loc_sps = data['train_loc_ssps']
-    train_goal_sps = data['train_goal_ssps']
-    train_locs = data['train_locs']
-    train_goals = data['train_goals']
-    train_output_dirs = data['train_output_dirs']
-    test_loc_sps = data['test_loc_ssps']
-    test_goal_sps = data['test_goal_ssps']
-    test_locs = data['test_locs']
-    test_goals = data['test_goals']
-    test_output_dirs = data['test_output_dirs']
-    viz_loc_sps = data['viz_loc_ssps']
-    viz_goal_sps = data['viz_goal_ssps']
-    viz_locs = data['viz_locs']
-    viz_goals = data['viz_goals']
-    viz_output_dirs = data['viz_output_dirs']
-else:
 
-    for n in range(args.n_train_samples):
-        print("Train Sample {} of {}".format(n+1, args.n_train_samples))
-        # 2D coordinate of the goal
-        goal_index = free_spaces[train_goal_indices[n], :]
-        goal_x = xs[goal_index[0]]
-        goal_y = ys[goal_index[1]]
+for n in range(args.n_train_samples):
+    print("Train Sample {} of {}".format(n+1, args.n_train_samples))
 
-        # 2D coordinate of the agent's current location
-        loc_index = free_spaces[train_current_loc_indices[n], :]
-        loc_x = xs[loc_index[0]]
-        loc_y = ys[loc_index[1]]
+    # n_mazes by res by res
+    indices = free_spaces[train_indices[n], :]
+    maze_index = indices[0]
+    x_index = indices[1]
+    y_index = indices[2]
+    goal_index = np.random.randint(low=0, high=n_goals)
 
-        # Compute the optimal path given this goal
-        solved_maze = solve_maze(fine_maze, start_indices=loc_index, goal_indices=goal_index)
+    # 2D coordinate of the agent's current location
+    loc_x = xs[x_index]
+    loc_y = ys[y_index]
 
-        train_locs[n, 0] = loc_x
-        train_locs[n, 1] = loc_y
-        train_goals[n, 0] = goal_x
-        train_goals[n, 1] = goal_y
-        train_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
-        train_goal_sps[n, :] = encode_point(goal_x, goal_y, x_axis_sp, y_axis_sp).v
+    train_locs[n, 0] = loc_x
+    train_locs[n, 1] = loc_y
+    train_goals[n, :] = goals[maze_index, goal_index, :]
+    train_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
+    train_goal_sps[n, :] = goal_sps[maze_index, goal_index, :]
 
-        train_output_dirs[n, :] = solved_maze[loc_index[0], loc_index[1], :]
+    train_output_dirs[n, :] = solved_mazes[maze_index, goal_index, x_index, y_index, :]
 
-    for n in range(args.n_test_samples):
-        print("Test Sample {} of {}".format(n+1, args.n_test_samples))
-        # 2D coordinate of the goal
-        goal_index = free_spaces[test_goal_indices[n], :]
-        goal_x = xs[goal_index[0]]
-        goal_y = ys[goal_index[1]]
+    train_maze_sps[n, :] = maze_sps[maze_index]
 
-        # 2D coordinate of the agent's current location
-        loc_index = free_spaces[test_current_loc_indices[n], :]
-        loc_x = xs[loc_index[0]]
-        loc_y = ys[loc_index[1]]
+for n in range(args.n_test_samples):
+    print("Test Sample {} of {}".format(n+1, args.n_test_samples))
+    # n_mazes by res by res
+    indices = free_spaces[test_indices[n], :]
+    maze_index = indices[0]
+    x_index = indices[1]
+    y_index = indices[2]
+    goal_index = np.random.randint(low=0, high=n_goals)
 
-        # Compute the optimal path given this goal
-        solved_maze = solve_maze(fine_maze, start_indices=loc_index, goal_indices=goal_index)
+    # 2D coordinate of the agent's current location
+    loc_x = xs[x_index]
+    loc_y = ys[y_index]
 
-        test_locs[n, 0] = loc_x
-        test_locs[n, 1] = loc_y
-        test_goals[n, 0] = goal_x
-        test_goals[n, 1] = goal_y
-        test_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
-        test_goal_sps[n, :] = encode_point(goal_x, goal_y, x_axis_sp, y_axis_sp).v
+    test_locs[n, 0] = loc_x
+    test_locs[n, 1] = loc_y
+    test_goals[n, :] = goals[maze_index, goal_index, :]
+    test_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
+    test_goal_sps[n, :] = goal_sps[maze_index, goal_index, :]
 
-        test_output_dirs[n, :] = solved_maze[loc_index[0], loc_index[1], :]
+    test_output_dirs[n, :] = solved_mazes[maze_index, goal_index, x_index, y_index, :]
 
-    # Note: for ease of plotting for testing, would be helpful to just have a single or few goals
-    #       because of this a separate 'visualization' set will be used
-    for n in range(args.n_test_samples):
-        print("Viz Sample {} of {}".format(n+1, args.n_test_samples))
-        # 2D coordinate of the goal
-        goal_x = xs[viz_goal_index[0]]
-        goal_y = ys[viz_goal_index[1]]
+    test_maze_sps[n, :] = maze_sps[maze_index]
 
-        # 2D coordinate of the agent's current location
-        loc_index = free_spaces[viz_current_loc_indices[n], :]
-        loc_x = xs[loc_index[0]]
-        loc_y = ys[loc_index[1]]
+# Note: for ease of plotting for testing, would be helpful to just have a single or few goals
+#       because of this a separate 'visualization' set will be used
+maze_index = 0
+goal_index = 0
+for n in range(args.n_test_samples):
+    print("Viz Sample {} of {}".format(n+1, args.n_test_samples))
+    # res by res
+    indices = viz_free_spaces[viz_indices[n], :]
 
-        # Compute the optimal path given this goal
-        solved_maze = solve_maze(fine_maze, start_indices=loc_index, goal_indices=viz_goal_index)
+    x_index = indices[0]
+    y_index = indices[1]
 
-        viz_locs[n, 0] = loc_x
-        viz_locs[n, 1] = loc_y
-        viz_goals[n, 0] = goal_x
-        viz_goals[n, 1] = goal_y
-        viz_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
-        viz_goal_sps[n, :] = encode_point(goal_x, goal_y, x_axis_sp, y_axis_sp).v
+    # 2D coordinate of the agent's current location
+    loc_x = xs[x_index]
+    loc_y = ys[y_index]
 
-        viz_output_dirs[n, :] = solved_maze[loc_index[0], loc_index[1], :]
+    viz_locs[n, 0] = loc_x
+    viz_locs[n, 1] = loc_y
+    viz_goals[n, :] = goals[maze_index, goal_index, :]
+    viz_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
+    viz_goal_sps[n, :] = goal_sps[maze_index, goal_index, :]
 
-    if not os.path.exists(args.logdir):
-        os.makedirs(args.logdir)
+    viz_output_dirs[n, :] = solved_mazes[maze_index, goal_index, x_index, y_index, :]
 
-    if args.save_generated_data:
-        np.savez(
-            data_fname,
-            maze_ssp=maze_ssp.v,
-            x_axis_sp=x_axis_sp.v,
-            y_axis_sp=y_axis_sp.v,
-            train_loc_ssps=train_loc_sps,
-            train_goal_ssps=train_goal_sps,
-            train_locs=train_locs,
-            train_goals=train_goals,
-            train_output_dirs=train_output_dirs,
-            test_loc_ssps=test_loc_sps,
-            test_goal_ssps=test_goal_sps,
-            test_locs=test_locs,
-            test_goals=test_goals,
-            test_output_dirs=test_output_dirs,
-            viz_loc_ssps=viz_loc_sps,
-            viz_goal_ssps=viz_goal_sps,
-            viz_locs=viz_locs,
-            viz_goals=viz_goals,
-            viz_output_dirs=viz_output_dirs,
-        )
+    viz_maze_sps[n, :] = maze_sps[maze_index]
 
 
 # Reset seeds here after generating data
@@ -236,7 +199,7 @@ np.random.seed(args.seed)
 
 #TODO fix to correct datasets
 dataset_train = MazeDataset(
-    maze_ssp=maze_ssp.v,
+    maze_ssp=train_maze_sps,
     loc_ssps=train_loc_sps,
     goal_ssps=train_goal_sps,
     locs=train_locs,
@@ -244,7 +207,7 @@ dataset_train = MazeDataset(
     direction_outputs=train_output_dirs,
 )
 dataset_test = MazeDataset(
-    maze_ssp=maze_ssp.v,
+    maze_ssp=test_mazez_sps,
     loc_ssps=test_loc_sps,
     goal_ssps=test_goal_sps,
     locs=test_locs,
@@ -252,7 +215,7 @@ dataset_test = MazeDataset(
     direction_outputs=test_output_dirs,
 )
 dataset_viz = MazeDataset(
-    maze_ssp=maze_ssp.v,
+    maze_ssp=viz_maze_sps,
     loc_ssps=viz_loc_sps,
     goal_ssps=viz_goal_sps,
     locs=viz_locs,
