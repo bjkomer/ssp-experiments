@@ -19,6 +19,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument('--epochs', type=int, default=50, help='Number of epochs to train for')
 parser.add_argument('--epoch-offset', type=int, default=0,
                     help='Optional offset to start epochs counting from. To be used when continuing training')
+parser.add_argument('--maze-id-type', type=str, choices=['ssp', 'one-hot'], default='ssp')
 parser.add_argument('--seed', type=int, default=13, help='Seed for training and generating axis SSPs')
 parser.add_argument('--dim', type=int, default=512, help='Dimensionality of the SSPs')
 parser.add_argument('--n-train-samples', type=int, default=1000, help='Number of training samples')
