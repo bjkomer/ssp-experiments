@@ -1,6 +1,12 @@
+# allow code to work on machines without a display
+import matplotlib
+import os
+display = os.environ.get('DISPLAY')
+if display is None or 'localhost' in display:
+    matplotlib.use('agg')
+
 import numpy as np
 import matplotlib.pyplot as plt
-
 from spatial_semantic_pointers.utils import generate_region_vector
 from gridworlds.maze_generation import generate_maze
 
