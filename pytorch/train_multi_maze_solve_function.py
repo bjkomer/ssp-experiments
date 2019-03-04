@@ -1,3 +1,4 @@
+from training_utils import ValidationSet
 import torch
 import torch.nn as nn
 import numpy as np
@@ -19,7 +20,11 @@ parser = argparse.ArgumentParser(
 parser.add_argument('--epochs', type=int, default=50, help='Number of epochs to train for')
 parser.add_argument('--epoch-offset', type=int, default=0,
                     help='Optional offset to start epochs counting from. To be used when continuing training')
-parser.add_argument('--maze-id-type', type=str, choices=['ssp', 'one-hot'], default='ssp')
+parser.add_argument('--validation-period', type=int, default=100, help='number of epochs before a validation set run')
+parser.add_argument('--maze-id-type', type=str, choices=['ssp', 'one-hot', 'random-sp'], default='ssp',
+                    help='ssp: region corresponding to maze layout.'
+                         'one-hot: each maze given a one-hot vector.'
+                         'random-sp: each maze given a unique random SP as an ID')
 parser.add_argument('--seed', type=int, default=13, help='Seed for training and generating axis SSPs')
 parser.add_argument('--dim', type=int, default=512, help='Dimensionality of the SSPs')
 parser.add_argument('--n-train-samples', type=int, default=1000, help='Number of training samples')
@@ -72,6 +77,7 @@ goal_sps = data['goal_sps']
 goals = data['goals']
 
 n_goals = goals.shape[1]
+n_mazes = fine_mazes.shape[0]
 
 if 'xs' in data.keys():
     xs = data['xs']
@@ -81,6 +87,10 @@ else:
     xs = np.linspace(args.limit_low, args.limit_high, args.res)
     ys = np.linspace(args.limit_low, args.limit_high, args.res)
 
+
+# Create a validation/visualization set to run periodically while training and at the end
+# validation_set = ValidationSet(data=data, maze_indices=np.arange(n_mazes), goal_indices=[0])
+validation_set = ValidationSet(data=data, maze_indices=[0, 1, 2, 3], goal_indices=[0, 1], subsample=4)
 
 
 # Get a list of possible start locations to choose (will correspond to all free spaces in all fine mazes)
@@ -108,20 +118,20 @@ test_maze_sps = np.zeros((args.n_test_samples, args.dim))
 
 test_indices = np.random.randint(low=0, high=n_free_spaces, size=args.n_test_samples)
 
-# Visualization
-viz_locs = np.zeros((args.n_test_samples, 2))
-viz_goals = np.zeros((args.n_test_samples, 2))
-viz_loc_sps = np.zeros((args.n_test_samples, args.dim))
-viz_goal_sps = np.zeros((args.n_test_samples, args.dim))
-viz_output_dirs = np.zeros((args.n_test_samples, 2))
-viz_maze_sps = np.zeros((args.n_test_samples, args.dim))
-
-viz_free_spaces = np.argwhere(fine_mazes[0, :, :] == 0)
-print(viz_free_spaces.shape)
-n_viz_free_spaces = viz_free_spaces.shape[0]
-viz_indices = np.random.randint(low=0, high=n_viz_free_spaces, size=args.n_test_samples)
-viz_goal_index = np.random.randint(low=0, high=n_viz_free_spaces)
-viz_goal_index = viz_free_spaces[viz_goal_index, :]
+# # Visualization
+# viz_locs = np.zeros((args.n_test_samples, 2))
+# viz_goals = np.zeros((args.n_test_samples, 2))
+# viz_loc_sps = np.zeros((args.n_test_samples, args.dim))
+# viz_goal_sps = np.zeros((args.n_test_samples, args.dim))
+# viz_output_dirs = np.zeros((args.n_test_samples, 2))
+# viz_maze_sps = np.zeros((args.n_test_samples, args.dim))
+#
+# viz_free_spaces = np.argwhere(fine_mazes[0, :, :] == 0)
+# print(viz_free_spaces.shape)
+# n_viz_free_spaces = viz_free_spaces.shape[0]
+# viz_indices = np.random.randint(low=0, high=n_viz_free_spaces, size=args.n_test_samples)
+# viz_goal_index = np.random.randint(low=0, high=n_viz_free_spaces)
+# viz_goal_index = viz_free_spaces[viz_goal_index, :]
 
 
 for n in range(args.n_train_samples):
@@ -171,31 +181,31 @@ for n in range(args.n_test_samples):
 
     test_maze_sps[n, :] = maze_sps[maze_index]
 
-# Note: for ease of plotting for testing, would be helpful to just have a single or few goals
-#       because of this a separate 'visualization' set will be used
-maze_index = 0
-goal_index = 0
-for n in range(args.n_test_samples):
-    print("Viz Sample {} of {}".format(n+1, args.n_test_samples))
-    # res by res
-    indices = viz_free_spaces[viz_indices[n], :]
-
-    x_index = indices[0]
-    y_index = indices[1]
-
-    # 2D coordinate of the agent's current location
-    loc_x = xs[x_index]
-    loc_y = ys[y_index]
-
-    viz_locs[n, 0] = loc_x
-    viz_locs[n, 1] = loc_y
-    viz_goals[n, :] = goals[maze_index, goal_index, :]
-    viz_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
-    viz_goal_sps[n, :] = goal_sps[maze_index, goal_index, :]
-
-    viz_output_dirs[n, :] = solved_mazes[maze_index, goal_index, x_index, y_index, :]
-
-    viz_maze_sps[n, :] = maze_sps[maze_index]
+# # Note: for ease of plotting for testing, would be helpful to just have a single or few goals
+# #       because of this a separate 'visualization' set will be used
+# maze_index = 0
+# goal_index = 0
+# for n in range(args.n_test_samples):
+#     print("Viz Sample {} of {}".format(n+1, args.n_test_samples))
+#     # res by res
+#     indices = viz_free_spaces[viz_indices[n], :]
+#
+#     x_index = indices[0]
+#     y_index = indices[1]
+#
+#     # 2D coordinate of the agent's current location
+#     loc_x = xs[x_index]
+#     loc_y = ys[y_index]
+#
+#     viz_locs[n, 0] = loc_x
+#     viz_locs[n, 1] = loc_y
+#     viz_goals[n, :] = goals[maze_index, goal_index, :]
+#     viz_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
+#     viz_goal_sps[n, :] = goal_sps[maze_index, goal_index, :]
+#
+#     viz_output_dirs[n, :] = solved_mazes[maze_index, goal_index, x_index, y_index, :]
+#
+#     viz_maze_sps[n, :] = maze_sps[maze_index]
 
 
 # Reset seeds here after generating data
@@ -219,14 +229,14 @@ dataset_test = MazeDataset(
     goals=test_goals,
     direction_outputs=test_output_dirs,
 )
-dataset_viz = MazeDataset(
-    maze_ssp=viz_maze_sps,
-    loc_ssps=viz_loc_sps,
-    goal_ssps=viz_goal_sps,
-    locs=viz_locs,
-    goals=viz_goals,
-    direction_outputs=viz_output_dirs,
-)
+# dataset_viz = MazeDataset(
+#     maze_ssp=viz_maze_sps,
+#     loc_ssps=viz_loc_sps,
+#     goal_ssps=viz_goal_sps,
+#     locs=viz_locs,
+#     goals=viz_goals,
+#     direction_outputs=viz_output_dirs,
+# )
 
 trainloader = torch.utils.data.DataLoader(
     dataset_train, batch_size=args.batch_size, shuffle=True, num_workers=0,
@@ -237,9 +247,9 @@ testloader = torch.utils.data.DataLoader(
     dataset_test, batch_size=len(dataset_test), shuffle=False, num_workers=0,
 )
 
-vizloader = torch.utils.data.DataLoader(
-    dataset_viz, batch_size=len(dataset_viz), shuffle=False, num_workers=0,
-)
+# vizloader = torch.utils.data.DataLoader(
+#     dataset_viz, batch_size=len(dataset_viz), shuffle=False, num_workers=0,
+# )
 
 # input is maze, loc, goal ssps, output is 2D direction to move
 if args.n_hidden_layers > 1:
@@ -260,11 +270,18 @@ if args.logdir != '':
         for name, param in model.named_parameters():
             writer.add_histogram('parameters/' + name, param.clone().cpu().data.numpy(), 0)
 
+validation_set.run_ground_truth(writer)
+
 criterion = nn.MSELoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
 
 for e in range(args.epoch_offset, args.epochs + args.epoch_offset):
     print('Epoch: {0}'.format(e + 1))
+
+    if e % args.validation_period == 0:
+        # do a validation run and save images
+        validation_set.run_validation(model, writer, e)
+
 
     avg_loss = 0
     n_batches = 0
@@ -296,6 +313,8 @@ for e in range(args.epoch_offset, args.epochs + args.epoch_offset):
             for name, param in model.named_parameters():
                 writer.add_histogram('parameters/' + name, param.clone().cpu().data.numpy(), e + 1)
 
+
+
 print("Testing")
 with torch.no_grad():
     # Everything is in one batch, so this loop will only happen once
@@ -312,37 +331,38 @@ with torch.no_grad():
         writer.add_scalar('test_loss', loss.data.item())
 
 print("Visualization")
-with torch.no_grad():
-    # Everything is in one batch, so this loop will only happen once
-    for i, data in enumerate(vizloader):
-        maze_loc_goal_ssps, directions, locs, goals = data
-
-        outputs = model(maze_loc_goal_ssps)
-
-        loss = criterion(outputs, directions)
-
-        # print(loss.data.item())
-
-    if args.logdir != '':
-        fig_pred = plot_path_predictions(
-            directions=outputs, coords=locs, type='colour'
-        )
-        writer.add_figure('viz set predictions', fig_pred)
-        fig_truth = plot_path_predictions(
-            directions=directions, coords=locs, type='colour'
-        )
-        writer.add_figure('ground truth', fig_truth)
-
-        fig_pred_quiver = plot_path_predictions(
-            directions=outputs, coords=locs, dcell=xs[1] - xs[0]
-        )
-        writer.add_figure('viz set predictions quiver', fig_pred_quiver)
-        fig_truth_quiver = plot_path_predictions(
-            directions=directions, coords=locs, dcell=xs[1] - xs[0]
-        )
-        writer.add_figure('ground truth quiver', fig_truth_quiver)
-
-        writer.add_scalar('viz_loss', loss.data.item())
+validation_set.run_validation(model, writer, args.epochs + args.epoch_offset)
+# with torch.no_grad():
+#     # Everything is in one batch, so this loop will only happen once
+#     for i, data in enumerate(vizloader):
+#         maze_loc_goal_ssps, directions, locs, goals = data
+#
+#         outputs = model(maze_loc_goal_ssps)
+#
+#         loss = criterion(outputs, directions)
+#
+#         # print(loss.data.item())
+#
+#     if args.logdir != '':
+#         fig_pred = plot_path_predictions(
+#             directions=outputs, coords=locs, type='colour'
+#         )
+#         writer.add_figure('viz set predictions', fig_pred)
+#         fig_truth = plot_path_predictions(
+#             directions=directions, coords=locs, type='colour'
+#         )
+#         writer.add_figure('ground truth', fig_truth)
+#
+#         fig_pred_quiver = plot_path_predictions(
+#             directions=outputs, coords=locs, dcell=xs[1] - xs[0]
+#         )
+#         writer.add_figure('viz set predictions quiver', fig_pred_quiver)
+#         fig_truth_quiver = plot_path_predictions(
+#             directions=directions, coords=locs, dcell=xs[1] - xs[0]
+#         )
+#         writer.add_figure('ground truth quiver', fig_truth_quiver)
+#
+#         writer.add_scalar('viz_loss', loss.data.item())
 
 # Close tensorboard writer
 if args.logdir != '':
