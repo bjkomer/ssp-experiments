@@ -1,4 +1,4 @@
-from training_utils import ValidationSet
+from training_utils import ValidationSet, create_dataloader
 import torch
 import torch.nn as nn
 import numpy as np
@@ -20,7 +20,8 @@ parser = argparse.ArgumentParser(
 parser.add_argument('--epochs', type=int, default=50, help='Number of epochs to train for')
 parser.add_argument('--epoch-offset', type=int, default=0,
                     help='Optional offset to start epochs counting from. To be used when continuing training')
-parser.add_argument('--validation-period', type=int, default=100, help='number of epochs before a validation set run')
+parser.add_argument('--validation-period', type=int, default=250, help='number of epochs before a validation set run')
+parser.add_argument('--subsample', type=int, default=2, help='amount to subsample for the visualization validation')
 parser.add_argument('--maze-id-type', type=str, choices=['ssp', 'one-hot', 'random-sp'], default='ssp',
                     help='ssp: region corresponding to maze layout.'
                          'one-hot: each maze given a one-hot vector.'
@@ -54,13 +55,6 @@ rng = np.random.RandomState(seed=args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-x_axis_sp = spa.SemanticPointer(data=data['x_axis_sp'])
-y_axis_sp = spa.SemanticPointer(data=data['y_axis_sp'])
-
-
-# n_mazes by size by size
-coarse_mazes = data['coarse_mazes']
-
 # n_mazes by res by res
 fine_mazes = data['fine_mazes']
 
@@ -79,183 +73,37 @@ goals = data['goals']
 n_goals = goals.shape[1]
 n_mazes = fine_mazes.shape[0]
 
-if 'xs' in data.keys():
-    xs = data['xs']
-    ys = data['ys']
+if args.maze_id_type == 'ssp':
+    id_size = args.dim
+elif args.maze_id_type == 'one-hot':
+    id_size = n_mazes
+    # overwrite data
+    maze_sps = np.eye(n_mazes)
+elif args.maze_id_type == 'random-sp':
+    id_size = args.dim
+    # overwrite data
+    for mi in range(n_mazes):
+        maze_sps[mi, :] = spa.SemanticPointer(args.dim).v
 else:
-    # backwards compatibility
-    xs = np.linspace(args.limit_low, args.limit_high, args.res)
-    ys = np.linspace(args.limit_low, args.limit_high, args.res)
-
+    raise NotImplementedError
 
 # Create a validation/visualization set to run periodically while training and at the end
 # validation_set = ValidationSet(data=data, maze_indices=np.arange(n_mazes), goal_indices=[0])
-validation_set = ValidationSet(data=data, maze_indices=[0, 1, 2, 3], goal_indices=[0, 1], subsample=4)
+validation_set = ValidationSet(data=data, maze_sps=maze_sps, maze_indices=[0, 1, 2, 3], goal_indices=[0, 1], subsample=args.subsample)
 
+trainloader = create_dataloader(data=data, n_samples=args.n_train_samples, maze_sps=maze_sps, args=args)
 
-# Get a list of possible start locations to choose (will correspond to all free spaces in all fine mazes)
-free_spaces = np.argwhere(fine_mazes == 0)
-print(free_spaces.shape)
-n_free_spaces = free_spaces.shape[0]
-
-# Training
-train_locs = np.zeros((args.n_train_samples, 2))
-train_goals = np.zeros((args.n_train_samples, 2))
-train_loc_sps = np.zeros((args.n_train_samples, args.dim))
-train_goal_sps = np.zeros((args.n_train_samples, args.dim))
-train_output_dirs = np.zeros((args.n_train_samples, 2))
-train_maze_sps = np.zeros((args.n_train_samples, args.dim))
-
-train_indices = np.random.randint(low=0, high=n_free_spaces, size=args.n_train_samples)
-
-# Testing
-test_locs = np.zeros((args.n_test_samples, 2))
-test_goals = np.zeros((args.n_test_samples, 2))
-test_loc_sps = np.zeros((args.n_test_samples, args.dim))
-test_goal_sps = np.zeros((args.n_test_samples, args.dim))
-test_output_dirs = np.zeros((args.n_test_samples, 2))
-test_maze_sps = np.zeros((args.n_test_samples, args.dim))
-
-test_indices = np.random.randint(low=0, high=n_free_spaces, size=args.n_test_samples)
-
-# # Visualization
-# viz_locs = np.zeros((args.n_test_samples, 2))
-# viz_goals = np.zeros((args.n_test_samples, 2))
-# viz_loc_sps = np.zeros((args.n_test_samples, args.dim))
-# viz_goal_sps = np.zeros((args.n_test_samples, args.dim))
-# viz_output_dirs = np.zeros((args.n_test_samples, 2))
-# viz_maze_sps = np.zeros((args.n_test_samples, args.dim))
-#
-# viz_free_spaces = np.argwhere(fine_mazes[0, :, :] == 0)
-# print(viz_free_spaces.shape)
-# n_viz_free_spaces = viz_free_spaces.shape[0]
-# viz_indices = np.random.randint(low=0, high=n_viz_free_spaces, size=args.n_test_samples)
-# viz_goal_index = np.random.randint(low=0, high=n_viz_free_spaces)
-# viz_goal_index = viz_free_spaces[viz_goal_index, :]
-
-
-for n in range(args.n_train_samples):
-    print("Train Sample {} of {}".format(n+1, args.n_train_samples))
-
-    # n_mazes by res by res
-    indices = free_spaces[train_indices[n], :]
-    maze_index = indices[0]
-    x_index = indices[1]
-    y_index = indices[2]
-    goal_index = np.random.randint(low=0, high=n_goals)
-
-    # 2D coordinate of the agent's current location
-    loc_x = xs[x_index]
-    loc_y = ys[y_index]
-
-    train_locs[n, 0] = loc_x
-    train_locs[n, 1] = loc_y
-    train_goals[n, :] = goals[maze_index, goal_index, :]
-    train_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
-    train_goal_sps[n, :] = goal_sps[maze_index, goal_index, :]
-
-    train_output_dirs[n, :] = solved_mazes[maze_index, goal_index, x_index, y_index, :]
-
-    train_maze_sps[n, :] = maze_sps[maze_index]
-
-for n in range(args.n_test_samples):
-    print("Test Sample {} of {}".format(n+1, args.n_test_samples))
-    # n_mazes by res by res
-    indices = free_spaces[test_indices[n], :]
-    maze_index = indices[0]
-    x_index = indices[1]
-    y_index = indices[2]
-    goal_index = np.random.randint(low=0, high=n_goals)
-
-    # 2D coordinate of the agent's current location
-    loc_x = xs[x_index]
-    loc_y = ys[y_index]
-
-    test_locs[n, 0] = loc_x
-    test_locs[n, 1] = loc_y
-    test_goals[n, :] = goals[maze_index, goal_index, :]
-    test_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
-    test_goal_sps[n, :] = goal_sps[maze_index, goal_index, :]
-
-    test_output_dirs[n, :] = solved_mazes[maze_index, goal_index, x_index, y_index, :]
-
-    test_maze_sps[n, :] = maze_sps[maze_index]
-
-# # Note: for ease of plotting for testing, would be helpful to just have a single or few goals
-# #       because of this a separate 'visualization' set will be used
-# maze_index = 0
-# goal_index = 0
-# for n in range(args.n_test_samples):
-#     print("Viz Sample {} of {}".format(n+1, args.n_test_samples))
-#     # res by res
-#     indices = viz_free_spaces[viz_indices[n], :]
-#
-#     x_index = indices[0]
-#     y_index = indices[1]
-#
-#     # 2D coordinate of the agent's current location
-#     loc_x = xs[x_index]
-#     loc_y = ys[y_index]
-#
-#     viz_locs[n, 0] = loc_x
-#     viz_locs[n, 1] = loc_y
-#     viz_goals[n, :] = goals[maze_index, goal_index, :]
-#     viz_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
-#     viz_goal_sps[n, :] = goal_sps[maze_index, goal_index, :]
-#
-#     viz_output_dirs[n, :] = solved_mazes[maze_index, goal_index, x_index, y_index, :]
-#
-#     viz_maze_sps[n, :] = maze_sps[maze_index]
-
+testloader = create_dataloader(data=data, n_samples=args.n_test_samples, maze_sps=maze_sps, args=args)
 
 # Reset seeds here after generating data
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-#TODO fix to correct datasets
-dataset_train = MazeDataset(
-    maze_ssp=train_maze_sps,
-    loc_ssps=train_loc_sps,
-    goal_ssps=train_goal_sps,
-    locs=train_locs,
-    goals=train_goals,
-    direction_outputs=train_output_dirs,
-)
-dataset_test = MazeDataset(
-    maze_ssp=test_maze_sps,
-    loc_ssps=test_loc_sps,
-    goal_ssps=test_goal_sps,
-    locs=test_locs,
-    goals=test_goals,
-    direction_outputs=test_output_dirs,
-)
-# dataset_viz = MazeDataset(
-#     maze_ssp=viz_maze_sps,
-#     loc_ssps=viz_loc_sps,
-#     goal_ssps=viz_goal_sps,
-#     locs=viz_locs,
-#     goals=viz_goals,
-#     direction_outputs=viz_output_dirs,
-# )
-
-trainloader = torch.utils.data.DataLoader(
-    dataset_train, batch_size=args.batch_size, shuffle=True, num_workers=0,
-)
-
-# For testing just do everything in one giant batch
-testloader = torch.utils.data.DataLoader(
-    dataset_test, batch_size=len(dataset_test), shuffle=False, num_workers=0,
-)
-
-# vizloader = torch.utils.data.DataLoader(
-#     dataset_viz, batch_size=len(dataset_viz), shuffle=False, num_workers=0,
-# )
-
 # input is maze, loc, goal ssps, output is 2D direction to move
 if args.n_hidden_layers > 1:
-    model = MLP(input_size=args.dim * 3, hidden_size=args.hidden_size, output_size=2, n_layers=args.n_hidden_layers)
+    model = MLP(input_size=id_size + args.dim * 2, hidden_size=args.hidden_size, output_size=2, n_layers=args.n_hidden_layers)
 else:
-    model = FeedForward(input_size=args.dim * 3, hidden_size=args.hidden_size, output_size=2)
+    model = FeedForward(input_size=id_size + args.dim * 2, hidden_size=args.hidden_size, output_size=2)
 
 if args.load_saved_model:
     model.load_state_dict(torch.load(args.load_saved_model), strict=False)
@@ -281,7 +129,6 @@ for e in range(args.epoch_offset, args.epochs + args.epoch_offset):
     if e % args.validation_period == 0:
         # do a validation run and save images
         validation_set.run_validation(model, writer, e)
-
 
     avg_loss = 0
     n_batches = 0
@@ -313,8 +160,6 @@ for e in range(args.epoch_offset, args.epochs + args.epoch_offset):
             for name, param in model.named_parameters():
                 writer.add_histogram('parameters/' + name, param.clone().cpu().data.numpy(), e + 1)
 
-
-
 print("Testing")
 with torch.no_grad():
     # Everything is in one batch, so this loop will only happen once
@@ -332,37 +177,7 @@ with torch.no_grad():
 
 print("Visualization")
 validation_set.run_validation(model, writer, args.epochs + args.epoch_offset)
-# with torch.no_grad():
-#     # Everything is in one batch, so this loop will only happen once
-#     for i, data in enumerate(vizloader):
-#         maze_loc_goal_ssps, directions, locs, goals = data
-#
-#         outputs = model(maze_loc_goal_ssps)
-#
-#         loss = criterion(outputs, directions)
-#
-#         # print(loss.data.item())
-#
-#     if args.logdir != '':
-#         fig_pred = plot_path_predictions(
-#             directions=outputs, coords=locs, type='colour'
-#         )
-#         writer.add_figure('viz set predictions', fig_pred)
-#         fig_truth = plot_path_predictions(
-#             directions=directions, coords=locs, type='colour'
-#         )
-#         writer.add_figure('ground truth', fig_truth)
-#
-#         fig_pred_quiver = plot_path_predictions(
-#             directions=outputs, coords=locs, dcell=xs[1] - xs[0]
-#         )
-#         writer.add_figure('viz set predictions quiver', fig_pred_quiver)
-#         fig_truth_quiver = plot_path_predictions(
-#             directions=directions, coords=locs, dcell=xs[1] - xs[0]
-#         )
-#         writer.add_figure('ground truth quiver', fig_truth_quiver)
-#
-#         writer.add_scalar('viz_loss', loss.data.item())
+
 
 # Close tensorboard writer
 if args.logdir != '':

@@ -9,7 +9,7 @@ from datasets import MazeDataset
 
 class ValidationSet(object):
 
-    def __init__(self, data, maze_indices, goal_indices, subsample=2):
+    def __init__(self, data, maze_sps, maze_indices, goal_indices, subsample=2):
         x_axis_sp = spa.SemanticPointer(data=data['x_axis_sp'])
         y_axis_sp = spa.SemanticPointer(data=data['y_axis_sp'])
 
@@ -19,8 +19,9 @@ class ValidationSet(object):
         # n_mazes by res by res by 2
         solved_mazes = data['solved_mazes']
 
+        # NOTE: this can be modified from the original dataset, so it is explicitly passed in
         # n_mazes by dim
-        maze_sps = data['maze_sps']
+        # maze_sps = data['maze_sps']
 
         # n_mazes by n_goals by dim
         goal_sps = data['goal_sps']
@@ -49,7 +50,7 @@ class ValidationSet(object):
         viz_loc_sps = np.zeros((n_samples, dim))
         viz_goal_sps = np.zeros((n_samples, dim))
         viz_output_dirs = np.zeros((n_samples, 2))
-        viz_maze_sps = np.zeros((n_samples, dim))
+        viz_maze_sps = np.zeros((n_samples, maze_sps.shape[1]))
 
         # Generate data so each batch contains a single maze and goal
         si = 0  # sample index, increments each time
@@ -137,3 +138,90 @@ class ValidationSet(object):
                 writer.add_figure('v{}/viz set predictions quiver'.format(i), fig_pred_quiver, epoch)
 
                 writer.add_scalar(tag='viz_loss/{}'.format(i), scalar_value=loss.data.item(), global_step=epoch)
+
+
+def create_dataloader(data, n_samples, maze_sps, args):
+    x_axis_sp = spa.SemanticPointer(data=data['x_axis_sp'])
+    y_axis_sp = spa.SemanticPointer(data=data['y_axis_sp'])
+
+    # n_mazes by size by size
+    coarse_mazes = data['coarse_mazes']
+
+    # n_mazes by res by res
+    fine_mazes = data['fine_mazes']
+
+    # n_mazes by res by res by 2
+    solved_mazes = data['solved_mazes']
+
+    # NOTE: this can be modified from the original dataset, so it is explicitly passed in
+    # n_mazes by dim
+    # maze_sps = data['maze_sps']
+
+    # n_mazes by n_goals by dim
+    goal_sps = data['goal_sps']
+
+    # n_mazes by n_goals by 2
+    goals = data['goals']
+
+    n_goals = goals.shape[1]
+    n_mazes = fine_mazes.shape[0]
+
+    if 'xs' in data.keys():
+        xs = data['xs']
+        ys = data['ys']
+    else:
+        # backwards compatibility
+        xs = np.linspace(args.limit_low, args.limit_high, args.res)
+        ys = np.linspace(args.limit_low, args.limit_high, args.res)
+
+    free_spaces = np.argwhere(fine_mazes == 0)
+    n_free_spaces = free_spaces.shape[0]
+
+    # Training
+    train_locs = np.zeros((n_samples, 2))
+    train_goals = np.zeros((n_samples, 2))
+    train_loc_sps = np.zeros((n_samples, args.dim))
+    train_goal_sps = np.zeros((n_samples, args.dim))
+    train_output_dirs = np.zeros((n_samples, 2))
+    train_maze_sps = np.zeros((n_samples, maze_sps.shape[1]))
+
+    train_indices = np.random.randint(low=0, high=n_free_spaces, size=n_samples)
+
+    for n in range(n_samples):
+        # print("Sample {} of {}".format(n + 1, n_samples))
+
+        # n_mazes by res by res
+        indices = free_spaces[train_indices[n], :]
+        maze_index = indices[0]
+        x_index = indices[1]
+        y_index = indices[2]
+        goal_index = np.random.randint(low=0, high=n_goals)
+
+        # 2D coordinate of the agent's current location
+        loc_x = xs[x_index]
+        loc_y = ys[y_index]
+
+        train_locs[n, 0] = loc_x
+        train_locs[n, 1] = loc_y
+        train_goals[n, :] = goals[maze_index, goal_index, :]
+        train_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
+        train_goal_sps[n, :] = goal_sps[maze_index, goal_index, :]
+
+        train_output_dirs[n, :] = solved_mazes[maze_index, goal_index, x_index, y_index, :]
+
+        train_maze_sps[n, :] = maze_sps[maze_index]
+
+    dataset_train = MazeDataset(
+        maze_ssp=train_maze_sps,
+        loc_ssps=train_loc_sps,
+        goal_ssps=train_goal_sps,
+        locs=train_locs,
+        goals=train_goals,
+        direction_outputs=train_output_dirs,
+    )
+
+    trainloader = torch.utils.data.DataLoader(
+        dataset_train, batch_size=args.batch_size, shuffle=True, num_workers=0,
+    )
+
+    return trainloader
