@@ -93,14 +93,16 @@ def generate_maze_sp(size, xs, ys, x_axis_sp, y_axis_sp, normalize=True, obstacl
     """
 
     # Create a random maze with no inaccessible regions
-    maze = generate_maze(map_style=map_style, side_len=size, obstacle_ratio=obstacle_ratio)
+    if map_style == 'maze':
+        # temp hack to get the sizes right
+        maze = generate_maze(map_style=map_style, side_len=size + 2, obstacle_ratio=obstacle_ratio)
+    else:
+        maze = generate_maze(map_style=map_style, side_len=size, obstacle_ratio=obstacle_ratio)
 
     # Map the maze structure to the resolution of xs and ys
     x_range = xs[-1] - xs[0]
     y_range = ys[-1] - ys[0]
     fine_maze = np.zeros((len(xs), len(ys)))
-
-    print(maze.shape)
 
     for i, x in enumerate(xs):
         for j, y in enumerate(ys):
