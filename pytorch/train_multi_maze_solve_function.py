@@ -34,6 +34,7 @@ parser.add_argument('--hidden-size', type=int, default=512, help='Size of the hi
 parser.add_argument('--n-hidden-layers', type=int, default=1, help='Number of hidden layers in the model')
 parser.add_argument('--batch-size', type=int, default=32)
 parser.add_argument('--lr', type=float, default=0.001)
+parser.add_argument('--momentum', type=float, default=0.9)
 parser.add_argument('--weight-histogram', action='store_true', help='Save histogram of the weights')
 parser.add_argument('--maze-type', type=str, default='random', choices=['example', 'random'], help='maze to learn')
 parser.add_argument('--maze-size', type=int, default=10, help='Size of the coarse maze structure')
@@ -121,7 +122,7 @@ if args.logdir != '':
 validation_set.run_ground_truth(writer)
 
 criterion = nn.MSELoss()
-optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
+optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 
 for e in range(args.epoch_offset, args.epochs + args.epoch_offset):
     print('Epoch: {0}'.format(e + 1))

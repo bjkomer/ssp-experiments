@@ -23,6 +23,7 @@ parser.add_argument('--n-train-samples', type=int, default=1000, help='Number of
 parser.add_argument('--n-test-samples', type=int, default=1000, help='Number of testing samples')
 parser.add_argument('--batch-size', type=int, default=32)
 parser.add_argument('--lr', type=float, default=0.001)
+parser.add_argument('--momentum', type=float, default=0.9)
 parser.add_argument('--weight-histogram', action='store_true', help='Save histogram of the weights')
 parser.add_argument('--maze-type', type=str, default='random', choices=['example', 'random'], help='maze to learn')
 parser.add_argument('--maze-size', type=int, default=10, help='Size of the coarse maze structure')
@@ -290,7 +291,7 @@ if args.logdir != '':
             writer.add_histogram('parameters/' + name, param.clone().cpu().data.numpy(), 0)
 
 criterion = nn.MSELoss()
-optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
+optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 
 for e in range(args.epochs):
     print('Epoch: {0}'.format(e + 1))
