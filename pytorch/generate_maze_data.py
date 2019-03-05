@@ -53,16 +53,30 @@ goal_sps = np.zeros((args.n_mazes, args.n_goals, args.dim))
 
 for mi in range(args.n_mazes):
     # Generate a random maze
-    maze_ssp, coarse_maze, fine_maze = generate_maze_sp(
-        size=args.maze_size,
-        xs=xs,
-        ys=ys,
-        x_axis_sp=x_axis_sp,
-        y_axis_sp=y_axis_sp,
-        normalize=True,
-        obstacle_ratio=.2,
-        map_style=args.map_style
-    )
+    # temp hack
+    if args.map_style == 'maze':
+        # NOTE: size must be odd to work
+        maze_ssp, coarse_maze, fine_maze = generate_maze_sp(
+            size=args.maze_size + 2,
+            xs=xs,
+            ys=ys,
+            x_axis_sp=x_axis_sp,
+            y_axis_sp=y_axis_sp,
+            normalize=True,
+            obstacle_ratio=.2,
+            map_style=args.map_style
+        )
+    else:
+        maze_ssp, coarse_maze, fine_maze = generate_maze_sp(
+            size=args.maze_size,
+            xs=xs,
+            ys=ys,
+            x_axis_sp=x_axis_sp,
+            y_axis_sp=y_axis_sp,
+            normalize=True,
+            obstacle_ratio=.2,
+            map_style=args.map_style
+        )
 
     maze_sps[mi, :] = maze_ssp.v
 
