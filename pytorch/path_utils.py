@@ -100,6 +100,8 @@ def generate_maze_sp(size, xs, ys, x_axis_sp, y_axis_sp, normalize=True, obstacl
     y_range = ys[-1] - ys[0]
     fine_maze = np.zeros((len(xs), len(ys)))
 
+    print(maze.shape)
+
     for i, x in enumerate(xs):
         for j, y in enumerate(ys):
             xi = np.clip(int(np.round(((x - xs[0]) / x_range) * size)), 0, size - 1)

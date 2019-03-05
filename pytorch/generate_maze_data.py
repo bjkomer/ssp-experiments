@@ -35,11 +35,11 @@ y_axis_sp = make_good_unitary(dim=args.dim, rng=rng)
 
 np.random.seed(args.seed)
 
-xs = np.linspace(args.limit_low, args.limit_high, args.maze_size)
-ys = np.linspace(args.limit_low, args.limit_high, args.maze_size)
+xs_coarse = np.linspace(args.limit_low, args.limit_high, args.maze_size)
+ys_coarse = np.linspace(args.limit_low, args.limit_high, args.maze_size)
 
-xs_coarse = np.linspace(args.limit_low, args.limit_high, args.res)
-ys_coarse = np.linspace(args.limit_low, args.limit_high, args.res)
+xs = np.linspace(args.limit_low, args.limit_high, args.res)
+ys = np.linspace(args.limit_low, args.limit_high, args.res)
 
 coarse_mazes = np.zeros((args.n_mazes, args.maze_size, args.maze_size))
 fine_mazes = np.zeros((args.n_mazes, args.res, args.res))
@@ -94,7 +94,7 @@ for mi in range(args.n_mazes):
         coarse_goal_x = xs_coarse[coarse_goal_index[0]]
         coarse_goal_y = ys_coarse[coarse_goal_index[1]]
         # to solve the maze, the fine index is needed, calculate the closest one from the coarse location
-        goal_index = np.zeros((2,))
+        goal_index = np.zeros((2,)).astype(np.int32)
         goal_index[0] = np.abs(xs - coarse_goal_x).argmin()
         goal_index[1] = np.abs(ys - coarse_goal_y).argmin()
 
