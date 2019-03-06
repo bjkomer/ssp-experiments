@@ -8,7 +8,7 @@ parser = argparse.ArgumentParser(
     'Generate random mazes, and their solutions for particular goal locations'
 )
 
-parser.add_argument('--maze-size', type=int, default=10, help='Size of the coarse maze structure')
+parser.add_argument('--maze-size', type=int, default=11, help='Size of the coarse maze structure')
 parser.add_argument('--map-style', type=str, default='blocks', choices=['blocks', 'maze'], help='Style of maze')
 parser.add_argument('--res', type=int, default=64, help='resolution of the fine maze')
 parser.add_argument('--limit-low', type=float, default=-5, help='lowest coordinate value')
