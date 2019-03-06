@@ -53,13 +53,17 @@ def path_function(coord, path, xs, ys):
     return dir_to_vec(path[ind_x, ind_y])
 
 
-def plot_path_predictions(directions, coords, name='', min_val=-1, max_val=1, type='quiver', dcell=1):
+def plot_path_predictions(directions, coords, name='', min_val=-1, max_val=1, type='quiver', dcell=1, ax=None):
     """
     plot direction predictions by colouring based on direction, and putting the dot at the coord
     both directions and coords are (n_samples, 2) vectors
     dcell: distance between two neighboring cells, used for scaling arrors on a quiver plot
+    ax: if given plot on this axis, otherwise create a new figure and axis
     """
-    fig, ax = plt.subplots()
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = None
 
     if type == 'quiver':
         ax.quiver(coords[:, 0], coords[:, 1], directions[:, 0], directions[:, 1], scale=1./dcell, units='xy')

@@ -70,36 +70,33 @@ for mi in range(args.n_mazes):
     # free_spaces = np.argwhere(coarse_maze == 0)
     # Get a list of possible goal locations to choose (will correspond to all free spaces in the fine maze)
     free_spaces = np.argwhere(fine_maze == 0)
-    coarse_free_spaces = np.argwhere(coarse_maze == 0)
     print(free_spaces.shape)
+    # downsample free spaces
+    free_spaces = free_spaces[(free_spaces[:, 0] % 4 == 0) & (free_spaces[:, 1] % 4 == 0)]
+    print(free_spaces.shape)
+
     n_free_spaces = free_spaces.shape[0]
-    n_coarse_free_spaces = coarse_free_spaces.shape[0]
 
-    # no longer choosing indices based on fine location, so that the likelihood of overlap between mazes increases
+    # no longer choosing indices based on any fine location, so that the likelihood of overlap between mazes increases
     # which should decrease the chances of overfitting based on goal location
-    # goal_indices = np.random.randint(low=0, high=n_free_spaces, size=args.n_goals)
 
-    if args.n_goals > n_coarse_free_spaces:
+    if args.n_goals > n_free_spaces:
         # workaround for there being more goals than spaces. This is non-ideal and shouldn't happen
         print("Warning, more goals desired than coarse free spaces in maze")
-        coarse_goal_indices = np.random.choice(n_coarse_free_spaces, args.n_goals, replace=True)
+        goal_indices = np.random.choice(n_free_spaces, args.n_goals, replace=True)
     else:
-        coarse_goal_indices = np.random.choice(n_coarse_free_spaces, args.n_goals, replace=False)
+        goal_indices = np.random.choice(n_free_spaces, args.n_goals, replace=False)
 
     for n in range(args.n_goals):
         print("Generating Sample {} of {}".format(n+1, args.n_goals))
         # 2D coordinate of the goal
-        # goal_index = free_spaces[goal_indices[n], :]
-        coarse_goal_index = coarse_free_spaces[coarse_goal_indices[n], :]
-        coarse_goal_x = xs_coarse[coarse_goal_index[0]]
-        coarse_goal_y = ys_coarse[coarse_goal_index[1]]
-        # to solve the maze, the fine index is needed, calculate the closest one from the coarse location
-        goal_index = np.zeros((2,)).astype(np.int32)
-        goal_index[0] = np.abs(xs - coarse_goal_x).argmin()
-        goal_index[1] = np.abs(ys - coarse_goal_y).argmin()
+        goal_index = free_spaces[goal_indices[n], :]
 
         goal_x = xs[goal_index[0]]
         goal_y = ys[goal_index[1]]
+
+        # make sure the goal is placed in an open space
+        assert(fine_maze[goal_index[0], goal_index[1]] == 0)
 
         # Compute the optimal path given this goal
         # Full solve is set to true, so start_indices is ignored

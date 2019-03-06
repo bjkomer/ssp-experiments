@@ -16,7 +16,7 @@ class ValidationSet(object):
         # n_mazes by res by res
         fine_mazes = data['fine_mazes']
 
-        # n_mazes by res by res by 2
+        # n_mazes by n_goals by res by res by 2
         solved_mazes = data['solved_mazes']
 
         # NOTE: this can be modified from the original dataset, so it is explicitly passed in
