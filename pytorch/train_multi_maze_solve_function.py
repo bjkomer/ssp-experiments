@@ -135,6 +135,10 @@ for e in range(args.epoch_offset, args.epochs + args.epoch_offset):
         # do a validation run and save images
         validation_set.run_validation(model, writer, e)
 
+        if e > 0:
+            # Save a copy of the model at this stage
+            torch.save(model.state_dict(), os.path.join(save_dir, 'model_epoch_{}.pt'.format(e)))
+
     # Run the test set for validation
     if e % args.val_period == 0:
         print("Running Val Set")
