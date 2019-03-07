@@ -177,13 +177,11 @@ def create_dataloader(data, n_samples, maze_sps, args):
     # n_mazes by n_goals by dim
     if args.spatial_encoding == 'ssp':
         goal_sps = data['goal_sps']
-        dim = data['goal_sps'].shape[1]
     elif args.spatial_encoding == 'random':
-        dim = data['goal_sps'].shape[1]
-        goal_sps = np.zeros((n_mazes, n_goals, dim))
+        goal_sps = np.zeros((n_mazes, n_goals, args.dim))
         for ni in range(n_mazes):
             for gi in range(n_goals):
-                goal_sps[ni, gi, :] = encode_random(x=goals[ni, gi, 0], y=goals[ni, gi, 1], dim=dim)
+                goal_sps[ni, gi, :] = encode_random(x=goals[ni, gi, 0], y=goals[ni, gi, 1], dim=args.dim)
     else:
         raise NotImplementedError
 
@@ -229,7 +227,7 @@ def create_dataloader(data, n_samples, maze_sps, args):
         if args.spatial_encoding == 'ssp':
             train_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
         elif args.spatial_encoding == 'random':
-            train_loc_sps[n, :] = encode_random(loc_x, loc_y, dim)
+            train_loc_sps[n, :] = encode_random(loc_x, loc_y, args.dim)
         train_goal_sps[n, :] = goal_sps[maze_index, goal_index, :]
 
         train_output_dirs[n, :] = solved_mazes[maze_index, goal_index, x_index, y_index, :]
