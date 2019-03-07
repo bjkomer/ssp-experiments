@@ -22,7 +22,7 @@ parser.add_argument('--epoch-offset', type=int, default=0,
                     help='Optional offset to start epochs counting from. To be used when continuing training')
 parser.add_argument('--viz-period', type=int, default=200, help='number of epochs before a viz set run')
 parser.add_argument('--val-period', type=int, default=25, help='number of epochs before a test/validation set run')
-parser.add_argument('--subsample', type=int, default=2, help='amount to subsample for the visualization validation')
+parser.add_argument('--subsample', type=int, default=1, help='amount to subsample for the visualization validation')
 parser.add_argument('--maze-id-type', type=str, choices=['ssp', 'one-hot', 'random-sp'], default='ssp',
                     help='ssp: region corresponding to maze layout.'
                          'one-hot: each maze given a one-hot vector.'
@@ -128,14 +128,14 @@ optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.moment
 for e in range(args.epoch_offset, args.epochs + args.epoch_offset):
     print('Epoch: {0}'.format(e + 1))
 
-    print("Running Viz Set")
     if e % args.viz_period == 0:
+        print("Running Viz Set")
         # do a validation run and save images
         validation_set.run_validation(model, writer, e)
 
-    print("Running Val Set")
     # Run the test set for validation
     if e % args.val_period == 0:
+        print("Running Val Set")
         with torch.no_grad():
             # Everything is in one batch, so this loop will only happen once
             for i, data in enumerate(testloader):
