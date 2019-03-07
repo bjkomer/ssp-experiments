@@ -1,6 +1,6 @@
 import nengo.spa as spa
 import numpy as np
-from spatial_semantic_pointers.utils import encode_point
+from spatial_semantic_pointers.utils import encode_point, encode_random
 from path_utils import plot_path_predictions
 import torch
 import torch.nn as nn
@@ -9,7 +9,7 @@ from datasets import MazeDataset
 
 class ValidationSet(object):
 
-    def __init__(self, data, maze_sps, maze_indices, goal_indices, subsample=2):
+    def __init__(self, data, maze_sps, maze_indices, goal_indices, subsample=2, spatial_encoding='ssp'):
         x_axis_sp = spa.SemanticPointer(data=data['x_axis_sp'])
         y_axis_sp = spa.SemanticPointer(data=data['y_axis_sp'])
 
@@ -23,11 +23,19 @@ class ValidationSet(object):
         # n_mazes by dim
         # maze_sps = data['maze_sps']
 
-        # n_mazes by n_goals by dim
-        goal_sps = data['goal_sps']
-
         # n_mazes by n_goals by 2
         goals = data['goals']
+
+        # n_mazes by n_goals by dim
+        if spatial_encoding == 'ssp':
+            goal_sps = data['goal_sps']
+        elif spatial_encoding == 'random':
+            goal_sps = np.zeros_like(data['goal_sps'])
+            for ni in range(goal_sps.shape[0]):
+                for gi in range(goal_sps.shape[1]):
+                    goal_sps[ni, gi, :] = encode_random(x=goals[ni, gi, 0], y=goals[ni, gi, 1], dim=goal_sps.shape[2])
+        else:
+            raise NotImplementedError
 
         self.xs = data['xs']
         self.ys = data['ys']
@@ -64,7 +72,10 @@ class ValidationSet(object):
                         viz_locs[si, 0] = loc_x
                         viz_locs[si, 1] = loc_y
                         viz_goals[si, :] = goals[mi, gi, :]
-                        viz_loc_sps[si, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
+                        if spatial_encoding == 'ssp':
+                            viz_loc_sps[si, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
+                        else:
+                            viz_loc_sps[si, :] = encode_random(loc_x, loc_y, dim)
                         viz_goal_sps[si, :] = goal_sps[mi, gi, :]
 
                         viz_output_dirs[si, :] = solved_mazes[mi, gi, xi, yi, :]
@@ -157,14 +168,24 @@ def create_dataloader(data, n_samples, maze_sps, args):
     # n_mazes by dim
     # maze_sps = data['maze_sps']
 
-    # n_mazes by n_goals by dim
-    goal_sps = data['goal_sps']
-
     # n_mazes by n_goals by 2
     goals = data['goals']
 
     n_goals = goals.shape[1]
     n_mazes = fine_mazes.shape[0]
+
+    # n_mazes by n_goals by dim
+    if args.spatial_encoding == 'ssp':
+        goal_sps = data['goal_sps']
+        dim = data['goal_sps'].shape[1]
+    elif args.spatial_encoding == 'random':
+        dim = data['goal_sps'].shape[1]
+        goal_sps = np.zeros((n_mazes, n_goals, dim))
+        for ni in range(n_mazes):
+            for gi in range(n_goals):
+                goal_sps[ni, gi, :] = encode_random(x=goals[ni, gi, 0], y=goals[ni, gi, 1], dim=dim)
+    else:
+        raise NotImplementedError
 
     if 'xs' in data.keys():
         xs = data['xs']
@@ -204,7 +225,11 @@ def create_dataloader(data, n_samples, maze_sps, args):
         train_locs[n, 0] = loc_x
         train_locs[n, 1] = loc_y
         train_goals[n, :] = goals[maze_index, goal_index, :]
-        train_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
+
+        if args.spatial_encoding == 'ssp':
+            train_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
+        elif args.spatial_encoding == 'random':
+            train_loc_sps[n, :] = encode_random(loc_x, loc_y, dim)
         train_goal_sps[n, :] = goal_sps[maze_index, goal_index, :]
 
         train_output_dirs[n, :] = solved_mazes[maze_index, goal_index, x_index, y_index, :]

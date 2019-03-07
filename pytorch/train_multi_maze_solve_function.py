@@ -22,6 +22,8 @@ parser.add_argument('--epoch-offset', type=int, default=0,
                     help='Optional offset to start epochs counting from. To be used when continuing training')
 parser.add_argument('--viz-period', type=int, default=200, help='number of epochs before a viz set run')
 parser.add_argument('--val-period', type=int, default=25, help='number of epochs before a test/validation set run')
+parser.add_argument('--spatial-encoding', type=str, default='ssp', choices=['ssp', 'random'],
+                    help='coordinate encoding for agent location and goal')
 parser.add_argument('--subsample', type=int, default=1, help='amount to subsample for the visualization validation')
 parser.add_argument('--maze-id-type', type=str, choices=['ssp', 'one-hot', 'random-sp'], default='ssp',
                     help='ssp: region corresponding to maze layout.'
