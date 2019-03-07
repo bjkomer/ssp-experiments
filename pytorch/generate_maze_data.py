@@ -63,6 +63,8 @@ for mi in range(args.n_mazes):
         obstacle_ratio=.2,
         map_style=args.map_style,
     )
+    coarse_mazes[mi, :, :] = coarse_maze
+    fine_mazes[mi, :, :] = fine_maze
 
     maze_sps[mi, :] = maze_ssp.v
 
