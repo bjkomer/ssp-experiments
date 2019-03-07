@@ -11,6 +11,8 @@ from path_utils import plot_path_predictions, generate_maze_sp, solve_maze
 from models import FeedForward
 from datasets import MazeDataset
 import nengo.spa as spa
+import matplotlib.pyplot as plt
+
 
 parser = argparse.ArgumentParser(
     'Test a function that given a maze and a goal location, computes the direction to move to get to that goal'
@@ -19,6 +21,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument('--seed', type=int, default=13, help='Seed for training and generating axis SSPs')
 parser.add_argument('--limit-low', type=float, default=-5, help='lowest coordinate value')
 parser.add_argument('--limit-high', type=float, default=5, help='highest coordinate value')
+parser.add_argument('--view-activations', action='store_true', help='view spatial activations of each neuron')
 parser.add_argument('--dataset', type=str, default='maze_datasets/maze_dataset_10mazes_25goals_64res_13seed.npz')
 parser.add_argument('--logdir', type=str, default='test_multi_maze_solve_function',
                     help='Directory for saved model and tensorboard log')
@@ -140,7 +143,21 @@ with torch.no_grad():
     for i, data in enumerate(vizloader):
         maze_loc_goal_ssps, directions, locs, goals = data
 
-        outputs = model(maze_loc_goal_ssps)
+        if args.view_activations:
+            outputs, activations = model.forward_activations(maze_loc_goal_ssps)
+            # shape of activations is batch_size by n_neurons
+
+            # Loop through each neuron to create a spatial map
+            for n in range(activations.shape[1]):
+                fig, ax = plt.subplots()
+                ax.imshow(activations[:, n].view(res, res))
+                writer.add_figure('activations for batch {}'.format(i), fig, n)
+
+                fig, ax = plt.subplots()
+                ax.imshow(maze_loc_goal_ssps[:, dim + n].view(res, res))
+                writer.add_figure('loc inputs for batch {}'.format(i), fig, n)
+        else:
+            outputs = model(maze_loc_goal_ssps)
 
         loss = criterion(outputs, directions)
 

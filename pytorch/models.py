@@ -25,6 +25,14 @@ class FeedForward(nn.Module):
 
         return prediction
 
+    def forward_activations(self, inputs):
+        """Returns the hidden layer activations as well as the prediction"""
+
+        features = F.relu(self.input_layer(inputs))
+        prediction = self.output_layer(features)
+
+        return prediction, features
+
 
 class MLP(nn.Module):
     """

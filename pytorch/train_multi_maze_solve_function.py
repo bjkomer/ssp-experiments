@@ -20,7 +20,8 @@ parser = argparse.ArgumentParser(
 parser.add_argument('--epochs', type=int, default=50, help='Number of epochs to train for')
 parser.add_argument('--epoch-offset', type=int, default=0,
                     help='Optional offset to start epochs counting from. To be used when continuing training')
-parser.add_argument('--validation-period', type=int, default=250, help='number of epochs before a validation set run')
+parser.add_argument('--viz-period', type=int, default=200, help='number of epochs before a viz set run')
+parser.add_argument('--val-period', type=int, default=25, help='number of epochs before a test/validation set run')
 parser.add_argument('--subsample', type=int, default=2, help='amount to subsample for the visualization validation')
 parser.add_argument('--maze-id-type', type=str, choices=['ssp', 'one-hot', 'random-sp'], default='ssp',
                     help='ssp: region corresponding to maze layout.'
@@ -127,9 +128,24 @@ optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.moment
 for e in range(args.epoch_offset, args.epochs + args.epoch_offset):
     print('Epoch: {0}'.format(e + 1))
 
-    if e % args.validation_period == 0:
+    print("Running Viz Set")
+    if e % args.viz_period == 0:
         # do a validation run and save images
         validation_set.run_validation(model, writer, e)
+
+    print("Running Val Set")
+    # Run the test set for validation
+    if e % args.val_period == 0:
+        with torch.no_grad():
+            # Everything is in one batch, so this loop will only happen once
+            for i, data in enumerate(testloader):
+                maze_loc_goal_ssps, directions, locs, goals = data
+
+                outputs = model(maze_loc_goal_ssps)
+
+                loss = criterion(outputs, directions)
+
+            writer.add_scalar('test_loss', loss.data.item(), e)
 
     avg_loss = 0
     n_batches = 0
@@ -174,7 +190,7 @@ with torch.no_grad():
         # print(loss.data.item())
 
     if args.logdir != '':
-        writer.add_scalar('test_loss', loss.data.item())
+        writer.add_scalar('final_test_loss', loss.data.item())
 
 print("Visualization")
 validation_set.run_validation(model, writer, args.epochs + args.epoch_offset)
