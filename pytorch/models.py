@@ -16,7 +16,7 @@ class FeedForward(nn.Module):
         self.output_size = output_size
 
         # For compatibility with DeepRL code
-        self.feature_dim = output_size #hidden_size #FIXME
+        self.feature_dim = hidden_size #output_size #hidden_size #FIXME, this should be hidden size, the downstream code needs modification
 
         self.input_layer = nn.Linear(self.input_size, self.hidden_size)
         self.output_layer = nn.Linear(self.hidden_size, self.output_size)

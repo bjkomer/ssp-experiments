@@ -74,7 +74,29 @@ class Task:
         return self.env.step(actions)
 
 
-def ppo_continuous(data, map_index, model):
+def modified_gaussian_actor_critic_net(state_dim, action_dim, model_params, critic_body):
+
+    actor_body = FCBody(state_dim, hidden_units=(512,), gate=F.relu)
+    # overwrite the weights of the actor body
+    print("n_actor_body layers", len(actor_body.layers))
+    print(actor_body.layers)
+    actor_body.layers[0].weight = torch.nn.Parameter(model_params['input_layer.weight'])
+    actor_body.layers[0].bias = torch.nn.Parameter(model_params['input_layer.bias'])
+
+    net = GaussianActorCriticNet(
+        state_dim, action_dim,
+        actor_body=actor_body,
+        critic_body=critic_body
+    )
+
+    # overwrite the weights of the action output
+    net.network.fc_action.weight = torch.nn.Parameter(model_params['output_layer.weight'])
+    net.network.fc_action.bias = torch.nn.Parameter(model_params['output_layer.bias'])
+
+    return net
+
+
+def ppo_continuous(data, map_index, model_params):
     config = Config()
     log_dir = get_default_log_dir(ppo_continuous.__name__)
     # config.task_fn = lambda: Task(name)
@@ -87,8 +109,11 @@ def ppo_continuous(data, map_index, model):
     # config.network_fn = lambda: GaussianActorCriticNet(
     #     config.state_dim, config.action_dim, actor_body=FCBody(config.state_dim, gate=F.tanh),
     #     critic_body=FCBody(config.state_dim, gate=F.tanh))
-    config.network_fn = lambda: GaussianActorCriticNet(
-        config.state_dim, config.action_dim, actor_body=model,
+    # config.network_fn = lambda: GaussianActorCriticNet(
+    #     config.state_dim, config.action_dim, actor_body=model,
+    #     critic_body=FCBody(config.state_dim, gate=F.tanh))
+    config.network_fn = lambda: modified_gaussian_actor_critic_net(
+        config.state_dim, config.action_dim, model_params=model_params,
         critic_body=FCBody(config.state_dim, gate=F.tanh))
     config.optimizer_fn = lambda params: torch.optim.Adam(params, 3e-4, eps=1e-5)
     config.discount = 0.99
@@ -125,10 +150,20 @@ if __name__ == '__main__':
 
     # env = WrappedSSPEnv(data=data, map_index=args.map_index)
 
-    # input is maze, loc, goal ssps, output is 2D direction to move
-    model = FeedForward(input_size=dim * 3, output_size=2)
+    # # input is maze, loc, goal ssps, output is 2D direction to move
+    # model = FeedForward(input_size=dim * 3, output_size=2)
 
-    if args.model:
-        model.load_state_dict(torch.load(args.model), strict=False)
+    # if args.model:
+    #     model.load_state_dict(torch.load(args.model), strict=False)
 
-    ppo_continuous(data, args.map_index, model)
+    model_params = torch.load(args.model)
+
+    # # print(torch.load(args.model))
+    # model_data = torch.load(args.model)
+    # print(model_data.keys())
+    # for param in model_data:
+    #     print(model_data[param].shape)
+    #
+    # assert False
+
+    ppo_continuous(data, args.map_index, model_params)
