@@ -37,11 +37,13 @@ class Task:
     def __init__(self,
                  data,
                  map_index,
+                 render=False,
                  num_envs=1,
                  single_process=True,
                  log_dir=None,
                  episode_life=True,
                  seed=np.random.randint(int(1e5))):
+        self.render = render
         if log_dir is not None:
             mkdir(log_dir)
         # TODO FIXME: need log and seed stuff as input here
@@ -71,17 +73,20 @@ class Task:
     def step(self, actions):
         if isinstance(self.action_space, Box):
             actions = np.clip(actions, self.action_space.low, self.action_space.high)
+        if self.render:
+            # self.env.render()
+            # Need to access a specific env in the DummyVecEnv. Only one is used anyway
+            self.env.envs[0].render()
         return self.env.step(actions)
 
 
-def modified_gaussian_actor_critic_net(state_dim, action_dim, model_params, critic_body):
+def modified_gaussian_actor_critic_net(state_dim, action_dim, model_params, critic_body, load_given_params=True):
 
     actor_body = FCBody(state_dim, hidden_units=(512,), gate=F.relu)
-    # overwrite the weights of the actor body
-    print("n_actor_body layers", len(actor_body.layers))
-    print(actor_body.layers)
-    actor_body.layers[0].weight = torch.nn.Parameter(model_params['input_layer.weight'])
-    actor_body.layers[0].bias = torch.nn.Parameter(model_params['input_layer.bias'])
+    if load_given_params:
+        # overwrite the weights of the actor body
+        actor_body.layers[0].weight = torch.nn.Parameter(model_params['input_layer.weight'])
+        actor_body.layers[0].bias = torch.nn.Parameter(model_params['input_layer.bias'])
 
     net = GaussianActorCriticNet(
         state_dim, action_dim,
@@ -89,22 +94,23 @@ def modified_gaussian_actor_critic_net(state_dim, action_dim, model_params, crit
         critic_body=critic_body
     )
 
-    # overwrite the weights of the action output
-    net.network.fc_action.weight = torch.nn.Parameter(model_params['output_layer.weight'])
-    net.network.fc_action.bias = torch.nn.Parameter(model_params['output_layer.bias'])
+    if load_given_params:
+        # overwrite the weights of the action output
+        net.network.fc_action.weight = torch.nn.Parameter(model_params['output_layer.weight'])
+        net.network.fc_action.bias = torch.nn.Parameter(model_params['output_layer.bias'])
 
     return net
 
 
-def ppo_continuous(data, map_index, model_params):
+def ppo_continuous(data, map_index, model_params, render=False):
     config = Config()
     log_dir = get_default_log_dir(ppo_continuous.__name__)
     # config.task_fn = lambda: Task(name)
     # config.eval_env = Task(name, log_dir=log_dir)
     # config.task_fn = lambda: WrappedSSPEnv(data=data, map_index=map_index)
     # config.eval_env = WrappedSSPEnv(data=data, map_index=map_index)
-    config.task_fn = lambda: Task(data=data, map_index=map_index)
-    config.eval_env = Task(data=data, map_index=map_index, log_dir=log_dir)
+    config.task_fn = lambda: Task(data=data, map_index=map_index, render=render)
+    config.eval_env = Task(data=data, map_index=map_index, log_dir=log_dir, render=render)
 
     # config.network_fn = lambda: GaussianActorCriticNet(
     #     config.state_dim, config.action_dim, actor_body=FCBody(config.state_dim, gate=F.tanh),
@@ -114,7 +120,10 @@ def ppo_continuous(data, map_index, model_params):
     #     critic_body=FCBody(config.state_dim, gate=F.tanh))
     config.network_fn = lambda: modified_gaussian_actor_critic_net(
         config.state_dim, config.action_dim, model_params=model_params,
-        critic_body=FCBody(config.state_dim, gate=F.tanh))
+        critic_body=FCBody(config.state_dim, gate=F.tanh),
+        # load_given_params=True,
+        load_given_params=False,
+    )
     config.optimizer_fn = lambda params: torch.optim.Adam(params, 3e-4, eps=1e-5)
     config.discount = 0.99
     config.use_gae = True
@@ -166,4 +175,5 @@ if __name__ == '__main__':
     #
     # assert False
 
-    ppo_continuous(data, args.map_index, model_params)
+    # ppo_continuous(data, args.map_index, model_params, render=True)
+    ppo_continuous(data, args.map_index, model_params, render=False)
