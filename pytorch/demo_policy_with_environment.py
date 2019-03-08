@@ -2,7 +2,7 @@ import numpy as np
 import argparse
 import torch
 from models import FeedForward
-from env_utils import make_multigoal_ssp_env, WrappedSSPEnv
+from env_utils import WrappedSSPEnv
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('View a policy running on an enviromnent')
@@ -40,7 +40,7 @@ if __name__ == '__main__':
                 action = model(torch.Tensor(obs)).squeeze(0).numpy()
 
                 # Add some noise to the action
-                action += np.random.normal(size=2)
+                action += np.random.normal(size=2)*.75
 
                 obs, reward, done, info = env.step(action)
 

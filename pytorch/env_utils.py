@@ -120,6 +120,11 @@ class WrappedSSPEnv(Wrapper):
         # This will remain constant for the current map
         self.map_ssp = maze_sps[map_index, :]
 
+        # For compatibility with DeepRL code
+        self.state_dim = dim * 3
+        self.action_dim = 2
+        self.name = 'ssp_env'
+
     def modify_obs(self, obs):
 
         goal_ssp = obs[self._wrapped_env.obs_index_dict['goal_csp']]
