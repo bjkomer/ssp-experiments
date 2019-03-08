@@ -102,7 +102,7 @@ def modified_gaussian_actor_critic_net(state_dim, action_dim, model_params, crit
     return net
 
 
-def ppo_continuous(data, map_index, model_params, render=False):
+def ppo_continuous(data, map_index, model_params, n_samples=1e6, render=False, load_given_params=True):
     config = Config()
     log_dir = get_default_log_dir(ppo_continuous.__name__)
     # config.task_fn = lambda: Task(name)
@@ -121,8 +121,7 @@ def ppo_continuous(data, map_index, model_params, render=False):
     config.network_fn = lambda: modified_gaussian_actor_critic_net(
         config.state_dim, config.action_dim, model_params=model_params,
         critic_body=FCBody(config.state_dim, gate=F.tanh),
-        # load_given_params=True,
-        load_given_params=False,
+        load_given_params=load_given_params,
     )
     config.optimizer_fn = lambda params: torch.optim.Adam(params, 3e-4, eps=1e-5)
     config.discount = 0.99
@@ -134,7 +133,7 @@ def ppo_continuous(data, map_index, model_params, render=False):
     config.mini_batch_size = 64
     config.ppo_ratio_clip = 0.2
     config.log_interval = 2048
-    config.max_steps = 1e5
+    config.max_steps = n_samples
     config.state_normalizer = MeanStdNormalizer()
     config.logger = get_logger()
     run_steps(PPOAgent(config))
@@ -149,6 +148,9 @@ if __name__ == '__main__':
                         default='multi_maze_solve_function/v2/ssp/maze/mid_lr_mom_much_more_data/Mar07_15-23-16/model_epoch_100.pt',
                         help='Saved model to load from')
     parser.add_argument('--map-index', type=int, default=0, help='Index for picking which map in the dataset to use')
+    parser.add_argument('--n-samples', type=int, default=1e6)
+    parser.add_argument('--render', action='store_true', help='If set, render the environment')
+    parser.add_argument('--from-scratch', action='store_true', help='If set, start from scratch instead of loading model parameters')
 
     args = parser.parse_args()
 
@@ -175,5 +177,7 @@ if __name__ == '__main__':
     #
     # assert False
 
-    # ppo_continuous(data, args.map_index, model_params, render=True)
-    ppo_continuous(data, args.map_index, model_params, render=False)
+    ppo_continuous(
+        data, args.map_index, model_params,
+        n_samples=args.n_samples, render=args.render, load_given_params=not args.from_scratch
+    )
