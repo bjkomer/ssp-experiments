@@ -9,7 +9,7 @@ parser = argparse.ArgumentParser(
 )
 
 parser.add_argument('--maze-size', type=int, default=11, help='Size of the coarse maze structure')
-parser.add_argument('--map-style', type=str, default='blocks', choices=['blocks', 'maze'], help='Style of maze')
+parser.add_argument('--map-style', type=str, default='blocks', choices=['blocks', 'maze', 'mixed'], help='Style of maze')
 parser.add_argument('--res', type=int, default=64, help='resolution of the fine maze')
 parser.add_argument('--limit-low', type=float, default=-5, help='lowest coordinate value')
 parser.add_argument('--limit-high', type=float, default=5, help='highest coordinate value')
@@ -53,6 +53,10 @@ goal_sps = np.zeros((args.n_mazes, args.n_goals, args.dim))
 
 for mi in range(args.n_mazes):
     # Generate a random maze
+    if args.map_style == 'mixed':
+        map_style = np.random.choice(['blocks', 'maze'])
+    else:
+        map_style = args.map_style
     maze_ssp, coarse_maze, fine_maze = generate_maze_sp(
         size=args.maze_size,
         xs=xs,
@@ -61,7 +65,7 @@ for mi in range(args.n_mazes):
         y_axis_sp=y_axis_sp,
         normalize=True,
         obstacle_ratio=.2,
-        map_style=args.map_style,
+        map_style=map_style,
     )
     coarse_mazes[mi, :, :] = coarse_maze
     fine_mazes[mi, :, :] = fine_maze
