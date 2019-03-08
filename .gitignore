@@ -1,0 +1,11 @@
+*.swp
+*.sh
+.idea
+__pycache__
+
+# output files
+pytorch/maze_datasets/
+pytorch/maze_solve_function/
+pytorch/multi_maze_solve_function/
+pytorch/multi_path_function/
+pytorch/path_function/
