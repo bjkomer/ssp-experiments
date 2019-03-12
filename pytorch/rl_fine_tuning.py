@@ -90,6 +90,7 @@ def modified_gaussian_actor_critic_net(state_dim, action_dim, model_params, crit
 
     net = GaussianActorCriticNet(
         state_dim, action_dim,
+        gate=F.relu,
         actor_body=actor_body,
         critic_body=critic_body
     )
@@ -102,7 +103,7 @@ def modified_gaussian_actor_critic_net(state_dim, action_dim, model_params, crit
     return net
 
 
-def ppo_continuous(data, map_index, model_params, n_samples=1e6, render=False, load_given_params=True):
+def ppo_continuous(data, map_index, model_params, n_samples=1e6, save_interval=1e5, log_name='ppo-multigoal-ssp', render=False, load_given_params=True):
     config = Config()
     log_dir = get_default_log_dir(ppo_continuous.__name__)
     # config.task_fn = lambda: Task(name)
@@ -135,7 +136,8 @@ def ppo_continuous(data, map_index, model_params, n_samples=1e6, render=False, l
     config.log_interval = 2048
     config.max_steps = n_samples
     config.state_normalizer = MeanStdNormalizer()
-    config.logger = get_logger()
+    config.logger = get_logger(tag=log_name)
+    config.save_interval = save_interval
     run_steps(PPOAgent(config))
 
 
@@ -149,8 +151,11 @@ if __name__ == '__main__':
                         help='Saved model to load from')
     parser.add_argument('--map-index', type=int, default=0, help='Index for picking which map in the dataset to use')
     parser.add_argument('--n-samples', type=int, default=1e6)
+    parser.add_argument('--save-interval', type=int, default=1e5, help='Number of steps before saving a snapshot of the model')
     parser.add_argument('--render', action='store_true', help='If set, render the environment')
     parser.add_argument('--from-scratch', action='store_true', help='If set, start from scratch instead of loading model parameters')
+    parser.add_argument('--log-name', type=str, default='ppo-multigoal-ssp', help='Tag for tf_log file')
+    parser.add_argument('--gate', type=str, choices=['relu', 'tanh'], default='relu')
 
     args = parser.parse_args()
 
@@ -179,5 +184,9 @@ if __name__ == '__main__':
 
     ppo_continuous(
         data, args.map_index, model_params,
-        n_samples=args.n_samples, render=args.render, load_given_params=not args.from_scratch
+        n_samples=args.n_samples,
+        save_interval=args.save_interval,
+        log_name=args.log_name,
+        render=args.render,
+        load_given_params=not args.from_scratch
     )
