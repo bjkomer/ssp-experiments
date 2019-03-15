@@ -137,6 +137,7 @@ def ppo_continuous(data, map_index, model_params, n_samples=1e6, save_interval=1
     config.max_steps = n_samples
     config.state_normalizer = MeanStdNormalizer()
     config.logger = get_logger(tag=log_name)
+    config.tag = log_name  # this name must be unique. Anything with the same name will be overwritten
     config.save_interval = save_interval
     run_steps(PPOAgent(config))
 
@@ -154,7 +155,7 @@ if __name__ == '__main__':
     parser.add_argument('--save-interval', type=int, default=1e5, help='Number of steps before saving a snapshot of the model')
     parser.add_argument('--render', action='store_true', help='If set, render the environment')
     parser.add_argument('--from-scratch', action='store_true', help='If set, start from scratch instead of loading model parameters')
-    parser.add_argument('--log-name', type=str, default='ppo-multigoal-ssp', help='Tag for tf_log file')
+    parser.add_argument('--log-name', type=str, default='ppo-multigoal-ssp', help='Tag for tf_log file and saved model')
     parser.add_argument('--gate', type=str, choices=['relu', 'tanh'], default='relu')
 
     args = parser.parse_args()
