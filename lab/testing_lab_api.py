@@ -11,6 +11,7 @@ contributed/dmlab30/explore_goal_locations_small
 contributed/dmlab30/explore_goal_locations_large
 contributed/dmlab30/explore_obstructed_goals_small
 contributed/dmlab30/explore_obstructed_goals_large
+contributed/dmlab30/rooms_watermaze
 """
 
 def _action(*entries):
