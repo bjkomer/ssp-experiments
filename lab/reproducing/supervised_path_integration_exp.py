@@ -5,6 +5,7 @@ from keras.models import Sequential, Model
 from keras.layers import Input, Dense, Dropout
 from keras.layers import Embedding
 from keras.layers import LSTM
+import keras.backend as K
 
 parser = argparse.ArgumentParser('Run 2D supervised path integration experiment')
 
@@ -34,12 +35,20 @@ tmp_input = np.zeros((10, 100, 3))
 # tmp_output = np.zeros((10, 100, n_place_cells + n_hd_cells))
 tmp_output = np.zeros((10, n_place_cells + n_hd_cells))
 
+batch_size = 10
+
 n_samples = 1000
 
 rollout_length = 100
 
 velocity_inputs = np.zeros((n_samples, rollout_length, 3))
 activation_outputs = np.zeros((n_samples, n_place_cells + n_hd_cells))
+pc_outputs = np.zeros((n_samples, n_place_cells))
+hd_outputs = np.zeros((n_samples, n_hd_cells))
+initial_states = np.zeros((n_samples, 3))
+pc_inputs = np.zeros((n_samples, n_place_cells))
+hd_inputs = np.zeros((n_samples, n_hd_cells))
+
 
 for i in range(n_samples):
     # choose random trajectory
@@ -56,22 +65,68 @@ for i in range(n_samples):
 
     activation_outputs[i, :n_place_cells] = pc_activations[traj_ind, step_ind_final]
     activation_outputs[i, n_place_cells:] = hd_activations[traj_ind, step_ind_final]
+    pc_outputs[i, :] = pc_activations[traj_ind, step_ind_final]
+    hd_outputs[i, :] = hd_activations[traj_ind, step_ind_final]
+
+    # initial state of the LSTM is a linear transform of the ground truth place and hd cell activations
+    pc_inputs[i, :] = pc_activations[traj_ind, step_ind]
+    hd_inputs[i, :] = hd_activations[traj_ind, step_ind]
+
+    # # initial state of the LSTM. Set to ground truth starting position
+    # initial_states[i, 0] = positions[traj_ind, step_ind, 0]
+    # initial_states[i, 1] = positions[traj_ind, step_ind, 1]
+    # initial_states[i, 3] = angles[traj_ind, step_ind]
+
+print("checking max values")
+print(np.max(velocity_inputs))
+print(np.max(activation_outputs))
+print("")
 
 # velocity_input = Input(shape=(3,))
-# lstm_layer = LSTM(128)(velocity_input)
-# linear_layer = Dense(512, activation='linear')(lstm_layer)
-# pc_output = Dense(args.n_place_cells, activation='softmax')(linear_layer)
-# hd_output = Dense(args.n_hd_cells, activation='softmax')(linear_layer)
+# velocity_input = Input(name='velocity_input',  batch_shape=(batch_size, rollout_length, 3,))
+# lstm_layer = LSTM(128, stateful=True, batch_input_shape=(batch_size, rollout_length, 3))(velocity_input)
+# lstm_layer = LSTM(128, stateful=False, initial_state=initial_state_input)(velocity_input)
+
+pc_input = Input(name='hd_input', shape=(n_place_cells,))
+hd_input = Input(name='hd_input', shape=(n_hd_cells,))
+velocity_input = Input(name='velocity_input',  shape=(rollout_length, 3,))
+lstm_layer = LSTM(128, stateful=False, initial_state=initial_state_input)(velocity_input)
+linear_layer = Dense(512, activation='linear')(lstm_layer)
+pc_output = Dense(args.n_place_cells, name='pc_output', activation='softmax')(linear_layer)
+hd_output = Dense(args.n_hd_cells, name='hd_output', activation='softmax')(linear_layer)
+
+model = Model(inputs=velocity_input, outputs=[pc_output, hd_output])
+
+model.compile(
+    optimizer='rmsprop',
+    loss={'pc_output': 'binary_crossentropy', 'hd_output': 'binary_crossentropy'},
+    metrics=['accuracy']
+)
+
+model.fit(
+    {'velocity_input': velocity_inputs, 'initial_state_input'},
+    {'pc_output': pc_outputs, 'hd_output': hd_outputs},
+    epochs=3,
+    batch_size=batch_size,
+)
+
+# print(model.evaluate(velocity_inputs, activation_outputs, verbose=0))
+print(
+    model.evaluate(
+        {'velocity_input': velocity_inputs},
+        {'pc_output': pc_outputs, 'hd_output': hd_outputs},
+        verbose=0
+    )
+)
+
 #
-# model = Model(inputs=velocity_input, outputs=[pc_output, hd_output])
-
-
-model = Sequential()
-# model.add(Input(shape=(3,)))
-model.add(LSTM(128))
-model.add(Dense(512))
-model.add(Dense(args.n_place_cells + args.n_hd_cells))
-model.compile(loss='binary_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
+# model = Sequential()
+# # model.add(Input(shape=(3,)))
+# model.add(LSTM(128, activation='linear'))
+# model.add(Dense(512, activation='linear'))
+# model.add(Dense(args.n_place_cells + args.n_hd_cells, activation='softmax'))
+# model.compile(loss='binary_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
+# # model.compile(loss='mse', optimizer='rmsprop', metrics=['accuracy'])
 
 print(model)
 
@@ -89,16 +144,12 @@ print(model)
 # model.add_output(name='pc_output', input='pc_output_layer')
 # model.add_output(name='hd_output', input='hd_output_layer')
 #
-# model.compile(
-#     optimizer='rmsprop',
-#     loss={'pc_output': 'binary_crossentropy', 'hd_output': 'binary_crossentropy'},
-#     metrics=['accuracy']
-# )
+
 
 # model.fit(tmp_input, tmp_output, batch_size=10)
-model.fit(velocity_inputs, activation_outputs, batch_size=10)
-
-print(model.evaluate(velocity_inputs, activation_outputs, verbose=0))
+# model.fit(velocity_inputs, activation_outputs, batch_size=10)
+#
+# print(model.evaluate(velocity_inputs, activation_outputs, verbose=0))
 
 print(model.summary())
 

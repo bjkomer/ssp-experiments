@@ -23,7 +23,7 @@ trajectory_steps = int(args.duration / args.dt)
 # print(data.shape)
 
 # place cell centers
-pc_centers = np.random.uniform(low=0, high=args.env_size, size=args.n_place_cells)
+pc_centers = np.random.uniform(low=0, high=args.env_size, size=(args.n_place_cells, 2))
 
 # head direction centers
 hd_centers = np.random.uniform(low=-np.pi, high=np.pi, size=args.n_hd_cells)
@@ -39,18 +39,27 @@ hd_activations = np.zeros((args.n_trajectories, trajectory_steps, args.n_hd_cell
 def get_pc_activations(centers, pos, std):
     num = np.zeros((centers.shape[0],))
     for ci in range(centers.shape[0]):
-        num[ci] = np.exp(-np.linalg.norm(pos - pc_centers[ci]) / (2 * std ** 2))
+        num[ci] = np.exp(-np.linalg.norm(pos - pc_centers[ci, :]) / (2 * std ** 2))
     denom = np.sum(num)
+    if denom == 0:
+        print("0 in denominator for pc_activation, returning 0")
+        return num * 0
     return num / denom
+
 
 def get_hd_activations(centers, ang, conc):
     num = np.zeros((centers.shape[0],))
     for hi in range(centers.shape[0]):
         num[hi] = np.exp(conc * np.cos(ang - hd_centers[hi]))
     denom = np.sum(num)
+    if denom == 0:
+        print("0 in denominator for hd_activation, returning 0")
+        return num * 0
     return num / denom
 
+
 for n in range(args.n_trajectories):
+    print("Generating Trajectory {} of {}".format(n+1, args.n_trajectories))
     # choose a random starting location and heading direction within the arena
     # NOTE: assuming square arena
     positions[n, 0, :] = np.random.uniform(low=0, high=args.env_size, size=2)
