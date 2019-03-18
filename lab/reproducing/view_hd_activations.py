@@ -22,7 +22,7 @@ flat_activations = hd_activations.reshape((n_trajectories * n_steps, n_hd_cells)
 for hi in range(n_hd_cells):
 
     # Get all angles where there is some activation
-    active_angles = flat_angles[flat_activations[:, hi] > .5]
+    active_angles = flat_angles[flat_activations[:, hi] > .33]
 
     print(active_angles.shape)
 
