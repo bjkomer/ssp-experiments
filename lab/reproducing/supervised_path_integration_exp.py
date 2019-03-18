@@ -2,7 +2,7 @@ import argparse
 import numpy as np
 from arguments import add_parameters
 from keras.models import Sequential, Model
-from keras.layers import Input, Dense, Dropout
+from keras.layers import Input, Dense, Dropout, TimeDistributed
 from keras.layers import Embedding
 from keras.layers import LSTM
 import keras.backend as K
@@ -45,6 +45,11 @@ velocity_inputs = np.zeros((n_samples, rollout_length, 3))
 activation_outputs = np.zeros((n_samples, n_place_cells + n_hd_cells))
 pc_outputs = np.zeros((n_samples, n_place_cells))
 hd_outputs = np.zeros((n_samples, n_hd_cells))
+
+# these include outputs for every time-step
+full_pc_outputs = np.zeros((n_samples, rollout_length, n_place_cells))
+full_hd_outputs = np.zeros((n_samples, rollout_length, n_hd_cells))
+
 initial_states = np.zeros((n_samples, 3))
 pc_inputs = np.zeros((n_samples, n_place_cells))
 hd_inputs = np.zeros((n_samples, n_hd_cells))
@@ -68,6 +73,9 @@ for i in range(n_samples):
     pc_outputs[i, :] = pc_activations[traj_ind, step_ind_final]
     hd_outputs[i, :] = hd_activations[traj_ind, step_ind_final]
 
+    full_pc_outputs[i, :] = pc_activations[traj_ind, step_ind:step_ind_final + 1]
+    full_hd_outputs[i, :] = hd_activations[traj_ind, step_ind:step_ind_final + 1]
+
     # initial state of the LSTM is a linear transform of the ground truth place and hd cell activations
     pc_inputs[i, :] = pc_activations[traj_ind, step_ind]
     hd_inputs[i, :] = hd_activations[traj_ind, step_ind]
@@ -89,11 +97,13 @@ print("")
 
 pc_input = Input(name='hd_input', shape=(n_place_cells,))
 hd_input = Input(name='hd_input', shape=(n_hd_cells,))
+
 velocity_input = Input(name='velocity_input',  shape=(rollout_length, 3,))
-lstm_layer = LSTM(128, stateful=False, initial_state=initial_state_input)(velocity_input)
-linear_layer = Dense(512, activation='linear')(lstm_layer)
-pc_output = Dense(args.n_place_cells, name='pc_output', activation='softmax')(linear_layer)
-hd_output = Dense(args.n_hd_cells, name='hd_output', activation='softmax')(linear_layer)
+# lstm_layer = LSTM(128, stateful=False, initial_state=initial_state_input)(velocity_input)
+lstm_layer = LSTM(128, stateful=False, return_sequences=True)(velocity_input)
+linear_layer = TimeDistributed(Dense(512, activation='linear'))(lstm_layer)
+pc_output = TimeDistributed(Dense(args.n_place_cells, activation='softmax'), name='pc_output')(linear_layer)
+hd_output = TimeDistributed(Dense(args.n_hd_cells, activation='softmax'), name='hd_output')(linear_layer)
 
 model = Model(inputs=velocity_input, outputs=[pc_output, hd_output])
 
@@ -104,8 +114,10 @@ model.compile(
 )
 
 model.fit(
-    {'velocity_input': velocity_inputs, 'initial_state_input'},
-    {'pc_output': pc_outputs, 'hd_output': hd_outputs},
+    # {'velocity_input': velocity_inputs, 'initial_state_input'},
+    {'velocity_input': velocity_inputs,},
+    # {'pc_output': pc_outputs, 'hd_output': hd_outputs},
+    {'pc_output': full_pc_outputs, 'hd_output': full_hd_outputs},
     epochs=3,
     batch_size=batch_size,
 )
@@ -114,7 +126,8 @@ model.fit(
 print(
     model.evaluate(
         {'velocity_input': velocity_inputs},
-        {'pc_output': pc_outputs, 'hd_output': hd_outputs},
+        # {'pc_output': pc_outputs, 'hd_output': hd_outputs},
+        {'pc_output': full_pc_outputs, 'hd_output': full_hd_outputs},
         verbose=0
     )
 )
