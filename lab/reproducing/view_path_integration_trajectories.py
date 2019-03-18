@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-data = np.load('data/path_integration_trajectories_200.npz')
+data = np.load('data/path_integration_trajectories_200t_15s.npz')
 
 positions = data['positions']
 
