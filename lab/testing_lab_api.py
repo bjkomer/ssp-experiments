@@ -3,7 +3,11 @@ import numpy as np
 import six
 import random
 import argparse
+import matplotlib
+# matplotlib.use("Qt4agg")
 import matplotlib.pyplot as plt
+from gridworlds.getch import getch
+import sys
 
 """
 Levels to use:
@@ -13,6 +17,18 @@ contributed/dmlab30/explore_obstructed_goals_small
 contributed/dmlab30/explore_obstructed_goals_large
 contributed/dmlab30/rooms_watermaze
 """
+
+def mypause(interval):
+    backend = plt.rcParams['backend']
+    if backend in matplotlib.rcsetup.interactive_bk:
+        figManager = matplotlib._pylab_helpers.Gcf.get_active()
+        if figManager is not None:
+            canvas = figManager.canvas
+            if canvas.figure.stale:
+                canvas.draw()
+            canvas.start_event_loop(interval)
+            return
+
 
 def _action(*entries):
     return np.array(entries, dtype=np.intc)
@@ -149,6 +165,96 @@ class SpringAgent(object):
         self.action = np.zeros([len(self.action_spec)])
 
 
+FORWARD = 119  # W
+STRAFE_LEFT = 97  # A
+BACKWARD = 115  # S
+STRAFE_RIGHT = 100  # D
+TURN_LEFT = 113  # Q
+TURN_RIGHT = 101  # E
+
+SHUTDOWN = 99  # C
+
+action_mappings = {
+    119: 'forward',
+    97: 'strafe_left',
+    115: 'backward',
+    100: 'strafe_right',
+    113: 'look_left',
+    101: 'look_right',
+    99: 'shutdown',
+}
+
+
+def keyboard_action(params):
+    action_str = getch()
+    if params['continuous']:
+        # These actions work for both directional and holonomic
+        if ord(action_str) == UP:
+            action = np.array([1, 0])
+        elif ord(action_str) == DOWN:
+            action = np.array([-1, 0])
+        elif ord(action_str) == LEFT:
+            action = np.array([0, -1])
+        elif ord(action_str) == RIGHT:
+            action = np.array([0, 1])
+        else:
+            action = np.array([0, 0])
+    else:
+        # These actions work for both directional and holonomic
+        if ord(action_str) == UP:
+            action = 0
+        elif ord(action_str) == DOWN:
+            action = 3  # NOTE: this is not an option for discrete directional
+            if params['movement_type'] == 'directional':
+                action = 0
+        elif ord(action_str) == LEFT:
+            action = 1
+        elif ord(action_str) == RIGHT:
+            action = 2
+        else:
+            action = 0
+
+    # Set a signal to close the environment
+    if ord(action_str) == SHUTDOWN:
+        action = None
+
+    return action
+
+
+class HumanAgent(object):
+
+    ACTIONS = {
+        'look_left': _action(-20, 0, 0, 0, 0, 0, 0),
+        'look_right': _action(20, 0, 0, 0, 0, 0, 0),
+        'strafe_left': _action(0, 0, -1, 0, 0, 0, 0),
+        'strafe_right': _action(0, 0, 1, 0, 0, 0, 0),
+        'forward': _action(0, 0, 0, 1, 0, 0, 0),
+        'backward': _action(0, 0, 0, -1, 0, 0, 0),
+    }
+
+    ACTION_LIST = list(six.viewvalues(ACTIONS))
+
+    rewards = 0
+
+    def step(self, reward, unused_image):
+        """Gets an image state and a reward, returns an action."""
+        self.rewards += reward
+
+        action_str = getch()
+
+        if ord(action_str) in action_mappings.keys():
+            action_key = action_mappings[ord(action_str)]
+            if action_key == 'shutdown':
+                # close the program
+                print("Shutting down")
+                sys.exit(0)
+            else:
+                return self.ACTIONS[action_key]
+        else:
+            # no-op action
+            return _action(0, 0, 0, 0, 0, 0, 0)
+
+
 def run(length, width, height, fps, level, record, demo, demofiles, video):
     """Spins up an environment and runs the random agent."""
     config = {
@@ -184,7 +290,8 @@ def run(length, width, height, fps, level, record, demo, demofiles, video):
 
     # agent = DiscretizedRandomAgent()
     # agent = DiscretizedDerivativeRandomAgent()
-    agent = SpringAgent(action_spec=env.action_spec())
+    # agent = SpringAgent(action_spec=env.action_spec())
+    agent = HumanAgent()
 
     reward = 0
 
@@ -215,7 +322,8 @@ def run(length, width, height, fps, level, record, demo, demofiles, video):
         img[0].set_data(obs[obs_first_person])
         img[1].set_data(obs['DEBUG.CAMERA.TOP_DOWN'].T)
         plt.draw()
-        plt.pause(0.001)
+        # plt.pause(0.001)
+        mypause(0.001)
 
     # plt.imshow(obs['RGB_INTERLEAVED'])
     # plt.show()
