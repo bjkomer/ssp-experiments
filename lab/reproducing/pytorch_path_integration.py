@@ -10,6 +10,7 @@ from pytorch_models import PathIntegrationModel
 import os
 from datetime import datetime
 from tensorboardX import SummaryWriter
+import json
 
 
 parser = argparse.ArgumentParser('Run 2D supervised path integration experiment using pytorch')
@@ -17,6 +18,8 @@ parser = argparse.ArgumentParser('Run 2D supervised path integration experiment 
 parser = add_parameters(parser)
 
 parser.add_argument('--seed', type=int, default=13)
+parser.add_argument('--n-epochs', type=int, default=20)
+parser.add_argument('--n-samples', type=int, default=1000)
 parser.add_argument('--logdir', type=str, default='output/pytorch_path_integration',
                     help='Directory for saved model and tensorboard log')
 
@@ -31,10 +34,10 @@ writer = SummaryWriter(log_dir=save_dir)
 data = np.load('data/path_integration_trajectories_200t_15s.npz')
 
 # n_samples = 5000
-n_samples = 1000
-rollout_length = 100
-batch_size = 10
-n_epochs = 20
+n_samples = args.n_samples#1000
+rollout_length = args.trajectory_length#100
+batch_size = args.minibatch_size#10
+n_epochs = args.n_epochs#20
 # n_epochs = 5
 
 model = PathIntegrationModel(unroll_length=rollout_length)
@@ -98,3 +101,7 @@ with torch.no_grad():
 
 
 torch.save(model.state_dict(), os.path.join(save_dir, 'path_integration_model.pt'))
+
+params = vars(args)
+with open(os.path.join(save_dir, "params.json"), "w") as f:
+    json.dump(params, f)
