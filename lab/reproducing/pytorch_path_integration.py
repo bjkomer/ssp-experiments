@@ -86,7 +86,7 @@ for epoch in range(n_epochs):
         # NOTE: need to permute axes of the targets here because the output is
         #       (sequence length, batch, units) instead of (batch, sequence_length, units)
         #       could also permute the outputs instead
-        loss = criterion(pc_pred, F.softmax(pc_outputs.permute(1, 0, 2))) + criterion(hd_pred, F.softmax(hd_outputs.permute(1, 0, 2)))
+        loss = criterion(pc_pred, F.softmax(pc_outputs.permute(1, 0, 2), dim=2)) + criterion(hd_pred, F.softmax(hd_outputs.permute(1, 0, 2), dim=2))
         # loss = criterion(pc_pred, pc_outputs.permute(1, 0, 2)) + criterion(hd_pred, hd_outputs.permute(1, 0, 2))
         loss.backward()
         optimizer.step()
@@ -110,7 +110,7 @@ with torch.no_grad():
         # NOTE: need to permute axes of the targets here because the output is
         #       (sequence length, batch, units) instead of (batch, sequence_length, units)
         #       could also permute the outputs instead
-        loss = criterion(pc_pred, F.softmax(pc_outputs.permute(1, 0, 2))) + criterion(hd_pred, F.softmax(hd_outputs.permute(1, 0, 2)))
+        loss = criterion(pc_pred, F.softmax(pc_outputs.permute(1, 0, 2), dim=2)) + criterion(hd_pred, F.softmax(hd_outputs.permute(1, 0, 2), dim=2))
         # loss = criterion(pc_pred, pc_outputs.permute(1, 0, 2)) + criterion(hd_pred, hd_outputs.permute(1, 0, 2))
 
         print("test loss", loss.data.item())
