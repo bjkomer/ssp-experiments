@@ -8,6 +8,7 @@ parser = add_parameters(parser)
 
 parser.add_argument('--n-trajectories', type=int, default=200, help='number of distinct full trajectories in the training set')
 parser.add_argument('--seed', type=int, default=13)
+parser.add_argument('--include-softmax', action='store_true', help='compute the softmax for the saved data. Numerically less stable')
 
 args = parser.parse_args()
 
@@ -36,26 +37,36 @@ pc_activations = np.zeros((args.n_trajectories, trajectory_steps, args.n_place_c
 hd_activations = np.zeros((args.n_trajectories, trajectory_steps, args.n_hd_cells))
 
 
-def get_pc_activations(centers, pos, std):
+def get_pc_activations(centers, pos, std, include_softmax=False):
     num = np.zeros((centers.shape[0],))
-    for ci in range(centers.shape[0]):
-        num[ci] = np.exp(-np.linalg.norm(pos - pc_centers[ci, :]) / (2 * std ** 2))
-    denom = np.sum(num)
-    if denom == 0:
-        print("0 in denominator for pc_activation, returning 0")
-        return num * 0
-    return num / denom
+    if include_softmax:
+        for ci in range(centers.shape[0]):
+            num[ci] = np.exp(-np.linalg.norm(pos - pc_centers[ci, :]) / (2 * std ** 2))
+        denom = np.sum(num)
+        if denom == 0:
+            print("0 in denominator for pc_activation, returning 0")
+            return num * 0
+        return num / denom
+    else:
+        for ci in range(centers.shape[0]):
+            num[ci] = -np.linalg.norm(pos - pc_centers[ci, :]) / (2 * std ** 2)
+        return num
 
 
-def get_hd_activations(centers, ang, conc):
+def get_hd_activations(centers, ang, conc, include_softmax=False):
     num = np.zeros((centers.shape[0],))
-    for hi in range(centers.shape[0]):
-        num[hi] = np.exp(conc * np.cos(ang - hd_centers[hi]))
-    denom = np.sum(num)
-    if denom == 0:
-        print("0 in denominator for hd_activation, returning 0")
-        return num * 0
-    return num / denom
+    if include_softmax:
+        for hi in range(centers.shape[0]):
+            num[hi] = np.exp(conc * np.cos(ang - hd_centers[hi]))
+        denom = np.sum(num)
+        if denom == 0:
+            print("0 in denominator for hd_activation, returning 0")
+            return num * 0
+        return num / denom
+    else:
+        for hi in range(centers.shape[0]):
+            num[hi] = np.exp(conc * np.cos(ang - hd_centers[hi]))
+        return num
 
 
 for n in range(args.n_trajectories):
@@ -116,8 +127,13 @@ for n in range(args.n_trajectories):
             centers=hd_centers, ang=angles[n, s], conc=args.hd_concentration_param
         )
 
+if args.include_softmax:
+    activation_type = 'softmax'
+else:
+    activation_type = 'logits'
+
 np.savez(
-    'data/path_integration_trajectories_{}t_{}s.npz'.format(args.n_trajectories, int(args.duration)),
+    'data/path_integration_trajectories_{}_{}t_{}s.npz'.format(activation_type, args.n_trajectories, int(args.duration)),
     positions=positions,
     angles=angles,
     lin_vels=lin_vels,

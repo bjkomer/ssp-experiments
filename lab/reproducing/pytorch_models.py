@@ -141,9 +141,12 @@ class PathIntegrationModel(nn.Module):
             # features = self.linear(out)
             features = self.linear(hidden_state)
 
-        pc_pred = F.softmax(self.pc_output(features))
+        # pc_pred = F.softmax(self.pc_output(features))
+        # hd_pred = F.softmax(self.hd_output(features))
 
-        hd_pred = F.softmax(self.hd_output(features))
+        # Do not use softmax here, as training will be done with BCEWithLogitsLoss
+        pc_pred = self.pc_output(features)
+        hd_pred = self.hd_output(features)
 
         return pc_pred, hd_pred
 

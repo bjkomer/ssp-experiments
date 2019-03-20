@@ -22,7 +22,7 @@ parser.add_argument('--n-epochs', type=int, default=20)
 parser.add_argument('--n-samples', type=int, default=1000)
 parser.add_argument('--logdir', type=str, default='output/pytorch_path_integration',
                     help='Directory for saved model and tensorboard log')
-parser.add_argument('--dataset', type=str, default='data/path_integration_trajectories_200t_15s.npz')
+parser.add_argument('--dataset', type=str, default='data/path_integration_trajectories_logits_200t_15s.npz')
 
 args = parser.parse_args()
 
@@ -44,7 +44,9 @@ n_epochs = args.n_epochs#20
 model = PathIntegrationModel(unroll_length=rollout_length)
 
 # Binary cross-entropy loss
-criterion = nn.BCELoss()
+# criterion = nn.BCELoss()
+# more numerically stable. Do not use softmax beforehand
+criterion = nn.BCEWithLogitsLoss()
 
 optimizer = optim.RMSprop(model.parameters(), lr=args.learning_rate, momentum=args.momentum)
 
