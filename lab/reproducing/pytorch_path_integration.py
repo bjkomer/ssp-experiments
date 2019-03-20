@@ -22,6 +22,7 @@ parser.add_argument('--n-epochs', type=int, default=20)
 parser.add_argument('--n-samples', type=int, default=1000)
 parser.add_argument('--logdir', type=str, default='output/pytorch_path_integration',
                     help='Directory for saved model and tensorboard log')
+parser.add_argument('--dataset', type=str, default='data/path_integration_trajectories_200t_15s.npz')
 
 args = parser.parse_args()
 
@@ -31,7 +32,7 @@ current_time = datetime.now().strftime('%b%d_%H-%M-%S')
 save_dir = os.path.join(args.logdir, current_time)
 writer = SummaryWriter(log_dir=save_dir)
 
-data = np.load('data/path_integration_trajectories_200t_15s.npz')
+data = np.load(args.dataset)
 
 # n_samples = 5000
 n_samples = args.n_samples#1000
