@@ -5,7 +5,7 @@ import torch
 
 class TrajectoryDataset(data.Dataset):
 
-    def __init__(self, velocity_inputs, pc_inputs, hd_inputs, pc_outputs, hd_outputs):
+    def __init__(self, velocity_inputs, pc_inputs, hd_inputs, pc_outputs, hd_outputs, return_velocity_list=True):
 
         self.velocity_inputs = velocity_inputs.astype(np.float32)
         self.pc_inputs = pc_inputs.astype(np.float32)
@@ -13,11 +13,17 @@ class TrajectoryDataset(data.Dataset):
         self.pc_outputs = pc_outputs.astype(np.float32)
         self.hd_outputs = hd_outputs.astype(np.float32)
 
-    def __getitem__(self, index):
-        # return self.velocity_inputs[index], self.pc_inputs[index], self.hd_inputs[index], self.pc_outputs[index], self.hd_outputs[index]
+        # flag for whether the velocities returned are a single tensor or a list of tensors
+        self.return_velocity_list = return_velocity_list
 
-        return [self.velocity_inputs[index, i] for i in range(self.velocity_inputs.shape[1])],\
-               self.pc_inputs[index], self.hd_inputs[index], self.pc_outputs[index], self.hd_outputs[index]
+    def __getitem__(self, index):
+
+        if self.return_velocity_list:
+            return [self.velocity_inputs[index, i] for i in range(self.velocity_inputs.shape[1])],\
+                   self.pc_inputs[index], self.hd_inputs[index], self.pc_outputs[index], self.hd_outputs[index]
+        else:
+            return self.velocity_inputs[index], self.pc_inputs[index], self.hd_inputs[index], self.pc_outputs[index], \
+                   self.hd_outputs[index]
 
     def __len__(self):
         return self.velocity_inputs.shape[0]
@@ -82,9 +88,13 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
             pc_inputs=pc_inputs,
             hd_inputs=hd_inputs,
 
+            # # TODO: fix this to have the whole trajectory
+            # pc_outputs=pc_outputs,
+            # hd_outputs=hd_outputs,
+
             # TODO: fix this to have the whole trajectory
-            pc_outputs=pc_outputs,
-            hd_outputs=hd_outputs,
+            pc_outputs=full_pc_outputs,
+            hd_outputs=full_hd_outputs,
         )
 
         if test_set == 0:
