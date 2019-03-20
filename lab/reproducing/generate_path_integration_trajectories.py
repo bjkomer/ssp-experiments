@@ -6,7 +6,7 @@ parser = argparse.ArgumentParser('Generate trajectories for 2D supervised path i
 
 parser = add_parameters(parser)
 
-parser.add_argument('--n-trajectories', default=200, help='number of distinct full trajectories in the training set')
+parser.add_argument('--n-trajectories', type=int, default=200, help='number of distinct full trajectories in the training set')
 parser.add_argument('--seed', type=int, default=13)
 
 args = parser.parse_args()
