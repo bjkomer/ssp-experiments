@@ -23,6 +23,7 @@ parser.add_argument('--n-samples', type=int, default=1000)
 parser.add_argument('--logdir', type=str, default='output/pytorch_path_integration',
                     help='Directory for saved model and tensorboard log')
 parser.add_argument('--dataset', type=str, default='data/path_integration_trajectories_logits_200t_15s.npz')
+# parser.add_argument('--dataset', type=str, default='data/path_integration_trajectories_200t_15s.npz')
 
 args = parser.parse_args()
 
@@ -76,7 +77,16 @@ for epoch in range(n_epochs):
         pc_pred, hd_pred = model(velocity_inputs, pc_inputs, hd_inputs)
 
         # loss = criterion(pc_pred, pc_outputs[i, :]) + criterion(hd_pred, hd_outputs[i, :])
-        loss = criterion(pc_pred, pc_outputs) + criterion(hd_pred, hd_outputs)
+
+        # print("pc_pred.shape", pc_pred.shape)
+        # print("pc_outputs.shape", pc_outputs.shape)
+        # print("hd_pred.shape", hd_pred.shape)
+        # print("hd_outputs.shape", hd_outputs.shape)
+
+        # NOTE: need to permute axes of the targets here because the output is
+        #       (sequence length, batch, units) instead of (batch, sequence_length, units)
+        #       could also permute the outputs instead
+        loss = criterion(pc_pred, pc_outputs.permute(1, 0, 2)) + criterion(hd_pred, hd_outputs.permute(1, 0, 2))
         loss.backward()
         optimizer.step()
 
@@ -96,7 +106,10 @@ with torch.no_grad():
 
         pc_pred, hd_pred = model(velocity_inputs, pc_inputs, hd_inputs)
 
-        loss = criterion(pc_pred, pc_outputs) + criterion(hd_pred, hd_outputs)
+        # NOTE: need to permute axes of the targets here because the output is
+        #       (sequence length, batch, units) instead of (batch, sequence_length, units)
+        #       could also permute the outputs instead
+        loss = criterion(pc_pred, pc_outputs.permute(1, 0, 2)) + criterion(hd_pred, hd_outputs.permute(1, 0, 2))
 
         print("test loss", loss.data.item())
 

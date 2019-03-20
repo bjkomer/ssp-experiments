@@ -19,7 +19,7 @@ class TrajectoryDataset(data.Dataset):
     def __getitem__(self, index):
 
         if self.return_velocity_list:
-            return [self.velocity_inputs[index, i] for i in range(self.velocity_inputs.shape[1])],\
+            return [self.velocity_inputs[index, i] for i in range(self.velocity_inputs.shape[1])], \
                    self.pc_inputs[index], self.hd_inputs[index], self.pc_outputs[index], self.hd_outputs[index]
         else:
             return self.velocity_inputs[index], self.pc_inputs[index], self.hd_inputs[index], self.pc_outputs[index], \
@@ -92,7 +92,6 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
             # pc_outputs=pc_outputs,
             # hd_outputs=hd_outputs,
 
-            # TODO: fix this to have the whole trajectory
             pc_outputs=full_pc_outputs,
             hd_outputs=full_hd_outputs,
         )

@@ -1,6 +1,7 @@
 import argparse
 import numpy as np
 from arguments import add_parameters
+from scipy.misc import logsumexp
 
 parser = argparse.ArgumentParser('Generate trajectories for 2D supervised path integration experiment')
 
@@ -38,8 +39,8 @@ hd_activations = np.zeros((args.n_trajectories, trajectory_steps, args.n_hd_cell
 
 
 def get_pc_activations(centers, pos, std, include_softmax=False):
-    num = np.zeros((centers.shape[0],))
     if include_softmax:
+        num = np.zeros((centers.shape[0],))
         for ci in range(centers.shape[0]):
             num[ci] = np.exp(-np.linalg.norm(pos - pc_centers[ci, :]) / (2 * std ** 2))
         denom = np.sum(num)
@@ -48,14 +49,21 @@ def get_pc_activations(centers, pos, std, include_softmax=False):
             return num * 0
         return num / denom
     else:
+        # num = np.zeros((centers.shape[0],))
+        # for ci in range(centers.shape[0]):
+        #     num[ci] = -np.linalg.norm(pos - pc_centers[ci, :]) / (2 * std ** 2)
+        # return num
+        logp = np.zeros((centers.shape[0],))
         for ci in range(centers.shape[0]):
-            num[ci] = -np.linalg.norm(pos - pc_centers[ci, :]) / (2 * std ** 2)
-        return num
+            logp[ci] = -np.linalg.norm(pos - pc_centers[ci, :]) / (2 * std ** 2)
+        # log_posteriors = logp - np.log(np.sum(np.exp(logp)))
+        log_posteriors = logp - logsumexp(logp)
+        return log_posteriors
 
 
 def get_hd_activations(centers, ang, conc, include_softmax=False):
-    num = np.zeros((centers.shape[0],))
     if include_softmax:
+        num = np.zeros((centers.shape[0],))
         for hi in range(centers.shape[0]):
             num[hi] = np.exp(conc * np.cos(ang - hd_centers[hi]))
         denom = np.sum(num)
@@ -64,9 +72,16 @@ def get_hd_activations(centers, ang, conc, include_softmax=False):
             return num * 0
         return num / denom
     else:
+        # num = np.zeros((centers.shape[0],))
+        # for hi in range(centers.shape[0]):
+        #     num[hi] = np.exp(conc * np.cos(ang - hd_centers[hi]))
+        # return num
+        logp = np.zeros((centers.shape[0],))
         for hi in range(centers.shape[0]):
-            num[hi] = np.exp(conc * np.cos(ang - hd_centers[hi]))
-        return num
+            logp[hi] = -np.exp(conc * np.cos(ang - hd_centers[hi]))
+        # log_posteriors = logp - np.log(np.sum(np.exp(logp)))
+        log_posteriors = logp - logsumexp(logp)
+        return log_posteriors
 
 
 for n in range(args.n_trajectories):
