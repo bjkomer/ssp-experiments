@@ -103,7 +103,8 @@ class PathIntegrationModel(nn.Module):
                 )
             )
             # print("output.shape", output.shape)
-            features = self.linear(output)
+            # features = self.linear(output)
+            features = self.dropout(self.linear(output))
             # print("features.shape", features.shape)
         elif False:  # using LSTMCell
 
