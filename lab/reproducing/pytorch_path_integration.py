@@ -89,6 +89,10 @@ for epoch in range(n_epochs):
         loss = criterion(pc_pred, F.softmax(pc_outputs.permute(1, 0, 2), dim=2)) + criterion(hd_pred, F.softmax(hd_outputs.permute(1, 0, 2), dim=2))
         # loss = criterion(pc_pred, pc_outputs.permute(1, 0, 2)) + criterion(hd_pred, hd_outputs.permute(1, 0, 2))
         loss.backward()
+
+        # Gradient Clipping
+        torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_thresh)
+
         optimizer.step()
 
         avg_loss += loss.data.item()

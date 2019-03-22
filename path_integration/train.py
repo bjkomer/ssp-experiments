@@ -31,6 +31,7 @@ parser.add_argument('--dataset', type=str, default='../lab/reproducing/data/path
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
+np.random.seed(args.seed)
 
 current_time = datetime.now().strftime('%b%d_%H-%M-%S')
 save_dir = os.path.join(args.logdir, current_time)
@@ -95,6 +96,10 @@ for epoch in range(n_epochs):
         loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
 
         loss.backward()
+
+        # Gradient Clipping
+        torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_thresh)
+
         optimizer.step()
 
         avg_loss += loss.data.item()
@@ -125,39 +130,83 @@ with torch.no_grad():
     print("ssp_pred.shape", ssp_pred.shape)
     print("ssp_outputs.shape", ssp_outputs.shape)
 
-    predictions = np.zeros((ssp_pred.shape[0] * ssp_pred.shape[1], 2))
-    coords = np.zeros((ssp_pred.shape[0] * ssp_pred.shape[1], 2))
+    # Just use start and end location to save on memory and computation
+    predictions_start = np.zeros((ssp_pred.shape[1], 2))
+    coords_start = np.zeros((ssp_pred.shape[1], 2))
 
-    # #TODO: vectorize this to make it much faster (ssp_to_loc needs to be modified to support vectorization)
-    # #TODO: just get the ground truth coords from the dataset, rather than computing them here?
-    # for step in range(ssp_pred.shape[0]):
-    #     for sample in range(ssp_pred.shape[1]):
-    #         predictions[step*ssp_pred.shape[1] + sample, :] = ssp_to_loc(ssp_pred[step, sample, :], heatmap_vectors, xs, ys)
-    #         coords[step * ssp_pred.shape[1] + sample, :] = ssp_to_loc(ssp_outputs[sample, step, :], heatmap_vectors, xs, ys)
+    predictions_end = np.zeros((ssp_pred.shape[1], 2))
+    coords_end = np.zeros((ssp_pred.shape[1], 2))
 
     print("computing prediction locations")
-    predictions[:, :] = ssp_to_loc_v(
-        ssp_pred.detach().numpy().reshape(ssp_pred.shape[0] * ssp_pred.shape[1], ssp_pred.shape[2]),
+    predictions_start[:, :] = ssp_to_loc_v(
+        ssp_pred.detach().numpy()[0, :, :],
+        heatmap_vectors, xs, ys
+    )
+    predictions_end[:, :] = ssp_to_loc_v(
+        ssp_pred.detach().numpy()[-1, :, :],
         heatmap_vectors, xs, ys
     )
     print("computing ground truth locations")
-    coords[:, :] = ssp_to_loc_v(
-        ssp_outputs.detach().numpy().reshape(ssp_outputs.shape[0] * ssp_outputs.shape[1], ssp_outputs.shape[2]),
+    coords_start[:, :] = ssp_to_loc_v(
+        ssp_outputs.detach().numpy()[:, 0, :],
+        heatmap_vectors, xs, ys
+    )
+    coords_end[:, :] = ssp_to_loc_v(
+        ssp_outputs.detach().numpy()[:, -1, :],
         heatmap_vectors, xs, ys
     )
 
-    fig_pred, ax_pred = plt.subplots()
-    fig_truth, ax_truth = plt.subplots()
+    fig_pred_start, ax_pred_start = plt.subplots()
+    fig_truth_start, ax_truth_start = plt.subplots()
+    fig_pred_end, ax_pred_end = plt.subplots()
+    fig_truth_end, ax_truth_end = plt.subplots()
 
-    # plot_predictions(predictions, coords, ax_pred, min_val=0, max_val=2.2*ssp_scaling)
-    # plot_predictions(coords, coords, ax_truth, min_val=0, max_val=2.2*ssp_scaling)
     print("plotting predicted locations")
-    plot_predictions_v(predictions, coords, ax_pred, min_val=0, max_val=2.2*ssp_scaling)
+    plot_predictions_v(predictions_start / ssp_scaling, coords_start / ssp_scaling, ax_pred_start, min_val=0, max_val=2.2)
+    plot_predictions_v(predictions_end / ssp_scaling, coords_end / ssp_scaling, ax_pred_end, min_val=0, max_val=2.2)
     print("plotting ground truth locations")
-    plot_predictions_v(coords, coords, ax_truth, min_val=0, max_val=2.2*ssp_scaling)
+    plot_predictions_v(coords_start / ssp_scaling, coords_start / ssp_scaling, ax_truth_start, min_val=0, max_val=2.2)
+    plot_predictions_v(coords_end / ssp_scaling, coords_end / ssp_scaling, ax_truth_end, min_val=0, max_val=2.2)
 
-    writer.add_figure("predictions", fig_pred)
-    writer.add_figure("ground truth", fig_truth)
+    writer.add_figure("predictions start", fig_pred_start)
+    writer.add_figure("ground truth start", fig_truth_start)
+
+    writer.add_figure("predictions end", fig_pred_end)
+    writer.add_figure("ground truth end", fig_truth_end)
+
+    # predictions = np.zeros((ssp_pred.shape[0] * ssp_pred.shape[1], 2))
+    # coords = np.zeros((ssp_pred.shape[0] * ssp_pred.shape[1], 2))
+    #
+    # # #TODO: vectorize this to make it much faster (ssp_to_loc needs to be modified to support vectorization)
+    # # #TODO: just get the ground truth coords from the dataset, rather than computing them here?
+    # # for step in range(ssp_pred.shape[0]):
+    # #     for sample in range(ssp_pred.shape[1]):
+    # #         predictions[step*ssp_pred.shape[1] + sample, :] = ssp_to_loc(ssp_pred[step, sample, :], heatmap_vectors, xs, ys)
+    # #         coords[step * ssp_pred.shape[1] + sample, :] = ssp_to_loc(ssp_outputs[sample, step, :], heatmap_vectors, xs, ys)
+    #
+    # print("computing prediction locations")
+    # predictions[:, :] = ssp_to_loc_v(
+    #     ssp_pred.detach().numpy().reshape(ssp_pred.shape[0] * ssp_pred.shape[1], ssp_pred.shape[2]),
+    #     heatmap_vectors, xs, ys
+    # )
+    # print("computing ground truth locations")
+    # coords[:, :] = ssp_to_loc_v(
+    #     ssp_outputs.detach().numpy().reshape(ssp_outputs.shape[0] * ssp_outputs.shape[1], ssp_outputs.shape[2]),
+    #     heatmap_vectors, xs, ys
+    # )
+    #
+    # fig_pred, ax_pred = plt.subplots()
+    # fig_truth, ax_truth = plt.subplots()
+    #
+    # # plot_predictions(predictions, coords, ax_pred, min_val=0, max_val=2.2*ssp_scaling)
+    # # plot_predictions(coords, coords, ax_truth, min_val=0, max_val=2.2*ssp_scaling)
+    # print("plotting predicted locations")
+    # plot_predictions_v(predictions, coords, ax_pred, min_val=0, max_val=2.2*ssp_scaling)
+    # print("plotting ground truth locations")
+    # plot_predictions_v(coords, coords, ax_truth, min_val=0, max_val=2.2*ssp_scaling)
+    #
+    # writer.add_figure("predictions", fig_pred)
+    # writer.add_figure("ground truth", fig_truth)
 
 
 torch.save(model.state_dict(), os.path.join(save_dir, 'ssp_path_integration_model.pt'))
