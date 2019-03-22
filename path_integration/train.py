@@ -78,6 +78,77 @@ print("Training")
 for epoch in range(n_epochs):
     print("Epoch {} of {}".format(epoch + 1, n_epochs))
 
+
+    # TODO: modularize this and clean it up
+    # Every 100 epochs, create a test loss and image
+    if epoch % 100 == 0:
+        print("Evaluating")
+        with torch.no_grad():
+            # Everything is in one batch, so this loop will only happen once
+            for i, data in enumerate(testloader):
+                velocity_inputs, ssp_inputs, ssp_outputs = data
+
+                ssp_pred = model(velocity_inputs, ssp_inputs)
+
+                # NOTE: need to permute axes of the targets here because the output is
+                #       (sequence length, batch, units) instead of (batch, sequence_length, units)
+                #       could also permute the outputs instead
+                loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
+
+                print("test loss", loss.data.item())
+
+            writer.add_scalar('final_test_loss', loss.data.item())
+
+            print("ssp_pred.shape", ssp_pred.shape)
+            print("ssp_outputs.shape", ssp_outputs.shape)
+
+            # Just use start and end location to save on memory and computation
+            predictions_start = np.zeros((ssp_pred.shape[1], 2))
+            coords_start = np.zeros((ssp_pred.shape[1], 2))
+
+            predictions_end = np.zeros((ssp_pred.shape[1], 2))
+            coords_end = np.zeros((ssp_pred.shape[1], 2))
+
+            print("computing prediction locations")
+            predictions_start[:, :] = ssp_to_loc_v(
+                ssp_pred.detach().numpy()[0, :, :],
+                heatmap_vectors, xs, ys
+            )
+            predictions_end[:, :] = ssp_to_loc_v(
+                ssp_pred.detach().numpy()[-1, :, :],
+                heatmap_vectors, xs, ys
+            )
+            print("computing ground truth locations")
+            coords_start[:, :] = ssp_to_loc_v(
+                ssp_outputs.detach().numpy()[:, 0, :],
+                heatmap_vectors, xs, ys
+            )
+            coords_end[:, :] = ssp_to_loc_v(
+                ssp_outputs.detach().numpy()[:, -1, :],
+                heatmap_vectors, xs, ys
+            )
+
+            fig_pred_start, ax_pred_start = plt.subplots()
+            fig_truth_start, ax_truth_start = plt.subplots()
+            fig_pred_end, ax_pred_end = plt.subplots()
+            fig_truth_end, ax_truth_end = plt.subplots()
+
+            print("plotting predicted locations")
+            plot_predictions_v(predictions_start / ssp_scaling, coords_start / ssp_scaling, ax_pred_start, min_val=0, max_val=2.2)
+            plot_predictions_v(predictions_end / ssp_scaling, coords_end / ssp_scaling, ax_pred_end, min_val=0, max_val=2.2)
+            print("plotting ground truth locations")
+            plot_predictions_v(coords_start / ssp_scaling, coords_start / ssp_scaling, ax_truth_start, min_val=0, max_val=2.2)
+            plot_predictions_v(coords_end / ssp_scaling, coords_end / ssp_scaling, ax_truth_end, min_val=0, max_val=2.2)
+
+            writer.add_figure("predictions start", fig_pred_start, epoch)
+            writer.add_figure("ground truth start", fig_truth_start, epoch)
+
+            writer.add_figure("predictions end", fig_pred_end, epoch)
+            writer.add_figure("ground truth end", fig_truth_end, epoch)
+
+
+
+
     avg_loss = 0
     n_batches = 0
     for i, data in enumerate(trainloader):
@@ -108,6 +179,8 @@ for epoch in range(n_epochs):
     avg_loss /= n_batches
     print("loss:", avg_loss)
     writer.add_scalar('avg_loss', avg_loss, epoch + 1)
+
+
 
 
 print("Testing")
@@ -168,11 +241,11 @@ with torch.no_grad():
     plot_predictions_v(coords_start / ssp_scaling, coords_start / ssp_scaling, ax_truth_start, min_val=0, max_val=2.2)
     plot_predictions_v(coords_end / ssp_scaling, coords_end / ssp_scaling, ax_truth_end, min_val=0, max_val=2.2)
 
-    writer.add_figure("predictions start", fig_pred_start)
-    writer.add_figure("ground truth start", fig_truth_start)
+    writer.add_figure("final predictions start", fig_pred_start)
+    writer.add_figure("final ground truth start", fig_truth_start)
 
-    writer.add_figure("predictions end", fig_pred_end)
-    writer.add_figure("ground truth end", fig_truth_end)
+    writer.add_figure("final predictions end", fig_pred_end)
+    writer.add_figure("final ground truth end", fig_truth_end)
 
     # predictions = np.zeros((ssp_pred.shape[0] * ssp_pred.shape[1], 2))
     # coords = np.zeros((ssp_pred.shape[0] * ssp_pred.shape[1], 2))
