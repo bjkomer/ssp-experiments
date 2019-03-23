@@ -118,15 +118,6 @@ for epoch in range(n_epochs):
                 ssp_pred.detach().numpy()[-1, :, :],
                 heatmap_vectors, xs, ys
             )
-            print("computing ground truth locations")
-            coords_start[:, :] = ssp_to_loc_v(
-                ssp_outputs.detach().numpy()[:, 0, :],
-                heatmap_vectors, xs, ys
-            )
-            coords_end[:, :] = ssp_to_loc_v(
-                ssp_outputs.detach().numpy()[:, -1, :],
-                heatmap_vectors, xs, ys
-            )
 
             fig_pred_start, ax_pred_start = plt.subplots()
             fig_truth_start, ax_truth_start = plt.subplots()
@@ -145,8 +136,6 @@ for epoch in range(n_epochs):
 
             writer.add_figure("predictions end", fig_pred_end, epoch)
             writer.add_figure("ground truth end", fig_truth_end, epoch)
-
-
 
 
     avg_loss = 0
