@@ -1,4 +1,4 @@
-import matplolib
+import matplotlib
 import os
 # allow code to work on machines without a display or in a screen session
 display = os.environ.get('DISPLAY')
