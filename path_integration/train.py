@@ -27,6 +27,7 @@ parser.add_argument('--n-samples', type=int, default=1000)
 parser.add_argument('--logdir', type=str, default='output/ssp_path_integration',
                     help='Directory for saved model and tensorboard log')
 parser.add_argument('--dataset', type=str, default='../lab/reproducing/data/path_integration_trajectories_logits_200t_15s_seed13.npz')
+parser.add_argument('--load-saved-model', type=str, default='', help='Saved model to load from')
 
 args = parser.parse_args()
 
@@ -61,6 +62,9 @@ n_epochs = args.n_epochs#20
 # n_epochs = 5
 
 model = SSPPathIntegrationModel(unroll_length=rollout_length)
+
+if args.load_saved_model:
+    model.load_state_dict(torch.load(args.load_saved_model), strict=False)
 
 criterion = nn.MSELoss()
 
