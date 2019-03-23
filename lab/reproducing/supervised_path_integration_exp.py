@@ -1,3 +1,10 @@
+import matplolib
+import os
+# allow code to work on machines without a display or in a screen session
+display = os.environ.get('DISPLAY')
+if display is None or 'localhost' in display:
+    matplotlib.use('agg')
+
 import argparse
 import numpy as np
 from arguments import add_parameters

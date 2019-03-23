@@ -1,3 +1,10 @@
+import matplolib
+import os
+# allow code to work on machines without a display or in a screen session
+display = os.environ.get('DISPLAY')
+if display is None or 'localhost' in display:
+    matplotlib.use('agg')
+
 import argparse
 import numpy as np
 # NOTE: this is currently soft-linked to this directory
@@ -8,7 +15,6 @@ import torch.nn.functional as F
 import torch.optim as optim
 from datasets import train_test_loaders
 from models import SSPPathIntegrationModel
-import os
 from datetime import datetime
 from tensorboardX import SummaryWriter
 import json
