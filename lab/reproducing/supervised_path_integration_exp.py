@@ -15,10 +15,10 @@ from keras.layers import Embedding
 from keras.layers import LSTM
 import keras.backend as K
 
+
 parser = argparse.ArgumentParser('Run 2D supervised path integration experiment')
 
 parser = add_parameters(parser)
-parser.add_argument('--load-saved-model', type=str, default='', help='Saved model to load from')
 
 args = parser.parse_args()
 
@@ -115,9 +115,6 @@ pc_output = TimeDistributed(Dense(args.n_place_cells, activation='softmax'), nam
 hd_output = TimeDistributed(Dense(args.n_hd_cells, activation='softmax'), name='hd_output')(linear_layer)
 
 model = Model(inputs=velocity_input, outputs=[pc_output, hd_output])
-
-if args.load_saved_model:
-    model.load_state_dict(torch.load(args.load_saved_model), strict=False)
 
 model.compile(
     optimizer='rmsprop',

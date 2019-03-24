@@ -102,7 +102,7 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
             )
         elif test_set == 1:
             testloader = torch.utils.data.DataLoader(
-                dataset, batch_size=n_samples, shuffle=True, num_workers=0,
+                dataset, batch_size=n_samples, shuffle=False, num_workers=0,
             )
 
     return trainloader, testloader

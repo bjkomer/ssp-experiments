@@ -107,7 +107,7 @@ for epoch in range(n_epochs):
 
                 print("test loss", loss.data.item())
 
-            writer.add_scalar('final_test_loss', loss.data.item())
+            writer.add_scalar('test_loss', loss.data.item(), epoch)
 
             print("ssp_pred.shape", ssp_pred.shape)
             print("ssp_outputs.shape", ssp_outputs.shape)
@@ -126,6 +126,15 @@ for epoch in range(n_epochs):
             )
             predictions_end[:, :] = ssp_to_loc_v(
                 ssp_pred.detach().numpy()[-1, :, :],
+                heatmap_vectors, xs, ys
+            )
+            print("computing ground truth locations")
+            coords_start[:, :] = ssp_to_loc_v(
+                ssp_outputs.detach().numpy()[:, 0, :],
+                heatmap_vectors, xs, ys
+            )
+            coords_end[:, :] = ssp_to_loc_v(
+                ssp_outputs.detach().numpy()[:, -1, :],
                 heatmap_vectors, xs, ys
             )
 
