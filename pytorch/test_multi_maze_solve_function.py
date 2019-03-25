@@ -150,6 +150,8 @@ with torch.no_grad():
             # Loop through each neuron to create a spatial map
             for n in range(activations.shape[1]):
                 fig, ax = plt.subplots()
+                # Note that this works because the batch contains one example for each location
+                # in a res by res grid and is ordered and not shuffled.
                 ax.imshow(activations[:, n].view(res, res))
                 writer.add_figure('activations for batch {}'.format(i), fig, n)
 

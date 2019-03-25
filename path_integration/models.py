@@ -73,3 +73,29 @@ class SSPPathIntegrationModel(nn.Module):
         ssp_pred = self.ssp_output(features)
 
         return ssp_pred
+
+    def forward_activations(self, velocity_inputs, initial_ssp):
+        """Returns the hidden layer activations as well as the prediction"""
+
+        batch_size = velocity_inputs[0].shape[0]
+
+        # Compute initial hidden state
+        cell_state = self.w_c(initial_ssp)
+        hidden_state = self.w_h(initial_ssp)
+
+        velocities = torch.cat(velocity_inputs).view(len(velocity_inputs), batch_size, -1)
+
+        output, (_, _) = self.lstm(
+            velocities,
+            (
+                hidden_state.view(1, batch_size, self.lstm_hidden_size),
+                cell_state.view(1, batch_size, self.lstm_hidden_size)
+            )
+        )
+
+        features = self.dropout(self.linear(output))
+
+        # TODO: should normalization be used here?
+        ssp_pred = self.ssp_output(features)
+
+        return ssp_pred, output
