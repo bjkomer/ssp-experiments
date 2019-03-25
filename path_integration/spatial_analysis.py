@@ -139,4 +139,5 @@ with torch.no_grad():
     for ni in range(model.lstm_hidden_size):
         print("Neuron {} of {}".format(ni + 1, model.lstm_hidden_size))
         plt.imshow(rate_maps_pred[ni, :, :])
+        plt.show()
 
