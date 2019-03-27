@@ -7,6 +7,45 @@ import torch.nn as nn
 from datasets import MazeDataset
 
 
+def encode_projection(x, y, dim, seed=13):
+
+    # Use the same rstate every time for a consistent transform
+    # NOTE: would be more efficient to save the transform rather than regenerating,
+    #       but then it would have to get passed everywhere
+    rstate = np.random.RandomState(seed=seed)
+
+    proj = rstate.uniform(low=-1, high=1, size=(2, dim))
+
+    # return np.array([x, y]).reshape(1, 2) @ proj
+    return np.dot(np.array([x, y]).reshape(1, 2), proj)
+
+
+def encode_trig(x, y, dim):
+    # sin and cos with difference spatial frequencies and offsets
+    ret = []
+
+    # denominator for normalization
+    denom = np.sqrt(dim // 8)
+
+    for i in range(dim // 16):
+        for m in [0, .5, 1, 1.5]:
+            ret += [np.cos((dim // 8) * (m * np.pi + x) / (i + 1.)) / denom,
+                    np.sin((dim // 8) * (m * np.pi + x) / (i + 1.)) / denom,
+                    np.cos((dim // 8) * (m * np.pi + y) / (i + 1.)) / denom,
+                    np.sin((dim // 8) * (m * np.pi + y) / (i + 1.)) / denom]
+
+    return np.array(ret)
+
+
+def encode_one_hot(x, y, xs, ys):
+    arr = np.zeros((len(xs), len(ys)))
+    indx = (np.abs(xs - x)).argmin()
+    indy = (np.abs(ys - y)).argmin()
+    arr[indx, indy] = 1
+
+    return arr.flatten()
+
+
 class ValidationSet(object):
 
     def __init__(self, data, maze_sps, maze_indices, goal_indices, subsample=2, spatial_encoding='ssp'):
@@ -26,6 +65,24 @@ class ValidationSet(object):
         # n_mazes by n_goals by 2
         goals = data['goals']
 
+        n_mazes = data['goal_sps'].shape[0]
+        n_goals = data['goal_sps'].shape[1]
+        dim = data['goal_sps'].shape[2]
+
+        # NOTE: this code is assuming xs as ys are the same
+        assert(np.all(data['xs'] == data['ys']))
+        limit_low = data['xs'][0]
+        limit_high = data['xs'][1]
+
+        print(limit_low)
+        print(limit_high)
+        print(dim)
+        print(int(np.sqrt(dim)))
+
+        # NOTE: only used for one-hot encoded location representation case
+        xso = np.linspace(limit_low, limit_high, int(np.sqrt(dim)))
+        yso = np.linspace(limit_low, limit_high, int(np.sqrt(dim)))
+
         # n_mazes by n_goals by dim
         if spatial_encoding == 'ssp':
             goal_sps = data['goal_sps']
@@ -33,7 +90,24 @@ class ValidationSet(object):
             goal_sps = np.zeros_like(data['goal_sps'])
             for ni in range(goal_sps.shape[0]):
                 for gi in range(goal_sps.shape[1]):
-                    goal_sps[ni, gi, :] = encode_random(x=goals[ni, gi, 0], y=goals[ni, gi, 1], dim=goal_sps.shape[2])
+                    goal_sps[ni, gi, :] = encode_random(x=goals[ni, gi, 0], y=goals[ni, gi, 1], dim=dim)
+        elif spatial_encoding == '2d':
+            goal_sps = goals.copy()
+        elif spatial_encoding == 'one-hot':
+            goal_sps = np.zeros((n_mazes, n_goals, len(xso) * len(yso)))
+            for ni in range(goal_sps.shape[0]):
+                for gi in range(goal_sps.shape[1]):
+                    goal_sps[ni, gi, :] = encode_one_hot(x=goals[ni, gi, 0], y=goals[ni, gi, 1], xs=xso, ys=yso)
+        elif spatial_encoding == 'trig':
+            goal_sps = np.zeros((n_mazes, n_goals, dim))
+            for ni in range(goal_sps.shape[0]):
+                for gi in range(goal_sps.shape[1]):
+                    goal_sps[ni, gi, :] = encode_trig(x=goals[ni, gi, 0], y=goals[ni, gi, 1], dim=dim)
+        elif spatial_encoding == 'random-proj':
+            goal_sps = np.zeros((n_mazes, n_goals, dim))
+            for ni in range(goal_sps.shape[0]):
+                for gi in range(goal_sps.shape[1]):
+                    goal_sps[ni, gi, :] = encode_projection(x=goals[ni, gi, 0], y=goals[ni, gi, 1], dim=dim)
         else:
             raise NotImplementedError
 
@@ -55,8 +129,8 @@ class ValidationSet(object):
         # Visualization
         viz_locs = np.zeros((n_samples, 2))
         viz_goals = np.zeros((n_samples, 2))
-        viz_loc_sps = np.zeros((n_samples, dim))
-        viz_goal_sps = np.zeros((n_samples, dim))
+        viz_loc_sps = np.zeros((n_samples, goal_sps.shape[2]))
+        viz_goal_sps = np.zeros((n_samples, goal_sps.shape[2]))
         viz_output_dirs = np.zeros((n_samples, 2))
         viz_maze_sps = np.zeros((n_samples, maze_sps.shape[1]))
 
@@ -74,8 +148,17 @@ class ValidationSet(object):
                         viz_goals[si, :] = goals[mi, gi, :]
                         if spatial_encoding == 'ssp':
                             viz_loc_sps[si, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
-                        else:
+                        elif spatial_encoding == 'random':
                             viz_loc_sps[si, :] = encode_random(loc_x, loc_y, dim)
+                        elif spatial_encoding == '2d':
+                            viz_loc_sps[si, :] = np.array([loc_x, loc_y])
+                        elif spatial_encoding == 'one-hot':
+                            viz_loc_sps[si, :] = encode_one_hot(x=loc_x, y=loc_y, xs=xso, ys=yso)
+                        elif spatial_encoding == 'trig':
+                            viz_loc_sps[si, :] = encode_trig(x=loc_x, y=loc_y, dim=dim)
+                        elif spatial_encoding == 'random-proj':
+                            viz_loc_sps[si, :] = encode_projection(x=loc_x, y=loc_y, dim=dim)
+
                         viz_goal_sps[si, :] = goal_sps[mi, gi, :]
 
                         viz_output_dirs[si, :] = solved_mazes[mi, gi, xi, yi, :]
@@ -174,6 +257,10 @@ def create_dataloader(data, n_samples, maze_sps, args):
     n_goals = goals.shape[1]
     n_mazes = fine_mazes.shape[0]
 
+    # NOTE: only used for one-hot encoded location representation case
+    xso = np.linspace(args.limit_low, args.limit_high, int(np.sqrt(args.dim)))
+    yso = np.linspace(args.limit_low, args.limit_high, int(np.sqrt(args.dim)))
+
     # n_mazes by n_goals by dim
     if args.spatial_encoding == 'ssp':
         goal_sps = data['goal_sps']
@@ -182,6 +269,23 @@ def create_dataloader(data, n_samples, maze_sps, args):
         for ni in range(n_mazes):
             for gi in range(n_goals):
                 goal_sps[ni, gi, :] = encode_random(x=goals[ni, gi, 0], y=goals[ni, gi, 1], dim=args.dim)
+    elif args.spatial_encoding == '2d':
+        goal_sps = goals.copy()
+    elif args.spatial_encoding == 'one-hot':
+        goal_sps = np.zeros((n_mazes, n_goals, len(xso)*len(yso)))
+        for ni in range(n_mazes):
+            for gi in range(n_goals):
+                goal_sps[ni, gi, :] = encode_one_hot(x=goals[ni, gi, 0], y=goals[ni, gi, 1], xs=xso, ys=yso)
+    elif args.spatial_encoding == 'trig':
+        goal_sps = np.zeros((n_mazes, n_goals, args.dim))
+        for ni in range(n_mazes):
+            for gi in range(n_goals):
+                goal_sps[ni, gi, :] = encode_trig(x=goals[ni, gi, 0], y=goals[ni, gi, 1], dim=args.dim)
+    elif args.spatial_encoding == 'random-proj':
+        goal_sps = np.zeros((n_mazes, n_goals, args.dim))
+        for ni in range(n_mazes):
+            for gi in range(n_goals):
+                goal_sps[ni, gi, :] = encode_projection(x=goals[ni, gi, 0], y=goals[ni, gi, 1], dim=args.dim)
     else:
         raise NotImplementedError
 
@@ -199,8 +303,8 @@ def create_dataloader(data, n_samples, maze_sps, args):
     # Training
     train_locs = np.zeros((n_samples, 2))
     train_goals = np.zeros((n_samples, 2))
-    train_loc_sps = np.zeros((n_samples, args.dim))
-    train_goal_sps = np.zeros((n_samples, args.dim))
+    train_loc_sps = np.zeros((n_samples, goal_sps.shape[2]))
+    train_goal_sps = np.zeros((n_samples, goal_sps.shape[2]))
     train_output_dirs = np.zeros((n_samples, 2))
     train_maze_sps = np.zeros((n_samples, maze_sps.shape[1]))
 
@@ -228,6 +332,14 @@ def create_dataloader(data, n_samples, maze_sps, args):
             train_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
         elif args.spatial_encoding == 'random':
             train_loc_sps[n, :] = encode_random(loc_x, loc_y, args.dim)
+        elif args.spatial_encoding == '2d':
+            train_loc_sps[n, :] = np.array([loc_x, loc_y])
+        elif args.spatial_encoding == 'one-hot':
+            train_loc_sps[n, :] = encode_one_hot(x=loc_x, y=loc_y, xs=xso, ys=yso)
+        elif args.spatial_encoding == 'trig':
+            train_loc_sps[n, :] = encode_trig(x=loc_x, y=loc_y, dim=args.dim)
+        elif args.spatial_encoding == 'random-proj':
+            train_loc_sps[n, :] = encode_projection(x=loc_x, y=loc_y, dim=args.dim)
         train_goal_sps[n, :] = goal_sps[maze_index, goal_index, :]
 
         train_output_dirs[n, :] = solved_mazes[maze_index, goal_index, x_index, y_index, :]

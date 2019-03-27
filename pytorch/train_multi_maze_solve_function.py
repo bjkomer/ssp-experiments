@@ -22,7 +22,7 @@ parser.add_argument('--epoch-offset', type=int, default=0,
                     help='Optional offset to start epochs counting from. To be used when continuing training')
 parser.add_argument('--viz-period', type=int, default=200, help='number of epochs before a viz set run')
 parser.add_argument('--val-period', type=int, default=25, help='number of epochs before a test/validation set run')
-parser.add_argument('--spatial-encoding', type=str, default='ssp', choices=['ssp', 'random'],
+parser.add_argument('--spatial-encoding', type=str, default='ssp', choices=['ssp', 'random', '2d', 'one-hot', 'trig', 'random-proj'],
                     help='coordinate encoding for agent location and goal')
 parser.add_argument('--subsample', type=int, default=1, help='amount to subsample for the visualization validation')
 parser.add_argument('--maze-id-type', type=str, choices=['ssp', 'one-hot', 'random-sp'], default='ssp',
@@ -93,7 +93,10 @@ else:
 
 # Create a validation/visualization set to run periodically while training and at the end
 # validation_set = ValidationSet(data=data, maze_indices=np.arange(n_mazes), goal_indices=[0])
-validation_set = ValidationSet(data=data, maze_sps=maze_sps, maze_indices=[0, 1, 2, 3], goal_indices=[0, 1], subsample=args.subsample)
+validation_set = ValidationSet(
+    data=data, maze_sps=maze_sps, maze_indices=[0, 1, 2, 3], goal_indices=[0, 1], subsample=args.subsample,
+    spatial_encoding=args.spatial_encoding,
+)
 
 trainloader = create_dataloader(data=data, n_samples=args.n_train_samples, maze_sps=maze_sps, args=args)
 
@@ -103,11 +106,25 @@ testloader = create_dataloader(data=data, n_samples=args.n_test_samples, maze_sp
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
+# Dimension of location representation is dependent on the encoding used
+if args.spatial_encoding == 'ssp':
+    repr_dim = args.dim
+elif args.spatial_encoding == 'random':
+    repr_dim = args.dim
+elif args.spatial_encoding == '2d':
+    repr_dim = 2
+elif args.spatial_encoding == 'one-hot':
+    repr_dim = int(np.sqrt(args.dim))**2
+elif args.spatial_encoding == 'trig':
+    repr_dim = args.dim
+elif args.spatial_encoding == 'random-proj':
+    repr_dim = args.dim
+
 # input is maze, loc, goal ssps, output is 2D direction to move
 if args.n_hidden_layers > 1:
-    model = MLP(input_size=id_size + args.dim * 2, hidden_size=args.hidden_size, output_size=2, n_layers=args.n_hidden_layers)
+    model = MLP(input_size=id_size + repr_dim * 2, hidden_size=args.hidden_size, output_size=2, n_layers=args.n_hidden_layers)
 else:
-    model = FeedForward(input_size=id_size + args.dim * 2, hidden_size=args.hidden_size, output_size=2)
+    model = FeedForward(input_size=id_size + repr_dim * 2, hidden_size=args.hidden_size, output_size=2)
 
 if args.load_saved_model:
     model.load_state_dict(torch.load(args.load_saved_model), strict=False)
