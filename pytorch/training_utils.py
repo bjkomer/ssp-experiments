@@ -74,11 +74,6 @@ class ValidationSet(object):
         limit_low = data['xs'][0]
         limit_high = data['xs'][1]
 
-        print(limit_low)
-        print(limit_high)
-        print(dim)
-        print(int(np.sqrt(dim)))
-
         # NOTE: only used for one-hot encoded location representation case
         xso = np.linspace(limit_low, limit_high, int(np.sqrt(dim)))
         yso = np.linspace(limit_low, limit_high, int(np.sqrt(dim)))
