@@ -94,10 +94,18 @@ else:
 
 # Create a validation/visualization set to run periodically while training and at the end
 # validation_set = ValidationSet(data=data, maze_indices=np.arange(n_mazes), goal_indices=[0])
-validation_set = ValidationSet(
-    data=data, maze_sps=maze_sps, maze_indices=[0, 1, 2, 3], goal_indices=[0, 1], subsample=args.subsample,
-    spatial_encoding=args.spatial_encoding,
-)
+
+# quick workaround for the single_maze tests
+if 'single_maze' in args.logdir:
+    validation_set = ValidationSet(
+        data=data, maze_sps=maze_sps, maze_indices=[0], goal_indices=[0, 1, 2, 3], subsample=args.subsample,
+        spatial_encoding=args.spatial_encoding,
+    )
+else:
+    validation_set = ValidationSet(
+        data=data, maze_sps=maze_sps, maze_indices=[0, 1, 2, 3], goal_indices=[0, 1], subsample=args.subsample,
+        spatial_encoding=args.spatial_encoding,
+    )
 
 trainloader = create_dataloader(data=data, n_samples=args.n_train_samples, maze_sps=maze_sps, args=args)
 
