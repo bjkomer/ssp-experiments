@@ -88,6 +88,9 @@ class ValidationSet(object):
                     goal_sps[ni, gi, :] = encode_random(x=goals[ni, gi, 0], y=goals[ni, gi, 1], dim=dim)
         elif spatial_encoding == '2d':
             goal_sps = goals.copy()
+        elif spatial_encoding == '2d-normalized':
+            goal_sps = goals.copy()
+            goal_sps = ((goal_sps - xso[0]) * 2 / (xso[-1] - xso[0])) - 1
         elif spatial_encoding == 'one-hot':
             goal_sps = np.zeros((n_mazes, n_goals, len(xso) * len(yso)))
             for ni in range(goal_sps.shape[0]):
@@ -147,6 +150,8 @@ class ValidationSet(object):
                             viz_loc_sps[si, :] = encode_random(loc_x, loc_y, dim)
                         elif spatial_encoding == '2d':
                             viz_loc_sps[si, :] = np.array([loc_x, loc_y])
+                        elif spatial_encoding == '2d-normalized':
+                            viz_loc_sps[si, :] = ((np.array([loc_x, loc_y]) - limit_low)*2 / (limit_high - limit_low)) - 1
                         elif spatial_encoding == 'one-hot':
                             viz_loc_sps[si, :] = encode_one_hot(x=loc_x, y=loc_y, xs=xso, ys=yso)
                         elif spatial_encoding == 'trig':
@@ -266,6 +271,9 @@ def create_dataloader(data, n_samples, maze_sps, args):
                 goal_sps[ni, gi, :] = encode_random(x=goals[ni, gi, 0], y=goals[ni, gi, 1], dim=args.dim)
     elif args.spatial_encoding == '2d':
         goal_sps = goals.copy()
+    elif args.spatial_encoding == '2d-normalized':
+        goal_sps = goals.copy()
+        goal_sps = ((goal_sps - xso[0]) * 2 / (xso[-1] - xso[0])) - 1
     elif args.spatial_encoding == 'one-hot':
         goal_sps = np.zeros((n_mazes, n_goals, len(xso)*len(yso)))
         for ni in range(n_mazes):
@@ -329,6 +337,8 @@ def create_dataloader(data, n_samples, maze_sps, args):
             train_loc_sps[n, :] = encode_random(loc_x, loc_y, args.dim)
         elif args.spatial_encoding == '2d':
             train_loc_sps[n, :] = np.array([loc_x, loc_y])
+        elif args.spatial_encoding == '2d-normalized':
+            train_loc_sps[n, :] = ((np.array([loc_x, loc_y]) - xso[0]) * 2 / (xso[-1] - xso[0])) - 1
         elif args.spatial_encoding == 'one-hot':
             train_loc_sps[n, :] = encode_one_hot(x=loc_x, y=loc_y, xs=xso, ys=yso)
         elif args.spatial_encoding == 'trig':
