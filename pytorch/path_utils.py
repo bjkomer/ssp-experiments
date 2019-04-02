@@ -53,12 +53,14 @@ def path_function(coord, path, xs, ys):
     return dir_to_vec(path[ind_x, ind_y])
 
 
-def plot_path_predictions(directions, coords, name='', min_val=-1, max_val=1, type='quiver', dcell=1, ax=None):
+def plot_path_predictions(directions, coords, name='', min_val=-1, max_val=1,
+                          type='quiver', dcell=1, ax=None, wall_overlay=None):
     """
     plot direction predictions by colouring based on direction, and putting the dot at the coord
     both directions and coords are (n_samples, 2) vectors
     dcell: distance between two neighboring cells, used for scaling arrors on a quiver plot
     ax: if given plot on this axis, otherwise create a new figure and axis
+    wall_overlay: if set, plot the specified locations as a wall rather than whatever the prediction is
     """
     if ax is None:
         fig, ax = plt.subplots()
@@ -66,15 +68,25 @@ def plot_path_predictions(directions, coords, name='', min_val=-1, max_val=1, ty
         fig = None
 
     if type == 'quiver':
+        if wall_overlay is not None:
+            for n in range(directions.shape[0]):
+                if wall_overlay[n]:
+                    directions[n, 0] = 0
+                    directions[n, 1] = 0
         ax.quiver(coords[:, 0], coords[:, 1], directions[:, 0], directions[:, 1], scale=1./dcell, units='xy')
     elif type == 'colour':
         for n in range(directions.shape[0]):
             x = coords[n, 0]
             y = coords[n, 1]
 
-            # Note: this clipping shouldn't be necessary
-            xa = np.clip(directions[n, 0], min_val, max_val)
-            ya = np.clip(directions[n, 1], min_val, max_val)
+            if wall_overlay is not None and wall_overlay[n]:
+                # Set to wall value if an overlay is requested here
+                xa = 0
+                ya = 0
+            else:
+                # Note: this clipping shouldn't be necessary
+                xa = np.clip(directions[n, 0], min_val, max_val)
+                ya = np.clip(directions[n, 1], min_val, max_val)
 
             r = float(((xa - min_val) / (max_val - min_val)))
             # g = float(((ya - min_val) / (max_val - min_val)))
