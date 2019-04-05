@@ -201,6 +201,39 @@ plt.imshow(ccs_truth[0, inds[-1], :, :])
 plt.show()
 
 
+
+
+plt.imshow(rate_maps_truth[inds[-1], :, :])
+plt.show()
+
+plt.imshow(rate_maps_truth[inds[0], :, :])
+plt.show()
+
+corr = signal.correlate2d(
+    rate_maps_pred[inds[-1], :, :],
+    rate_maps_pred[inds[-1], :, :],
+    mode='full',
+    boundary='fill',
+    fillvalue=0,
+)
+
+plt.imshow(corr)
+plt.show()
+
+
+corr = signal.correlate2d(
+    rate_maps_pred[inds[0], :, :],
+    rate_maps_pred[inds[0], :, :],
+    mode='full',
+    boundary='fill',
+    fillvalue=0,
+)
+
+plt.imshow(corr)
+plt.show()
+
+
+
 if False:
 
     vmin=None
