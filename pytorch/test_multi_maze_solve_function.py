@@ -203,20 +203,25 @@ print("Visualization")
 truth_gen = validation_set.run_ground_truth(writer=None)
 viz_gen = validation_set.run_validation(model, writer=None, epoch=0, use_wall_overlay=True)
 
-fname_format = 'figure_output/{}/{}_{}_{}_m{}_g{}.png'
 
-if not os.path.exists('figure_output'):
-    os.makedirs('figure_output')
+# folder = 'figure_output'
+folder = 'figure_output_new_colours'
+
+fname_format = folder + '/{}/{}_{}_{}_m{}_g{}.png'
+
+if not os.path.exists(folder):
+    os.makedirs(folder)
 
 # This is hackily slapped together, but will get the figures I want
 
 mis = [0, 0, 1, 1, 2, 2, 3, 3, 4, 4]
 gis = [0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
 
-for i in range(8):
+# for i in range(8):
+for i in range(1):
 
-    if not os.path.exists('figure_output/truth'):
-        os.makedirs('figure_output/truth')
+    if not os.path.exists('{}/truth'.format(folder)):
+        os.makedirs('{}/truth'.format(folder))
 
     truth_fname = fname_format.format("truth", maze_name, 'truth', 'colour', mis[i], gis[i])
     truth_quiver_fname = fname_format.format("truth", maze_name, 'truth', 'quiver', mis[i], gis[i])
@@ -227,8 +232,8 @@ for i in range(8):
         fig_truth.savefig(truth_fname)
         fig_truth_quiver.savefig(truth_quiver_fname)
 
-    if not os.path.exists('figure_output/{}'.format(args.spatial_encoding)):
-        os.makedirs('figure_output/{}'.format(args.spatial_encoding))
+    if not os.path.exists('{}/{}'.format(folder, args.spatial_encoding)):
+        os.makedirs('{}/{}'.format(folder, args.spatial_encoding))
 
     fig_pred, fig_pred_quiver = viz_gen.__next__()
     fig_pred.savefig(fname_format.format(args.spatial_encoding, maze_name, args.spatial_encoding, 'colour', mis[i], gis[i]))

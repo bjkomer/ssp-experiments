@@ -103,6 +103,29 @@ def plot_path_predictions(directions, coords, name='', min_val=-1, max_val=1,
     return fig
 
 
+def plot_path_predictions_image(directions, coords, name='', ax=None, wall_overlay=None):
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = None
+
+    angles = np.arctan2(directions[:, 1], directions[:, 0])
+
+    # NOTE: this assumes the data can be reshaped into a perfect square
+    size = int(np.sqrt(angles.shape[0]))
+
+    angles = angles.reshape((size, size))
+
+    ax.imshow(angles, cmap='hsv', interpolation=None)
+
+    if name:
+        fig.suptitle(name)
+
+    return fig
+
+
+
 def generate_maze_sp(size, xs, ys, x_axis_sp, y_axis_sp, normalize=True, obstacle_ratio=.2, map_style='blocks'):
     """
     Returns a maze ssp as well as an occupancy grid for the maze (both fine and coarse)

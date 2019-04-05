@@ -1,7 +1,7 @@
 import nengo.spa as spa
 import numpy as np
 from spatial_semantic_pointers.utils import encode_point, encode_random
-from path_utils import plot_path_predictions
+from path_utils import plot_path_predictions, plot_path_predictions_image
 import torch
 import torch.nn as nn
 from datasets import MazeDataset
@@ -199,8 +199,11 @@ class ValidationSet(object):
                 print("Ground Truth Viz batch {} of {}".format(i + 1, self.n_mazes * self.n_goals))
                 maze_loc_goal_ssps, directions, locs, goals = data
 
-                fig_truth = plot_path_predictions(
-                    directions=directions, coords=locs, type='colour'
+                # fig_truth = plot_path_predictions(
+                #     directions=directions, coords=locs, type='colour'
+                # )
+                fig_truth = plot_path_predictions_image(
+                    directions=directions, coords=locs,
                 )
 
                 fig_truth_quiver = plot_path_predictions(
@@ -237,8 +240,11 @@ class ValidationSet(object):
 
                     print(wall_overlay.shape)
 
-                    fig_pred = plot_path_predictions(
-                        directions=outputs, coords=locs, type='colour', wall_overlay=wall_overlay
+                    # fig_pred = plot_path_predictions(
+                    #     directions=outputs, coords=locs, type='colour', wall_overlay=wall_overlay
+                    # )
+                    fig_pred = plot_path_predictions_image(
+                        directions=outputs, coords=locs, wall_overlay=wall_overlay
                     )
 
                     fig_pred_quiver = plot_path_predictions(
