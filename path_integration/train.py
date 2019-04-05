@@ -30,6 +30,7 @@ parser = add_parameters(parser)
 parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--n-epochs', type=int, default=20)
 parser.add_argument('--n-samples', type=int, default=1000)
+parser.add_argument('--encoding', type=str, default='ssp', choices=['ssp', '2d'])
 parser.add_argument('--logdir', type=str, default='output/ssp_path_integration',
                     help='Directory for saved model and tensorboard log')
 parser.add_argument('--dataset', type=str, default='../lab/reproducing/data/path_integration_trajectories_logits_200t_15s_seed13.npz')
@@ -50,6 +51,14 @@ x_axis_vec = data['x_axis_vec']
 y_axis_vec = data['y_axis_vec']
 ssp_scaling = data['ssp_scaling']
 
+if args.encoding == 'ssp':
+    dim = 512
+elif args.encoding == '2d':
+    dim = 2
+    ssp_scaling = 1  # no scaling used for 2D coordinates directly
+else:
+    raise NotImplementedError
+
 limit_low = 0 * ssp_scaling
 limit_high = 2.2 * ssp_scaling
 res = 128 #256
@@ -67,7 +76,7 @@ batch_size = args.minibatch_size#10
 n_epochs = args.n_epochs#20
 # n_epochs = 5
 
-model = SSPPathIntegrationModel(unroll_length=rollout_length)
+model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=dim)
 
 if args.load_saved_model:
     model.load_state_dict(torch.load(args.load_saved_model), strict=False)
@@ -81,7 +90,8 @@ trainloader, testloader = train_test_loaders(
     n_train_samples=n_samples,
     n_test_samples=n_samples,
     rollout_length=rollout_length,
-    batch_size=batch_size
+    batch_size=batch_size,
+    encoding=args.encoding,
 )
 
 print("Training")
@@ -119,24 +129,32 @@ for epoch in range(n_epochs):
             predictions_end = np.zeros((ssp_pred.shape[1], 2))
             coords_end = np.zeros((ssp_pred.shape[1], 2))
 
-            print("computing prediction locations")
-            predictions_start[:, :] = ssp_to_loc_v(
-                ssp_pred.detach().numpy()[0, :, :],
-                heatmap_vectors, xs, ys
-            )
-            predictions_end[:, :] = ssp_to_loc_v(
-                ssp_pred.detach().numpy()[-1, :, :],
-                heatmap_vectors, xs, ys
-            )
-            print("computing ground truth locations")
-            coords_start[:, :] = ssp_to_loc_v(
-                ssp_outputs.detach().numpy()[:, 0, :],
-                heatmap_vectors, xs, ys
-            )
-            coords_end[:, :] = ssp_to_loc_v(
-                ssp_outputs.detach().numpy()[:, -1, :],
-                heatmap_vectors, xs, ys
-            )
+            if args.encoding == 'ssp':
+                print("computing prediction locations")
+                predictions_start[:, :] = ssp_to_loc_v(
+                    ssp_pred.detach().numpy()[0, :, :],
+                    heatmap_vectors, xs, ys
+                )
+                predictions_end[:, :] = ssp_to_loc_v(
+                    ssp_pred.detach().numpy()[-1, :, :],
+                    heatmap_vectors, xs, ys
+                )
+                print("computing ground truth locations")
+                coords_start[:, :] = ssp_to_loc_v(
+                    ssp_outputs.detach().numpy()[:, 0, :],
+                    heatmap_vectors, xs, ys
+                )
+                coords_end[:, :] = ssp_to_loc_v(
+                    ssp_outputs.detach().numpy()[:, -1, :],
+                    heatmap_vectors, xs, ys
+                )
+            elif args.encoding == '2d':
+                print("copying prediction locations")
+                predictions_start[:, :] = ssp_pred.detach().numpy()[0, :, :]
+                predictions_end[:, :] = ssp_pred.detach().numpy()[-1, :, :]
+                print("copying ground truth locations")
+                coords_start[:, :] = ssp_outputs.detach().numpy()[:, 0, :]
+                coords_end[:, :] = ssp_outputs.detach().numpy()[:, -1, :]
 
             fig_pred_start, ax_pred_start = plt.subplots()
             fig_truth_start, ax_truth_start = plt.subplots()
@@ -218,24 +236,32 @@ with torch.no_grad():
     predictions_end = np.zeros((ssp_pred.shape[1], 2))
     coords_end = np.zeros((ssp_pred.shape[1], 2))
 
-    print("computing prediction locations")
-    predictions_start[:, :] = ssp_to_loc_v(
-        ssp_pred.detach().numpy()[0, :, :],
-        heatmap_vectors, xs, ys
-    )
-    predictions_end[:, :] = ssp_to_loc_v(
-        ssp_pred.detach().numpy()[-1, :, :],
-        heatmap_vectors, xs, ys
-    )
-    print("computing ground truth locations")
-    coords_start[:, :] = ssp_to_loc_v(
-        ssp_outputs.detach().numpy()[:, 0, :],
-        heatmap_vectors, xs, ys
-    )
-    coords_end[:, :] = ssp_to_loc_v(
-        ssp_outputs.detach().numpy()[:, -1, :],
-        heatmap_vectors, xs, ys
-    )
+    if args.encoding == 'ssp':
+        print("computing prediction locations")
+        predictions_start[:, :] = ssp_to_loc_v(
+            ssp_pred.detach().numpy()[0, :, :],
+            heatmap_vectors, xs, ys
+        )
+        predictions_end[:, :] = ssp_to_loc_v(
+            ssp_pred.detach().numpy()[-1, :, :],
+            heatmap_vectors, xs, ys
+        )
+        print("computing ground truth locations")
+        coords_start[:, :] = ssp_to_loc_v(
+            ssp_outputs.detach().numpy()[:, 0, :],
+            heatmap_vectors, xs, ys
+        )
+        coords_end[:, :] = ssp_to_loc_v(
+            ssp_outputs.detach().numpy()[:, -1, :],
+            heatmap_vectors, xs, ys
+        )
+    elif args.encoding == '2d':
+        print("copying prediction locations")
+        predictions_start[:, :] = ssp_pred.detach().numpy()[0, :, :]
+        predictions_end[:, :] = ssp_pred.detach().numpy()[-1, :, :]
+        print("copying ground truth locations")
+        coords_start[:, :] = ssp_outputs.detach().numpy()[:, 0, :]
+        coords_end[:, :] = ssp_outputs.detach().numpy()[:, -1, :]
 
     fig_pred_start, ax_pred_start = plt.subplots()
     fig_truth_start, ax_truth_start = plt.subplots()
@@ -289,8 +315,10 @@ with torch.no_grad():
     # writer.add_figure("predictions", fig_pred)
     # writer.add_figure("ground truth", fig_truth)
 
-
-torch.save(model.state_dict(), os.path.join(save_dir, 'ssp_path_integration_model.pt'))
+if args.encoding == 'ssp':
+    torch.save(model.state_dict(), os.path.join(save_dir, 'ssp_path_integration_model.pt'))
+elif args.encoding == '2d':
+    torch.save(model.state_dict(), os.path.join(save_dir, '2d_path_integration_model.pt'))
 
 params = vars(args)
 with open(os.path.join(save_dir, "params.json"), "w") as f:

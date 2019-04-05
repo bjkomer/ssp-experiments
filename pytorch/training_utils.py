@@ -5,6 +5,7 @@ from path_utils import plot_path_predictions
 import torch
 import torch.nn as nn
 from datasets import MazeDataset
+import matplotlib.pyplot as plt
 
 
 def encode_projection(x, y, dim, seed=13):
@@ -201,14 +202,21 @@ class ValidationSet(object):
                 fig_truth = plot_path_predictions(
                     directions=directions, coords=locs, type='colour'
                 )
-                writer.add_figure('v{}/ground truth'.format(i), fig_truth)
 
                 fig_truth_quiver = plot_path_predictions(
                     directions=directions, coords=locs, dcell=self.xs[1] - self.xs[0]
                 )
-                writer.add_figure('v{}/ground truth quiver'.format(i), fig_truth_quiver)
 
-    def run_validation(self, model, writer, epoch):
+                if writer is None:
+                    # Not recording to tensorboard, just plot the figures
+                    # plt.show()
+                    yield fig_truth, fig_truth_quiver
+                else:
+                    # Record figures to tensorboard
+                    writer.add_figure('v{}/ground truth'.format(i), fig_truth)
+                    writer.add_figure('v{}/ground truth quiver'.format(i), fig_truth_quiver)
+
+    def run_validation(self, model, writer, epoch, use_wall_overlay=False):
         criterion = nn.MSELoss()
 
         with torch.no_grad():
@@ -221,17 +229,40 @@ class ValidationSet(object):
 
                 loss = criterion(outputs, directions)
 
-                fig_pred = plot_path_predictions(
-                    directions=outputs, coords=locs, type='colour'
-                )
-                writer.add_figure('v{}/viz set predictions'.format(i), fig_pred, epoch)
+                if use_wall_overlay:
 
-                fig_pred_quiver = plot_path_predictions(
-                    directions=outputs, coords=locs, dcell=self.xs[1] - self.xs[0]
-                )
-                writer.add_figure('v{}/viz set predictions quiver'.format(i), fig_pred_quiver, epoch)
+                    print(directions.shape)
 
-                writer.add_scalar(tag='viz_loss/{}'.format(i), scalar_value=loss.data.item(), global_step=epoch)
+                    wall_overlay = (directions.detach().numpy()[:, 0] == 0) & (directions.detach().numpy()[:, 1] == 0)
+
+                    print(wall_overlay.shape)
+
+                    fig_pred = plot_path_predictions(
+                        directions=outputs, coords=locs, type='colour', wall_overlay=wall_overlay
+                    )
+
+                    fig_pred_quiver = plot_path_predictions(
+                        directions=outputs, coords=locs, dcell=self.xs[1] - self.xs[0], wall_overlay=wall_overlay
+                    )
+                else:
+
+                    fig_pred = plot_path_predictions(
+                        directions=outputs, coords=locs, type='colour'
+                    )
+
+                    fig_pred_quiver = plot_path_predictions(
+                        directions=outputs, coords=locs, dcell=self.xs[1] - self.xs[0]
+                    )
+
+                if writer is None:
+                    # Not recording to tensorboard, just plot the figures
+                    # plt.show()
+                    yield fig_pred, fig_pred_quiver
+                else:
+                    # Record figures to tensorboard
+                    writer.add_figure('v{}/viz set predictions'.format(i), fig_pred, epoch)
+                    writer.add_figure('v{}/viz set predictions quiver'.format(i), fig_pred_quiver, epoch)
+                    writer.add_scalar(tag='viz_loss/{}'.format(i), scalar_value=loss.data.item(), global_step=epoch)
 
 
 def create_dataloader(data, n_samples, maze_sps, args):

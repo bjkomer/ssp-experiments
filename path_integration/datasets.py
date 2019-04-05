@@ -26,7 +26,11 @@ class SSPTrajectoryDataset(data.Dataset):
         return self.velocity_inputs.shape[0]
 
 
-def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_length=100, batch_size=10):
+def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_length=100, batch_size=10, encoding='ssp'):
+
+    # Option to use SSPs or the 2D location directly
+    assert encoding in ['ssp', '2d']
+
     positions = data['positions']
 
     cartesian_vels = data['cartesian_vels']
@@ -45,6 +49,11 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
 
         ssp_inputs = np.zeros((n_samples, dim))
 
+        # for the 2D encoding method
+        pos_outputs = np.zeros((n_samples, rollout_length, 2))
+
+        pos_inputs = np.zeros((n_samples, 2))
+
         for i in range(n_samples):
             # choose random trajectory
             traj_ind = np.random.randint(low=0, high=n_trajectories)
@@ -61,12 +70,22 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
             # initial state of the LSTM is a linear transform of the ground truth ssp
             ssp_inputs[i, :] = ssps[traj_ind, step_ind]
 
-        dataset = SSPTrajectoryDataset(
-            velocity_inputs=velocity_inputs,
-            ssp_inputs=ssp_inputs,
-            ssp_outputs=ssp_outputs,
+            # for the 2D encoding method
+            pos_outputs[i, :, :] = positions[traj_ind, step_ind + 1:step_ind_final + 1, :]
+            pos_inputs[i, :] = positions[traj_ind, step_ind]
 
-        )
+        if encoding == 'ssp':
+            dataset = SSPTrajectoryDataset(
+                velocity_inputs=velocity_inputs,
+                ssp_inputs=ssp_inputs,
+                ssp_outputs=ssp_outputs,
+            )
+        elif encoding == '2d':
+            dataset = SSPTrajectoryDataset(
+                velocity_inputs=velocity_inputs,
+                ssp_inputs=pos_inputs,
+                ssp_outputs=pos_outputs,
+            )
 
         if test_set == 0:
             trainloader = torch.utils.data.DataLoader(
