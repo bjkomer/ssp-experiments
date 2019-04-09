@@ -110,14 +110,59 @@ def plot_path_predictions_image(directions, coords, name='', ax=None, wall_overl
     else:
         fig = None
 
-    angles = np.arctan2(directions[:, 1], directions[:, 0])
+    angles_flat = np.arctan2(directions[:, 1], directions[:, 0])
 
     # NOTE: this assumes the data can be reshaped into a perfect square
-    size = int(np.sqrt(angles.shape[0]))
+    size = int(np.sqrt(angles_flat.shape[0]))
 
-    angles = angles.reshape((size, size))
+    angles = angles_flat.reshape((size, size))
 
     ax.imshow(angles, cmap='hsv', interpolation=None)
+
+    if wall_overlay is not None:
+        # Overlay black as the walls, use transparent everywhere else
+        wall_locations = wall_overlay.reshape((size, size))
+        overlay = np.zeros((size, size, 4)).astype(np.uint8)
+        # overlay = np.zeros((size, size, 3))
+
+        for i in range(size):
+            for j in range(size):
+                if wall_locations[i, j]:
+                    overlay[i, j, 3] = 255
+                else:
+                    overlay[i, j, :] = 0
+        ax.imshow(overlay, interpolation=None)
+
+
+    sin = np.sin(angles_flat)
+    cos = np.cos(angles_flat)
+
+    # pred_dir_normalized = np.tan(angles_flat)
+
+    # pred_dir_normalized = np.vstack([sin, cos]).T
+    pred_dir_normalized = np.vstack([cos, sin]).T
+    # pred_dir_normalized = np.zeros((angles_flat.shape[0], 2))
+    # pred_dir_normalized[:, 0] = cos#sin
+    # pred_dir_normalized[:, 1] = sin#cos
+    print("angles_flat.shape", angles_flat.shape)
+    print("pred_dir_normalized.shape", pred_dir_normalized.shape)
+    print("directions.shape", directions.shape)
+
+    squared_error = (pred_dir_normalized - directions)**2
+
+    print(wall_overlay.dtype)
+    print(wall_overlay == 0)
+    print(squared_error[np.where(wall_overlay == 0)])
+
+    # only calculate mean across the non-wall elements
+    # mse = np.mean(squared_error[np.where(wall_overlay == 0)])
+    mse = squared_error[np.where(wall_overlay == 0)].mean()
+
+    rmse = np.sqrt(mse)
+
+    print("rmse", rmse)
+
+    fig.suptitle("RMSE: {}".format(rmse))
 
     if name:
         fig.suptitle(name)

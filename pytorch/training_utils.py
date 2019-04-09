@@ -38,6 +38,28 @@ def encode_trig(x, y, dim):
     return np.array(ret)
 
 
+def encode_random_trig(x, y, dim, seed=13):
+
+    rstate = np.random.RandomState(seed=seed)
+
+    freq = rstate.uniform(low=-10, high=10, size=dim)
+    phase = rstate.uniform(low=-np.pi, high=np.pi, size=dim)
+
+    ret = np.zeros((dim,))
+
+    for i in range(dim):
+        if i % 2 == 0:
+            ret[i] = np.sin(x*freq[i] + phase[i])
+        else:
+            ret[i] = np.sin(y*freq[i] + phase[i])
+
+    # normalize
+    ret = ret / np.linalg.norm(ret)
+
+    return ret
+
+
+
 def encode_one_hot(x, y, xs, ys):
     arr = np.zeros((len(xs), len(ys)))
     indx = (np.abs(xs - x)).argmin()
@@ -102,6 +124,11 @@ class ValidationSet(object):
             for ni in range(goal_sps.shape[0]):
                 for gi in range(goal_sps.shape[1]):
                     goal_sps[ni, gi, :] = encode_trig(x=goals[ni, gi, 0], y=goals[ni, gi, 1], dim=dim)
+        elif spatial_encoding == 'random-trig':
+            goal_sps = np.zeros((n_mazes, n_goals, dim))
+            for ni in range(goal_sps.shape[0]):
+                for gi in range(goal_sps.shape[1]):
+                    goal_sps[ni, gi, :] = encode_random_trig(x=goals[ni, gi, 0], y=goals[ni, gi, 1], dim=dim)
         elif spatial_encoding == 'random-proj':
             goal_sps = np.zeros((n_mazes, n_goals, dim))
             for ni in range(goal_sps.shape[0]):
@@ -157,6 +184,8 @@ class ValidationSet(object):
                             viz_loc_sps[si, :] = encode_one_hot(x=loc_x, y=loc_y, xs=xso, ys=yso)
                         elif spatial_encoding == 'trig':
                             viz_loc_sps[si, :] = encode_trig(x=loc_x, y=loc_y, dim=dim)
+                        elif spatial_encoding == 'random-trig':
+                            viz_loc_sps[si, :] = encode_random_trig(x=loc_x, y=loc_y, dim=dim)
                         elif spatial_encoding == 'random-proj':
                             viz_loc_sps[si, :] = encode_projection(x=loc_x, y=loc_y, dim=dim)
 
@@ -199,11 +228,13 @@ class ValidationSet(object):
                 print("Ground Truth Viz batch {} of {}".format(i + 1, self.n_mazes * self.n_goals))
                 maze_loc_goal_ssps, directions, locs, goals = data
 
+                wall_overlay = (directions.detach().numpy()[:, 0] == 0) & (directions.detach().numpy()[:, 1] == 0)
+
                 # fig_truth = plot_path_predictions(
                 #     directions=directions, coords=locs, type='colour'
                 # )
                 fig_truth = plot_path_predictions_image(
-                    directions=directions, coords=locs,
+                    directions=directions, coords=locs, wall_overlay=wall_overlay
                 )
 
                 fig_truth_quiver = plot_path_predictions(
@@ -321,6 +352,11 @@ def create_dataloader(data, n_samples, maze_sps, args):
         for ni in range(n_mazes):
             for gi in range(n_goals):
                 goal_sps[ni, gi, :] = encode_trig(x=goals[ni, gi, 0], y=goals[ni, gi, 1], dim=args.dim)
+    elif args.spatial_encoding == 'random-trig':
+        goal_sps = np.zeros((n_mazes, n_goals, args.dim))
+        for ni in range(n_mazes):
+            for gi in range(n_goals):
+                goal_sps[ni, gi, :] = encode_random_trig(x=goals[ni, gi, 0], y=goals[ni, gi, 1], dim=args.dim)
     elif args.spatial_encoding == 'random-proj':
         goal_sps = np.zeros((n_mazes, n_goals, args.dim))
         for ni in range(n_mazes):
@@ -380,6 +416,8 @@ def create_dataloader(data, n_samples, maze_sps, args):
             train_loc_sps[n, :] = encode_one_hot(x=loc_x, y=loc_y, xs=xso, ys=yso)
         elif args.spatial_encoding == 'trig':
             train_loc_sps[n, :] = encode_trig(x=loc_x, y=loc_y, dim=args.dim)
+        elif args.spatial_encoding == 'random-trig':
+            train_loc_sps[n, :] = encode_random_trig(x=loc_x, y=loc_y, dim=args.dim)
         elif args.spatial_encoding == 'random-proj':
             train_loc_sps[n, :] = encode_projection(x=loc_x, y=loc_y, dim=args.dim)
         train_goal_sps[n, :] = goal_sps[maze_index, goal_index, :]

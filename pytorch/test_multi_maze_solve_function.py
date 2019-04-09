@@ -227,7 +227,8 @@ for i in range(1):
     truth_quiver_fname = fname_format.format("truth", maze_name, 'truth', 'quiver', mis[i], gis[i])
 
     # Check if ground truth has already been made, if so, don't run it again
-    if not os.path.isfile(truth_fname) and not os.path.isfile(truth_quiver_fname):
+    # if not os.path.isfile(truth_fname) or not os.path.isfile(truth_quiver_fname):
+    if True:
         fig_truth, fig_truth_quiver = truth_gen.__next__()
         fig_truth.savefig(truth_fname)
         fig_truth_quiver.savefig(truth_quiver_fname)

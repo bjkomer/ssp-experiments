@@ -23,7 +23,7 @@ parser.add_argument('--epoch-offset', type=int, default=0,
 parser.add_argument('--viz-period', type=int, default=200, help='number of epochs before a viz set run')
 parser.add_argument('--val-period', type=int, default=25, help='number of epochs before a test/validation set run')
 parser.add_argument('--spatial-encoding', type=str, default='ssp',
-                    choices=['ssp', 'random', '2d', '2d-normalized', 'one-hot', 'trig', 'random-proj', 'learned'],
+                    choices=['ssp', 'random', '2d', '2d-normalized', 'one-hot', 'trig', 'random-trig', 'random-proj', 'learned'],
                     help='coordinate encoding for agent location and goal')
 parser.add_argument('--subsample', type=int, default=1, help='amount to subsample for the visualization validation')
 parser.add_argument('--maze-id-type', type=str, choices=['ssp', 'one-hot', 'random-sp'], default='ssp',
@@ -129,6 +129,8 @@ elif args.spatial_encoding == '2d-normalized':
 elif args.spatial_encoding == 'one-hot':
     repr_dim = int(np.sqrt(args.dim))**2
 elif args.spatial_encoding == 'trig':
+    repr_dim = args.dim
+elif args.spatial_encoding == 'random-trig':
     repr_dim = args.dim
 elif args.spatial_encoding == 'random-proj':
     repr_dim = args.dim
