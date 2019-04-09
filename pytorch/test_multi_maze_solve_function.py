@@ -25,7 +25,7 @@ parser.add_argument('--limit-high', type=float, default=5, help='highest coordin
 parser.add_argument('--view-activations', action='store_true', help='view spatial activations of each neuron')
 parser.add_argument('--dim', type=int, default=512, help='Dimensionality of the SSPs')
 parser.add_argument('--spatial-encoding', type=str, default='ssp',
-                    choices=['ssp', 'random', '2d', '2d-normalized', 'one-hot', 'trig', 'random-proj'],
+                    choices=['ssp', 'random', '2d', '2d-normalized', 'one-hot', 'trig', 'random-proj', 'random-trig'],
                     help='coordinate encoding for agent location and goal')
 parser.add_argument('--maze-id-type', type=str, choices=['ssp', 'one-hot', 'random-sp'], default='ssp',
                     help='ssp: region corresponding to maze layout.'
@@ -162,6 +162,8 @@ elif args.spatial_encoding == '2d-normalized':
 elif args.spatial_encoding == 'one-hot':
     repr_dim = int(np.sqrt(args.dim))**2
 elif args.spatial_encoding == 'trig':
+    repr_dim = args.dim
+elif args.spatial_encoding == 'random-trig':
     repr_dim = args.dim
 elif args.spatial_encoding == 'random-proj':
     repr_dim = args.dim

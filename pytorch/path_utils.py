@@ -144,15 +144,15 @@ def plot_path_predictions_image(directions, coords, name='', ax=None, wall_overl
     # pred_dir_normalized = np.zeros((angles_flat.shape[0], 2))
     # pred_dir_normalized[:, 0] = cos#sin
     # pred_dir_normalized[:, 1] = sin#cos
-    print("angles_flat.shape", angles_flat.shape)
-    print("pred_dir_normalized.shape", pred_dir_normalized.shape)
-    print("directions.shape", directions.shape)
+    # print("angles_flat.shape", angles_flat.shape)
+    # print("pred_dir_normalized.shape", pred_dir_normalized.shape)
+    # print("directions.shape", directions.shape)
 
     squared_error = (pred_dir_normalized - directions)**2
 
-    print(wall_overlay.dtype)
-    print(wall_overlay == 0)
-    print(squared_error[np.where(wall_overlay == 0)])
+    # print(wall_overlay.dtype)
+    # print(wall_overlay == 0)
+    # print(squared_error[np.where(wall_overlay == 0)])
 
     # only calculate mean across the non-wall elements
     # mse = np.mean(squared_error[np.where(wall_overlay == 0)])
