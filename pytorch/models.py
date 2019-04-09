@@ -70,7 +70,7 @@ class MLP(nn.Module):
 class LearnedEncoding(nn.Module):
 
     def __init__(self, input_size=2, encoding_size=512, maze_id_size=512, hidden_size=512, output_size=2):
-        super(TwoLayer, self).__init__()
+        super(LearnedEncoding, self).__init__()
 
         self.input_size = input_size
         self.encoding_size = encoding_size
@@ -79,19 +79,20 @@ class LearnedEncoding(nn.Module):
         self.output_size = output_size
 
         self.encoding_layer = nn.Linear(self.input_size, self.encoding_size)
-        self.input_layer = nn.Linear(self.encoding_size, self.hidden_size)
+        # self.input_layer = nn.Linear(self.encoding_size, self.hidden_size)
+        self.input_layer = nn.Linear(self.encoding_size*2 + self.maze_id_size, self.hidden_size)
         self.output_layer = nn.Linear(self.hidden_size, self.output_size)
 
     def forward_activations_encoding(self, inputs):
         """Returns the hidden layer activations as well as the prediction"""
 
         maze_id = inputs[:, :self.maze_id_size]
-        loc_pos = inputs[:, self.maze_id_size:self.maze_id_size+self.input_size]
-        goal_pos = inputs[:, self.maze_id_size + self.input_size:]
+        loc_pos = inputs[:, self.maze_id_size:self.maze_id_size + self.input_size]
+        goal_pos = inputs[:, self.maze_id_size + self.input_size:self.maze_id_size + self.input_size*2]
 
         loc_encoding = F.relu(self.encoding_layer(loc_pos))
         goal_encoding = F.relu(self.encoding_layer(goal_pos))
-        features = F.relu(self.input_layer(torch.cat([maze_id, loc_encoding, goal_encoding])))
+        features = F.relu(self.input_layer(torch.cat([maze_id, loc_encoding, goal_encoding], dim=1)))
         prediction = self.output_layer(features)
 
         return prediction, features, loc_encoding, goal_encoding

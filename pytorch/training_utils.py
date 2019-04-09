@@ -109,7 +109,7 @@ class ValidationSet(object):
             for ni in range(goal_sps.shape[0]):
                 for gi in range(goal_sps.shape[1]):
                     goal_sps[ni, gi, :] = encode_random(x=goals[ni, gi, 0], y=goals[ni, gi, 1], dim=dim)
-        elif spatial_encoding == '2d':
+        elif spatial_encoding == '2d' or spatial_encoding == 'learned':
             goal_sps = goals.copy()
         elif spatial_encoding == '2d-normalized':
             goal_sps = goals.copy()
@@ -176,7 +176,7 @@ class ValidationSet(object):
                             viz_loc_sps[si, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
                         elif spatial_encoding == 'random':
                             viz_loc_sps[si, :] = encode_random(loc_x, loc_y, dim)
-                        elif spatial_encoding == '2d':
+                        elif spatial_encoding == '2d' or spatial_encoding == 'learned':
                             viz_loc_sps[si, :] = np.array([loc_x, loc_y])
                         elif spatial_encoding == '2d-normalized':
                             viz_loc_sps[si, :] = ((np.array([loc_x, loc_y]) - limit_low)*2 / (limit_high - limit_low)) - 1
@@ -337,7 +337,7 @@ def create_dataloader(data, n_samples, maze_sps, args):
         for ni in range(n_mazes):
             for gi in range(n_goals):
                 goal_sps[ni, gi, :] = encode_random(x=goals[ni, gi, 0], y=goals[ni, gi, 1], dim=args.dim)
-    elif args.spatial_encoding == '2d':
+    elif args.spatial_encoding == '2d' or args.spatial_encoding == 'learned':
         goal_sps = goals.copy()
     elif args.spatial_encoding == '2d-normalized':
         goal_sps = goals.copy()
@@ -408,7 +408,7 @@ def create_dataloader(data, n_samples, maze_sps, args):
             train_loc_sps[n, :] = encode_point(loc_x, loc_y, x_axis_sp, y_axis_sp).v
         elif args.spatial_encoding == 'random':
             train_loc_sps[n, :] = encode_random(loc_x, loc_y, args.dim)
-        elif args.spatial_encoding == '2d':
+        elif args.spatial_encoding == '2d' or args.spatial_encoding == 'learned':
             train_loc_sps[n, :] = np.array([loc_x, loc_y])
         elif args.spatial_encoding == '2d-normalized':
             train_loc_sps[n, :] = ((np.array([loc_x, loc_y]) - xso[0]) * 2 / (xso[-1] - xso[0])) - 1

@@ -140,7 +140,7 @@ if args.n_hidden_layers > 1:
     model = MLP(input_size=id_size + repr_dim * 2, hidden_size=args.hidden_size, output_size=2, n_layers=args.n_hidden_layers)
 else:
     if args.spatial_encoding == 'learned':
-        model = LearnedEncoding(input_size=id_size + repr_dim * 2, maze_id_size=id_size, hidden_size=args.hidden_size, output_size=2)
+        model = LearnedEncoding(input_size=repr_dim, maze_id_size=id_size, hidden_size=args.hidden_size, output_size=2)
     else:
         model = FeedForward(input_size=id_size + repr_dim * 2, hidden_size=args.hidden_size, output_size=2)
 
