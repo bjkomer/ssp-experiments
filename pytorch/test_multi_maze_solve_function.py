@@ -8,7 +8,7 @@ from tensorboardX import SummaryWriter
 from datetime import datetime
 from spatial_semantic_pointers.utils import make_good_unitary, encode_point
 from path_utils import plot_path_predictions, generate_maze_sp, solve_maze
-from models import FeedForward
+from models import FeedForward, LearnedEncoding
 from datasets import MazeDataset
 import nengo.spa as spa
 import matplotlib.pyplot as plt
@@ -25,7 +25,7 @@ parser.add_argument('--limit-high', type=float, default=5, help='highest coordin
 parser.add_argument('--view-activations', action='store_true', help='view spatial activations of each neuron')
 parser.add_argument('--dim', type=int, default=512, help='Dimensionality of the SSPs')
 parser.add_argument('--spatial-encoding', type=str, default='ssp',
-                    choices=['ssp', 'random', '2d', '2d-normalized', 'one-hot', 'trig', 'random-proj', 'random-trig'],
+                    choices=['ssp', 'random', '2d', '2d-normalized', 'one-hot', 'trig', 'random-proj', 'random-trig', 'learned'],
                     help='coordinate encoding for agent location and goal')
 parser.add_argument('--maze-id-type', type=str, choices=['ssp', 'one-hot', 'random-sp'], default='ssp',
                     help='ssp: region corresponding to maze layout.'
@@ -157,6 +157,8 @@ elif args.spatial_encoding == 'random':
     repr_dim = args.dim
 elif args.spatial_encoding == '2d':
     repr_dim = 2
+elif args.spatial_encoding == 'learned':
+    repr_dim = 2
 elif args.spatial_encoding == '2d-normalized':
     repr_dim = 2
 elif args.spatial_encoding == 'one-hot':
@@ -184,8 +186,12 @@ else:
     )
     maze_name = 'multimaze'
 
-# input is maze, loc, goal ssps, output is 2D direction to move
-model = FeedForward(input_size=id_size + repr_dim * 2, output_size=2)
+if args.spatial_encoding == 'learned':
+    # input is maze, loc, goal ssps, output is 2D direction to move
+    model = LearnedEncoding(input_size=repr_dim, maze_id_size=id_size, hidden_size=512, output_size=2)
+else:
+    # input is maze, loc, goal ssps, output is 2D direction to move
+    model = FeedForward(input_size=id_size + repr_dim * 2, output_size=2)
 
 if args.load_saved_model:
     model.load_state_dict(torch.load(args.load_saved_model), strict=False)
