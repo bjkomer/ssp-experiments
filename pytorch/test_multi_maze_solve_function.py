@@ -41,6 +41,7 @@ parser.add_argument(
 #                     help='Directory for saved model and tensorboard log')
 parser.add_argument('--logdir', type=str, default='', help='Directory for saved model and tensorboard log')
 parser.add_argument('--load-saved-model', type=str, default='', help='Saved model to load from')
+parser.add_argument('--folder', type=str, default='figure_output_new_colours', help='folder to save the figures')
 
 args = parser.parse_args()
 
@@ -213,7 +214,8 @@ viz_gen = validation_set.run_validation(model, writer=None, epoch=0, use_wall_ov
 
 
 # folder = 'figure_output'
-folder = 'figure_output_new_colours'
+# folder = 'figure_output_new_colours'
+folder = args.folder
 
 fname_format = folder + '/{}/{}_{}_{}_m{}_g{}.png'
 
