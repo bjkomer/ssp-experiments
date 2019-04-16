@@ -30,6 +30,7 @@ parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--n-samples', type=int, default=1000)
 parser.add_argument('--dataset', type=str, default='../lab/reproducing/data/path_integration_trajectories_logits_200t_15s_seed13.npz')
 parser.add_argument('--model', type=str, default='output/ssp_path_integration/clipped/Mar22_15-24-10/ssp_path_integration_model.pt', help='Saved model to load from')
+parser.add_argument('--output', type=str, default='output/rate_maps.npz')
 
 args = parser.parse_args()
 
@@ -131,7 +132,7 @@ with torch.no_grad():
 
     # TODO: save the firing maps here, so they can be processed later
     np.savez(
-        'output/rate_maps.npz',
+        args.output,
         rate_maps_pred=rate_maps_pred,
         rate_maps_truth=rate_maps_truth,
     )

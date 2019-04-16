@@ -94,6 +94,10 @@ trainloader, testloader = train_test_loaders(
     encoding=args.encoding,
 )
 
+params = vars(args)
+with open(os.path.join(save_dir, "params.json"), "w") as f:
+    json.dump(params, f)
+
 print("Training")
 for epoch in range(n_epochs):
     print("Epoch {} of {}".format(epoch + 1, n_epochs))
@@ -319,7 +323,3 @@ if args.encoding == 'ssp':
     torch.save(model.state_dict(), os.path.join(save_dir, 'ssp_path_integration_model.pt'))
 elif args.encoding == '2d':
     torch.save(model.state_dict(), os.path.join(save_dir, '2d_path_integration_model.pt'))
-
-params = vars(args)
-with open(os.path.join(save_dir, "params.json"), "w") as f:
-    json.dump(params, f)

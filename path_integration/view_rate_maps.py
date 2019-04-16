@@ -4,6 +4,19 @@ import matplotlib.pyplot as plt
 from scipy import signal
 from scipy.ndimage.interpolation import rotate
 import os
+import argparse
+
+parser = argparse.ArgumentParser('View rate maps from a 2D supervised path integration experiment using pytorch')
+
+parser.add_argument('--data', type=str, default='output/rate_maps.npz', help='Rate map file')
+parser.add_argument('--corr-prefix', type=str, default='output/cross_corr', help='Rate map file')
+
+args = parser.parse_args()
+
+# pred_corr_filename = 'output/cross_corr_pred.npz'
+# truth_corr_filename = 'output/cross_corr_truth.npz'
+pred_corr_filename = args.corr_prefix + '_pred.npz'
+truth_corr_filename = args.corr_prefix + '_truth.npz'
 
 # https://github.com/lsolanka/gridcells/blob/c18423426787edcdd45a4a5d9058ae0285c57eca/tests/unit/fields_ref_impl.py#L70
 def SNAutoCorr(rate_map, arena_diameter, res):
@@ -135,7 +148,7 @@ def gridness(rate_maps, xs, ys, center_radius=1):
     # return gridness_scores, ccs
 
 
-data = np.load('output/rate_maps.npz')
+data = np.load(args.data)
 
 rate_maps_pred=data['rate_maps_pred']
 rate_maps_truth=data['rate_maps_truth']
@@ -147,7 +160,7 @@ n_y = rate_maps_pred.shape[2]
 xs = np.linspace(-5, 5, n_x)
 ys = np.linspace(-5, 5, n_y)
 
-pred_corr_filename = 'output/cross_corr_pred.npz'
+
 if os.path.isfile(pred_corr_filename):
     pred_corr_data = np.load(pred_corr_filename)
     gridness_scores_pred = pred_corr_data['gridness_scores']
@@ -158,14 +171,14 @@ else:
     gridness_scores_pred, ccs_pred = gridness(rate_maps_pred, xs, ys)
 
     np.savez(
-        'output/cross_corr_pred.npz',
+        pred_corr_filename,
         gridness_scores=gridness_scores_pred,
         cross_correlations=ccs_pred,
     )
 
     print(gridness_scores_pred)
 
-truth_corr_filename = 'output/cross_corr_truth.npz'
+
 if os.path.isfile(truth_corr_filename):
     truth_corr_data = np.load(truth_corr_filename)
     gridness_scores_truth = truth_corr_data['gridness_scores']
@@ -176,7 +189,7 @@ else:
     gridness_scores_truth, ccs_truth = gridness(rate_maps_truth, xs, ys)
 
     np.savez(
-        'output/cross_corr_truth.npz',
+        truth_corr_filename,
         gridness_scores=gridness_scores_truth,
         cross_correlations=ccs_truth,
     )

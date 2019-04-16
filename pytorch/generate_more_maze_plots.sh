@@ -18,5 +18,5 @@ do
           learned )
                   encstr=learned ;;
   esac
-  python test_multi_maze_solve_function.py --folder figure_output_50mazes --spatial-encoding $encoding --maze-id-type one-hot --load-saved-model multi_maze_solve_function/encodings/50mazes/${encstr}_loc_oh_id/*/model.pt
+  python test_multi_maze_solve_function.py --folder figure_output_50mazes --spatial-encoding $encoding --maze-id-type one-hot --load-saved-model multi_maze_solve_function/encodings/50mazes/${encstr}_loc_oh_id/*/model.pt --dataset maze_datasets/maze_dataset_maze_style_50mazes_25goals_64res_13size_13seed.npz
 done
