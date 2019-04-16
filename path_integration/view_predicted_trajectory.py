@@ -30,6 +30,7 @@ parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--n-samples', type=int, default=1)
 parser.add_argument('--dataset', type=str, default='../lab/reproducing/data/path_integration_trajectories_logits_200t_15s_seed13.npz')
 parser.add_argument('--model', type=str, default='output/ssp_path_integration/clipped/Mar22_15-24-10/ssp_path_integration_model.pt', help='Saved model to load from')
+parser.add_argument('--encoding', type=str, default='ssp', choices=['ssp', '2d'])
 
 args = parser.parse_args()
 
@@ -40,7 +41,15 @@ data = np.load(args.dataset)
 
 x_axis_vec = data['x_axis_vec']
 y_axis_vec = data['y_axis_vec']
-ssp_scaling = data['ssp_scaling']
+
+if args.encoding == 'ssp':
+    encoding_dim = 512
+    ssp_scaling = data['ssp_scaling']
+elif args.encoding == '2d':
+    encoding_dim = 2
+    ssp_scaling = 1
+else:
+    raise NotImplementedError
 
 limit_low = 0 * ssp_scaling
 limit_high = 2.2 * ssp_scaling
@@ -57,7 +66,7 @@ n_samples = args.n_samples#1000
 rollout_length = args.trajectory_length#100
 batch_size = 1
 
-model = SSPPathIntegrationModel(unroll_length=rollout_length)
+model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=encoding_dim)
 
 if args.model:
     model.load_state_dict(torch.load(args.model), strict=False)
@@ -68,7 +77,8 @@ trainloader, testloader = train_test_loaders(
     n_train_samples=n_samples,
     n_test_samples=n_samples,
     rollout_length=rollout_length,
-    batch_size=batch_size
+    batch_size=batch_size,
+    encoding=args.encoding
 )
 
 print("Testing")
@@ -92,17 +102,25 @@ with torch.no_grad():
     print("Computing predicted locations and true locations")
     # Using all data, one chunk at a time
     for ri in range(rollout_length):
-        # computing 'predicted' coordinates, where the agent thinks it is
-        predictions[ri*ssp_pred.shape[1]:(ri+1)*ssp_pred.shape[1], :] = ssp_to_loc_v(
-            ssp_pred.detach().numpy()[ri, :, :],
-            heatmap_vectors, xs, ys
-        )
 
-        # computing 'ground truth' coordinates, where the agent should be
-        coords[ri*ssp_pred.shape[1]:(ri+1)*ssp_pred.shape[1], :] = ssp_to_loc_v(
-            ssp_outputs.detach().numpy()[:, ri, :],
-            heatmap_vectors, xs, ys
-        )
+        if args.encoding == 'ssp':
+            # computing 'predicted' coordinates, where the agent thinks it is
+            predictions[ri * ssp_pred.shape[1]:(ri + 1) * ssp_pred.shape[1], :] = ssp_to_loc_v(
+                ssp_pred.detach().numpy()[ri, :, :],
+                heatmap_vectors, xs, ys
+            )
+
+            # computing 'ground truth' coordinates, where the agent should be
+            coords[ri * ssp_pred.shape[1]:(ri + 1) * ssp_pred.shape[1], :] = ssp_to_loc_v(
+                ssp_outputs.detach().numpy()[:, ri, :],
+                heatmap_vectors, xs, ys
+            )
+        elif args.encoding == '2d':
+            # copying 'predicted' coordinates, where the agent thinks it is
+            predictions[ri * ssp_pred.shape[1]:(ri + 1) * ssp_pred.shape[1], :] = ssp_pred.detach().numpy()[ri, :, :]
+
+            # copying 'ground truth' coordinates, where the agent should be
+            coords[ri * ssp_pred.shape[1]:(ri + 1) * ssp_pred.shape[1], :] = ssp_outputs.detach().numpy()[:, ri, :]
 
     fig, ax = plt.subplots(1, batch_size)
 
