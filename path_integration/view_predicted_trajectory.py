@@ -84,8 +84,10 @@ with torch.no_grad():
     print("ssp_outputs.shape", ssp_outputs.shape)
     print("lstm_outputs.shape", lstm_outputs.shape)
 
-    predictions = np.zeros((ssp_pred.shape[1]*ssp_pred.shape[2], 2))
-    coords = np.zeros((ssp_pred.shape[1]*ssp_pred.shape[2], 2))
+    # predictions = np.zeros((ssp_pred.shape[1]*ssp_pred.shape[2], 2))
+    # coords = np.zeros((ssp_pred.shape[1]*ssp_pred.shape[2], 2))
+    predictions = np.zeros((ssp_pred.shape[0]*ssp_pred.shape[1], 2))
+    coords = np.zeros((ssp_pred.shape[0]*ssp_pred.shape[1], 2))
 
     print("Computing predicted locations and true locations")
     # Using all data, one chunk at a time
@@ -113,23 +115,33 @@ with torch.no_grad():
         ax.scatter(
             predictions[:, 0],
             predictions[:, 1],
-            color='blue'
+            color='blue',
+            label='predictions',
         )
 
         ax.scatter(
             coords[:, 0],
             coords[:, 1],
             color='green',
+            label='ground truth',
         )
+
+        ax.legend()
     else:
         for bi in range(batch_size):
-            # ax[bi].scatter(
-            #     predictions[bi * rollout_length:(bi + 1) * rollout_length, 0],
-            #     predictions[bi * rollout_length:(bi + 1) * rollout_length, 1]
-            # )
+            ax[bi].scatter(
+                predictions[bi * rollout_length:(bi + 1) * rollout_length, 0],
+                predictions[bi * rollout_length:(bi + 1) * rollout_length, 1],
+                color='blue',
+                label='predictions',
+            )
             ax[bi].scatter(
                 coords[bi * rollout_length:(bi + 1) * rollout_length, 0],
-                coords[bi * rollout_length:(bi + 1) * rollout_length, 1]
+                coords[bi * rollout_length:(bi + 1) * rollout_length, 1],
+                color='green',
+                label='ground truth',
             )
+
+            ax[bi].legend()
 
     plt.show()
