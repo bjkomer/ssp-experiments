@@ -8,7 +8,7 @@ from spatial_semantic_pointers.utils import encode_point
 
 # TODO: have option to choose activation function
 class AutoEncoder(nn.Module):
-    def __init__(self, input_dim, hidden_dim, dropout=0.5):
+    def __init__(self, input_dim, hidden_dim, dropout=0.0):
         super(AutoEncoder, self).__init__()
 
         self.input_dim = input_dim
