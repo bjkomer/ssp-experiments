@@ -8,18 +8,20 @@ from spatial_semantic_pointers.utils import encode_point
 
 # TODO: have option to choose activation function
 class AutoEncoder(nn.Module):
-    def __init__(self, input_dim, hidden_dim):
+    def __init__(self, input_dim, hidden_dim, dropout=0.5):
         super(AutoEncoder, self).__init__()
 
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
+
+        self.dropout = nn.Dropout(p=dropout)
 
         self.input_layer = nn.Linear(self.input_dim, self.hidden_dim)
         self.output_layer = nn.Linear(self.hidden_dim, self.input_dim)
 
     def forward_activations(self, inputs):
 
-        features = F.relu(self.input_layer(inputs))
+        features = F.relu(self.dropout(self.input_layer(inputs)))
         prediction = self.output_layer(features)
 
         return prediction, features

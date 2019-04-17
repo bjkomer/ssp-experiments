@@ -15,6 +15,7 @@ parser.add_argument('--res', type=int, default=256)
 parser.add_argument('--limit', type=int, default=5)
 parser.add_argument('--dim', type=int, default=512)
 parser.add_argument('--hidden-size', type=int, default=128)
+parser.add_argument('--folder', type=str, default='')
 
 args = parser.parse_args()
 
@@ -23,7 +24,10 @@ rng = np.random.RandomState(seed=args.seed)
 x_axis_sp = make_good_unitary(dim=args.dim, rng=rng)
 y_axis_sp = make_good_unitary(dim=args.dim, rng=rng)
 
-folder = 'images/autoencoder_rate_maps/dim{}_limit{}_seed{}'.format(args.dim, args.limit, args.seed)
+if args.folder == '':
+    folder = 'images/autoencoder_rate_maps/dim{}_limit{}_seed{}'.format(args.dim, args.limit, args.seed)
+else:
+    folder = args.folder
 
 if not os.path.exists(folder):
     os.makedirs(folder)

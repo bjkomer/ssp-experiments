@@ -25,7 +25,6 @@ parser.add_argument('--n-train-samples', type=int, default=1000)
 parser.add_argument('--n-test-samples', type=int, default=1000)
 parser.add_argument('--lr', type=float, default=0.001)
 parser.add_argument('--momentum', type=float, default=0.9)
-# TODO: use dropout?
 parser.add_argument('--dropout', type=float, default=0.0, help='dropout fraction')
 
 args = parser.parse_args()
@@ -60,7 +59,7 @@ testloader = torch.utils.data.DataLoader(
     testset, batch_size=args.n_test_samples, shuffle=False, num_workers=0,
 )
 
-model = AutoEncoder(input_dim=args.dim, hidden_dim=args.hidden_size)
+model = AutoEncoder(input_dim=args.dim, hidden_dim=args.hidden_size, dropout=args.dropout)
 
 criterion = nn.MSELoss()
 
@@ -99,7 +98,13 @@ for epoch in range(args.n_epochs):
 print("Saving Model")
 torch.save(model.state_dict(), os.path.join(save_dir, 'model.pt'))
 
+print("Saving Arguments")
+params = vars(args)
+with open(os.path.join(save_dir, "params.json"), "w") as f:
+    json.dump(params, f)
+
 print("Testing")
+model.eval()
 with torch.no_grad():
     # Everything is in one batch, so this loop will only happen once
     for i, data in enumerate(testloader):
