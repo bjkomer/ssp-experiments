@@ -21,6 +21,7 @@ import json
 from spatial_semantic_pointers.utils import get_heatmap_vectors, ssp_to_loc, ssp_to_loc_v
 from spatial_semantic_pointers.plots import plot_predictions, plot_predictions_v
 import matplotlib.pyplot as plt
+from path_integration_utils import pc_to_loc_v
 
 
 parser = argparse.ArgumentParser('Run 2D supervised path integration experiment using pytorch')
@@ -30,7 +31,8 @@ parser = add_parameters(parser)
 parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--n-epochs', type=int, default=20)
 parser.add_argument('--n-samples', type=int, default=1000)
-parser.add_argument('--encoding', type=str, default='ssp', choices=['ssp', '2d'])
+parser.add_argument('--encoding', type=str, default='ssp', choices=['ssp', '2d', 'pc'])
+parser.add_argument('--eval-period', type=int, default=50)
 parser.add_argument('--logdir', type=str, default='output/ssp_path_integration',
                     help='Directory for saved model and tensorboard log')
 parser.add_argument('--dataset', type=str, default='../lab/reproducing/data/path_integration_trajectories_logits_200t_15s_seed13.npz')
@@ -51,11 +53,17 @@ x_axis_vec = data['x_axis_vec']
 y_axis_vec = data['y_axis_vec']
 ssp_scaling = data['ssp_scaling']
 
+pc_centers = data['pc_centers']
+pc_activations = data['pc_activations']
+
 if args.encoding == 'ssp':
     dim = 512
 elif args.encoding == '2d':
     dim = 2
     ssp_scaling = 1  # no scaling used for 2D coordinates directly
+elif args.encoding == 'pc':
+    dim = args.n_place_cells
+    ssp_scaling = 1
 else:
     raise NotImplementedError
 
@@ -81,7 +89,13 @@ model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=dim)
 if args.load_saved_model:
     model.load_state_dict(torch.load(args.load_saved_model), strict=False)
 
-criterion = nn.MSELoss()
+if args.encoding == 'pc':
+    # Binary cross-entropy loss
+    # criterion = nn.BCELoss()
+    # more numerically stable. Do not use softmax beforehand
+    criterion = nn.BCEWithLogitsLoss()
+else:
+    criterion = nn.MSELoss()
 
 optimizer = optim.RMSprop(model.parameters(), lr=args.learning_rate, momentum=args.momentum)
 
@@ -104,8 +118,8 @@ for epoch in range(n_epochs):
 
 
     # TODO: modularize this and clean it up
-    # Every 100 epochs, create a test loss and image
-    if epoch % 100 == 0:
+    # Every 'eval_period' epochs, create a test loss and image
+    if epoch % args.eval_period == 0:
         print("Evaluating")
         with torch.no_grad():
             # Everything is in one batch, so this loop will only happen once
@@ -117,7 +131,11 @@ for epoch in range(n_epochs):
                 # NOTE: need to permute axes of the targets here because the output is
                 #       (sequence length, batch, units) instead of (batch, sequence_length, units)
                 #       could also permute the outputs instead
-                loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
+                if args.encoding == 'pc':
+                    # place cell version needs to explicitly do the softmax here
+                    loss = criterion(ssp_pred, F.softmax(ssp_outputs.permute(1, 0, 2), dim=2))
+                else:
+                    loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
 
                 print("test loss", loss.data.item())
 
@@ -159,6 +177,29 @@ for epoch in range(n_epochs):
                 print("copying ground truth locations")
                 coords_start[:, :] = ssp_outputs.detach().numpy()[:, 0, :]
                 coords_end[:, :] = ssp_outputs.detach().numpy()[:, -1, :]
+            elif args.encoding == 'pc':
+                # (quick hack is to just use the most activated place cell center)
+                predictions_start[:, :] = pc_to_loc_v(
+                    pc_activations=ssp_pred.detach().numpy()[0, :, :],
+                    centers=pc_centers,
+                    jitter=0.01
+                )
+                predictions_end[:, :] = pc_to_loc_v(
+                    pc_activations=ssp_pred.detach().numpy()[-1, :, :],
+                    centers=pc_centers,
+                    jitter=0.01
+                )
+
+                coords_start[:, :] = pc_to_loc_v(
+                    pc_activations=ssp_outputs.detach().numpy()[:, 0, :],
+                    centers=pc_centers,
+                    jitter=0.01
+                )
+                coords_end[:, :] = pc_to_loc_v(
+                    pc_activations=ssp_outputs.detach().numpy()[:, -1, :],
+                    centers=pc_centers,
+                    jitter=0.01
+                )
 
             fig_pred_start, ax_pred_start = plt.subplots()
             fig_truth_start, ax_truth_start = plt.subplots()
@@ -194,7 +235,11 @@ for epoch in range(n_epochs):
         # NOTE: need to permute axes of the targets here because the output is
         #       (sequence length, batch, units) instead of (batch, sequence_length, units)
         #       could also permute the outputs instead
-        loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
+        if args.encoding == 'pc':
+            # place cell version needs to explicitly do the softmax here
+            loss = criterion(ssp_pred, F.softmax(ssp_outputs.permute(1, 0, 2), dim=2))
+        else:
+            loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
 
         loss.backward()
 
@@ -224,7 +269,11 @@ with torch.no_grad():
         # NOTE: need to permute axes of the targets here because the output is
         #       (sequence length, batch, units) instead of (batch, sequence_length, units)
         #       could also permute the outputs instead
-        loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
+        if args.encoding == 'pc':
+            # place cell version needs to explicitly do the softmax here
+            loss = criterion(ssp_pred, F.softmax(ssp_outputs.permute(1, 0, 2), dim=2))
+        else:
+            loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
 
         print("test loss", loss.data.item())
 
@@ -266,6 +315,29 @@ with torch.no_grad():
         print("copying ground truth locations")
         coords_start[:, :] = ssp_outputs.detach().numpy()[:, 0, :]
         coords_end[:, :] = ssp_outputs.detach().numpy()[:, -1, :]
+    elif args.encoding == 'pc':
+        # (quick hack is to just use the most activated place cell center)
+        predictions_start[:, :] = pc_to_loc_v(
+            pc_activations=ssp_pred.detach().numpy()[0, :, :],
+            centers=pc_centers,
+            jitter=0.01
+        )
+        predictions_end[:, :] = pc_to_loc_v(
+            pc_activations=ssp_pred.detach().numpy()[-1, :, :],
+            centers=pc_centers,
+            jitter=0.01
+        )
+
+        coords_start[:, :] = pc_to_loc_v(
+            pc_activations=ssp_outputs.detach().numpy()[:, 0, :],
+            centers=pc_centers,
+            jitter=0.01
+        )
+        coords_end[:, :] = pc_to_loc_v(
+            pc_activations=ssp_outputs.detach().numpy()[:, -1, :],
+            centers=pc_centers,
+            jitter=0.01
+        )
 
     fig_pred_start, ax_pred_start = plt.subplots()
     fig_truth_start, ax_truth_start = plt.subplots()

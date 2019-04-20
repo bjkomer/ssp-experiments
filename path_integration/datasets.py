@@ -29,12 +29,15 @@ class SSPTrajectoryDataset(data.Dataset):
 def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_length=100, batch_size=10, encoding='ssp'):
 
     # Option to use SSPs or the 2D location directly
-    assert encoding in ['ssp', '2d']
+    assert encoding in ['ssp', '2d', 'pc']
 
     positions = data['positions']
 
     cartesian_vels = data['cartesian_vels']
     ssps = data['ssps']
+    n_place_cells = data['pc_centers'].shape[0]
+
+    pc_activations = data['pc_activations']
 
     n_trajectories = positions.shape[0]
     trajectory_length = positions.shape[1]
@@ -53,6 +56,11 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
         pos_outputs = np.zeros((n_samples, rollout_length, 2))
 
         pos_inputs = np.zeros((n_samples, 2))
+
+        # for the place cell encoding method
+        pc_outputs = np.zeros((n_samples, rollout_length, n_place_cells))
+
+        pc_inputs = np.zeros((n_samples, n_place_cells))
 
         for i in range(n_samples):
             # choose random trajectory
@@ -74,6 +82,10 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
             pos_outputs[i, :, :] = positions[traj_ind, step_ind + 1:step_ind_final + 1, :]
             pos_inputs[i, :] = positions[traj_ind, step_ind]
 
+            # for the place cell encoding method
+            pc_outputs[i, :, :] = pc_activations[traj_ind, step_ind + 1:step_ind_final + 1, :]
+            pc_inputs[i, :] = pc_activations[traj_ind, step_ind]
+
         if encoding == 'ssp':
             dataset = SSPTrajectoryDataset(
                 velocity_inputs=velocity_inputs,
@@ -85,6 +97,12 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
                 velocity_inputs=velocity_inputs,
                 ssp_inputs=pos_inputs,
                 ssp_outputs=pos_outputs,
+            )
+        elif encoding == 'pc':
+            dataset = SSPTrajectoryDataset(
+                velocity_inputs=velocity_inputs,
+                ssp_inputs=pc_inputs,
+                ssp_outputs=pc_outputs,
             )
 
         if test_set == 0:

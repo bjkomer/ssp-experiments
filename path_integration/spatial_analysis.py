@@ -21,6 +21,7 @@ import json
 from spatial_semantic_pointers.utils import get_heatmap_vectors, ssp_to_loc, ssp_to_loc_v
 from spatial_semantic_pointers.plots import plot_predictions, plot_predictions_v
 import matplotlib.pyplot as plt
+from path_integration_utils import pc_to_loc_v
 
 parser = argparse.ArgumentParser('Run 2D supervised path integration experiment using pytorch')
 
@@ -31,7 +32,7 @@ parser.add_argument('--n-samples', type=int, default=1000)
 parser.add_argument('--dataset', type=str, default='../lab/reproducing/data/path_integration_trajectories_logits_200t_15s_seed13.npz')
 parser.add_argument('--model', type=str, default='output/ssp_path_integration/clipped/Mar22_15-24-10/ssp_path_integration_model.pt', help='Saved model to load from')
 parser.add_argument('--output', type=str, default='output/rate_maps.npz')
-parser.add_argument('--encoding', type=str, default='ssp', choices=['ssp', '2d'])
+parser.add_argument('--encoding', type=str, default='ssp', choices=['ssp', '2d', 'pc'])
 
 args = parser.parse_args()
 
@@ -43,11 +44,17 @@ data = np.load(args.dataset)
 x_axis_vec = data['x_axis_vec']
 y_axis_vec = data['y_axis_vec']
 
+pc_centers = data['pc_centers']
+pc_activations = data['pc_activations']
+
 if args.encoding == 'ssp':
     encoding_dim = 512
     ssp_scaling = data['ssp_scaling']
 elif args.encoding == '2d':
     encoding_dim = 2
+    ssp_scaling = 1
+elif args.encoding == 'pc':
+    dim = args.n_place_cells
     ssp_scaling = 1
 else:
     raise NotImplementedError
@@ -140,6 +147,21 @@ with torch.no_grad():
 
             # copying 'ground truth' coordinates, where the agent should be
             coords[ri * ssp_pred.shape[1]:(ri + 1) * ssp_pred.shape[1], :] = ssp_outputs.detach().numpy()[:, ri, :]
+        elif args.encoding == 'pc':
+            # (quick hack is to just use the most activated place cell center)
+            predictions[ri * ssp_pred.shape[1]:(ri + 1) * ssp_pred.shape[1], :] = pc_to_loc_v(
+                pc_activations=ssp_outputs.detach().numpy()[:, ri, :],
+                centers=pc_centers,
+                jitter=0.01,
+            )
+
+            coords[ri * ssp_pred.shape[1]:(ri + 1) * ssp_pred.shape[1], :] = pc_to_loc_v(
+                pc_activations=ssp_outputs.detach().numpy()[:, ri, :],
+                centers=pc_centers,
+                jitter=0.01,
+            )
+
+
 
         # reshaping activations and converting to numpy array
         activations[ri*ssp_pred.shape[1]:(ri+1)*ssp_pred.shape[1], :] = lstm_outputs.detach().numpy()[ri, :, :]
@@ -158,6 +180,10 @@ with torch.no_grad():
                 pred_inds = (predictions[:, 0] == x) & (predictions[:, 1] == y)
                 truth_inds = (coords[:, 0] == x) & (coords[:, 1] == y)
             elif args.encoding == '2d':
+                # set to true if it is the closest match in the linspace
+                pred_inds = (np.abs(predictions[:, 0] - x) < tol) & (np.abs(predictions[:, 1] - y) < tol)
+                truth_inds = (np.abs(coords[:, 0] - x) < tol) & (np.abs(coords[:, 1] - y) < tol)
+            elif args.encoding == 'pc':
                 # set to true if it is the closest match in the linspace
                 pred_inds = (np.abs(predictions[:, 0] - x) < tol) & (np.abs(predictions[:, 1] - y) < tol)
                 truth_inds = (np.abs(coords[:, 0] - x) < tol) & (np.abs(coords[:, 1] - y) < tol)
