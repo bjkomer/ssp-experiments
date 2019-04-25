@@ -18,12 +18,13 @@ parser = argparse.ArgumentParser(
 parser.add_argument('--fname', type=str, default='maze_datasets/maze_dataset_{}_style_{}mazes_{}goals_{}res_{}size_{}seed.npz')
 parser.add_argument('--energy-sigma', type=float, default=0.25, help='std for the wall energy gaussian')
 parser.add_argument('--energy-scale', type=float, default=0.75, help='scale for the wall energy gaussian')
+parser.add_argument('--plot', action='store_true', help='display a plot of the changes')
 
 args = parser.parse_args()
 
 prefix, extension = args.fname.split('.')
 
-new_name = prefix + '_modified' + extension
+new_name = prefix + '_modified.' + extension
 
 # Load the original data
 data = np.load(args.fname)
@@ -102,61 +103,62 @@ np.savez(
     ys=ys,
 )
 
-fig, ax = plt.subplots(1, 4)
+if args.plot:
+    fig, ax = plt.subplots(1, 4)
 
-# combined optimal path and wall gradient
-directions_combined = solved_mazes[0, 0, :, :, :].reshape(res * res, 2)
+    # combined optimal path and wall gradient
+    directions_combined = solved_mazes[0, 0, :, :, :].reshape(res * res, 2)
 
-# just the wall gradient
-directions_gradient = wall_gradient[0, 0, :, :, :].reshape(res * res, 2)
+    # just the wall gradient
+    directions_gradient = wall_gradient[0, 0, :, :, :].reshape(res * res, 2)
 
-# original solution
-directions_original = solved_mazes_original[0, 0, :, :, :].reshape(res * res, 2)
+    # original solution
+    directions_original = solved_mazes_original[0, 0, :, :, :].reshape(res * res, 2)
 
-# combined with walls zerod out for clarity
-directions_combined_overlay = solved_mazes[0, 0, :, :, :].copy()
-walls = np.where(fine_mazes[0, :, :] == 1)
-directions_combined_overlay[walls[0], walls[1], :] = 0
-directions_combined_overlay = directions_combined_overlay.reshape(res * res, 2)
+    # combined with walls zerod out for clarity
+    directions_combined_overlay = solved_mazes[0, 0, :, :, :].copy()
+    walls = np.where(fine_mazes[0, :, :] == 1)
+    directions_combined_overlay[walls[0], walls[1], :] = 0
+    directions_combined_overlay = directions_combined_overlay.reshape(res * res, 2)
 
-coords = np.zeros((res * res, 2))
-# NOTE: there should be a better way to do this than a loop
-for xi, x in enumerate(xs):
-    for yi, y in enumerate(ys):
-        coords[xi * res + yi, 0] = x
-        coords[xi * res + yi, 1] = y
+    coords = np.zeros((res * res, 2))
+    # NOTE: there should be a better way to do this than a loop
+    for xi, x in enumerate(xs):
+        for yi, y in enumerate(ys):
+            coords[xi * res + yi, 0] = x
+            coords[xi * res + yi, 1] = y
 
-# plt.imshow(wall_energy[0, :, :])
-# plt.show()
+    # plt.imshow(wall_energy[0, :, :])
+    # plt.show()
 
-# view a sample (original, gradient, combined, combined with wall overlay)
-plot_path_predictions(
-    directions=directions_original, coords=coords, name='', min_val=-1, max_val=1,
-    type='quiver',
-    # type='colour',
-    dcell=xs[1] - xs[0],
-    ax=ax[0], wall_overlay=None
-)
-plot_path_predictions(
-    directions=directions_gradient, coords=coords, name='', min_val=-1, max_val=1,
-    type='quiver',
-    # type='colour',
-    dcell=xs[1] - xs[0],
-    ax=ax[1], wall_overlay=None
-)
-plot_path_predictions(
-    directions=directions_combined, coords=coords, name='', min_val=-1, max_val=1,
-    type='quiver',
-    # type='colour',
-    dcell=xs[1] - xs[0],
-    ax=ax[2], wall_overlay=None
-)
-plot_path_predictions(
-    directions=directions_combined_overlay, coords=coords, name='', min_val=-1, max_val=1,
-    type='quiver',
-    # type='colour',
-    dcell=xs[1] - xs[0],
-    ax=ax[3], wall_overlay=None
-)
+    # view a sample (original, gradient, combined, combined with wall overlay)
+    plot_path_predictions(
+        directions=directions_original, coords=coords, name='', min_val=-1, max_val=1,
+        type='quiver',
+        # type='colour',
+        dcell=xs[1] - xs[0],
+        ax=ax[0], wall_overlay=None
+    )
+    plot_path_predictions(
+        directions=directions_gradient, coords=coords, name='', min_val=-1, max_val=1,
+        type='quiver',
+        # type='colour',
+        dcell=xs[1] - xs[0],
+        ax=ax[1], wall_overlay=None
+    )
+    plot_path_predictions(
+        directions=directions_combined, coords=coords, name='', min_val=-1, max_val=1,
+        type='quiver',
+        # type='colour',
+        dcell=xs[1] - xs[0],
+        ax=ax[2], wall_overlay=None
+    )
+    plot_path_predictions(
+        directions=directions_combined_overlay, coords=coords, name='', min_val=-1, max_val=1,
+        type='quiver',
+        # type='colour',
+        dcell=xs[1] - xs[0],
+        ax=ax[3], wall_overlay=None
+    )
 
-plt.show()
+    plt.show()
