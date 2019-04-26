@@ -63,7 +63,7 @@ def make_multigoal_ssp_env(map_array, csp_scaling, csp_offset, object_locations,
 # TODO: format this an an actual wrapper env
 class WrappedSSPEnv(Wrapper):
 
-    def __init__(self, data, map_index, max_n_goals=10):
+    def __init__(self, data, map_index, max_n_goals=10, map_encoding='ssp'):
         # n_mazes by size by size
         coarse_mazes = data['coarse_mazes']
 
@@ -117,8 +117,12 @@ class WrappedSSPEnv(Wrapper):
         )
         self.action_space = self._wrapped_env.action_space
 
-        # This will remain constant for the current map
-        self.map_ssp = maze_sps[map_index, :]
+        if map_encoding == 'ssp':
+            # This will remain constant for the current map
+            self.map_ssp = maze_sps[map_index, :]
+        else:
+            self.map_ssp = np.zeros((n_mazes,))
+            self.map_ssp[map_index] = 1
 
         # For compatibility with DeepRL code
         self.state_dim = dim * 3

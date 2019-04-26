@@ -222,7 +222,6 @@ class ValidationSet(object):
     def run_ground_truth(self, writer):
 
         with torch.no_grad():
-            print("right before loop")
             # Each maze is in one batch
             for i, data in enumerate(self.vizloader):
                 print("Ground Truth Viz batch {} of {}".format(i + 1, self.n_mazes * self.n_goals))
@@ -246,7 +245,6 @@ class ValidationSet(object):
     def run_ground_truth_generator(self):
 
         with torch.no_grad():
-            print("right before loop")
             # Each maze is in one batch
             for i, data in enumerate(self.vizloader):
                 print("Ground Truth Viz batch {} of {}".format(i + 1, self.n_mazes * self.n_goals))

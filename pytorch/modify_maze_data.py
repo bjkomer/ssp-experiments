@@ -84,7 +84,11 @@ for ni in range(n_mazes):
         for xi in range(res):
             for yi in range(res):
                 norm = np.linalg.norm(solved_mazes[ni, gi, xi, yi, :])
-                if norm != 0:
+                # If there is a wall, make the output be (0, 0)
+                if fine_mazes[ni, xi, yi]:
+                    solved_mazes[ni, gi, xi, yi, 0] = 0
+                    solved_mazes[ni, gi, xi, yi, 1] = 0
+                elif norm != 0:
                     solved_mazes[ni, gi, xi, yi, :] /= np.linalg.norm(solved_mazes[ni, gi, xi, yi, :])
 
 # Save the modified data
