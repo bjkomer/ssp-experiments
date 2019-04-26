@@ -209,8 +209,8 @@ criterion = nn.MSELoss()
 
 print("Visualization")
 
-truth_gen = validation_set.run_ground_truth(writer=None)
-viz_gen = validation_set.run_validation(model, writer=None, epoch=0, use_wall_overlay=True)
+truth_gen = validation_set.run_ground_truth_generator()
+viz_gen = validation_set.run_validation_generator(model, epoch=0, use_wall_overlay=True)
 
 
 # folder = 'figure_output'

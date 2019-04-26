@@ -59,7 +59,6 @@ def encode_random_trig(x, y, dim, seed=13):
     return ret
 
 
-
 def encode_one_hot(x, y, xs, ys):
     arr = np.zeros((len(xs), len(ys)))
     indx = (np.abs(xs - x)).argmin()
@@ -223,6 +222,7 @@ class ValidationSet(object):
     def run_ground_truth(self, writer):
 
         with torch.no_grad():
+            print("right before loop")
             # Each maze is in one batch
             for i, data in enumerate(self.vizloader):
                 print("Ground Truth Viz batch {} of {}".format(i + 1, self.n_mazes * self.n_goals))
@@ -230,9 +230,6 @@ class ValidationSet(object):
 
                 wall_overlay = (directions.detach().numpy()[:, 0] == 0) & (directions.detach().numpy()[:, 1] == 0)
 
-                # fig_truth = plot_path_predictions(
-                #     directions=directions, coords=locs, type='colour'
-                # )
                 fig_truth = plot_path_predictions_image(
                     directions=directions, coords=locs, wall_overlay=wall_overlay
                 )
@@ -241,14 +238,31 @@ class ValidationSet(object):
                     directions=directions, coords=locs, dcell=self.xs[1] - self.xs[0]
                 )
 
-                if writer is None:
-                    # Not recording to tensorboard, just plot the figures
-                    # plt.show()
-                    yield fig_truth, fig_truth_quiver
-                else:
-                    # Record figures to tensorboard
-                    writer.add_figure('v{}/ground truth'.format(i), fig_truth)
-                    writer.add_figure('v{}/ground truth quiver'.format(i), fig_truth_quiver)
+                # Record figures to tensorboard
+                writer.add_figure('v{}/ground truth'.format(i), fig_truth)
+                writer.add_figure('v{}/ground truth quiver'.format(i), fig_truth_quiver)
+
+    # Note that this must be a separate function because the previous cannot contain yields
+    def run_ground_truth_generator(self):
+
+        with torch.no_grad():
+            print("right before loop")
+            # Each maze is in one batch
+            for i, data in enumerate(self.vizloader):
+                print("Ground Truth Viz batch {} of {}".format(i + 1, self.n_mazes * self.n_goals))
+                maze_loc_goal_ssps, directions, locs, goals = data
+
+                wall_overlay = (directions.detach().numpy()[:, 0] == 0) & (directions.detach().numpy()[:, 1] == 0)
+
+                fig_truth = plot_path_predictions_image(
+                    directions=directions, coords=locs, wall_overlay=wall_overlay
+                )
+
+                fig_truth_quiver = plot_path_predictions(
+                    directions=directions, coords=locs, dcell=self.xs[1] - self.xs[0]
+                )
+
+                yield fig_truth, fig_truth_quiver
 
     def run_validation(self, model, writer, epoch, use_wall_overlay=False):
         criterion = nn.MSELoss()
@@ -265,15 +279,12 @@ class ValidationSet(object):
 
                 if use_wall_overlay:
 
-                    print(directions.shape)
+                    # print(directions.shape)
 
                     wall_overlay = (directions.detach().numpy()[:, 0] == 0) & (directions.detach().numpy()[:, 1] == 0)
 
-                    print(wall_overlay.shape)
+                    # print(wall_overlay.shape)
 
-                    # fig_pred = plot_path_predictions(
-                    #     directions=outputs, coords=locs, type='colour', wall_overlay=wall_overlay
-                    # )
                     fig_pred = plot_path_predictions_image(
                         directions=outputs, coords=locs, wall_overlay=wall_overlay
                     )
@@ -291,15 +302,52 @@ class ValidationSet(object):
                         directions=outputs, coords=locs, dcell=self.xs[1] - self.xs[0]
                     )
 
-                if writer is None:
-                    # Not recording to tensorboard, just plot the figures
-                    # plt.show()
-                    yield fig_pred, fig_pred_quiver
+
+                # Record figures to tensorboard
+                writer.add_figure('v{}/viz set predictions'.format(i), fig_pred, epoch)
+                writer.add_figure('v{}/viz set predictions quiver'.format(i), fig_pred_quiver, epoch)
+                writer.add_scalar(tag='viz_loss/{}'.format(i), scalar_value=loss.data.item(), global_step=epoch)
+
+    # Note that this must be a separate function because the previous cannot contain yields
+    def run_validation_generator(self, model, epoch, use_wall_overlay=False):
+        criterion = nn.MSELoss()
+
+        with torch.no_grad():
+            # Each maze is in one batch
+            for i, data in enumerate(self.vizloader):
+                print("Viz batch {} of {}".format(i + 1, self.n_mazes * self.n_goals))
+                maze_loc_goal_ssps, directions, locs, goals = data
+
+                outputs = model(maze_loc_goal_ssps)
+
+                loss = criterion(outputs, directions)
+
+                if use_wall_overlay:
+
+                    # print(directions.shape)
+
+                    wall_overlay = (directions.detach().numpy()[:, 0] == 0) & (directions.detach().numpy()[:, 1] == 0)
+
+                    # print(wall_overlay.shape)
+
+                    fig_pred = plot_path_predictions_image(
+                        directions=outputs, coords=locs, wall_overlay=wall_overlay
+                    )
+
+                    fig_pred_quiver = plot_path_predictions(
+                        directions=outputs, coords=locs, dcell=self.xs[1] - self.xs[0], wall_overlay=wall_overlay
+                    )
                 else:
-                    # Record figures to tensorboard
-                    writer.add_figure('v{}/viz set predictions'.format(i), fig_pred, epoch)
-                    writer.add_figure('v{}/viz set predictions quiver'.format(i), fig_pred_quiver, epoch)
-                    writer.add_scalar(tag='viz_loss/{}'.format(i), scalar_value=loss.data.item(), global_step=epoch)
+
+                    fig_pred = plot_path_predictions(
+                        directions=outputs, coords=locs, type='colour'
+                    )
+
+                    fig_pred_quiver = plot_path_predictions(
+                        directions=outputs, coords=locs, dcell=self.xs[1] - self.xs[0]
+                    )
+
+                yield fig_pred, fig_pred_quiver
 
 
 def create_dataloader(data, n_samples, maze_sps, args):

@@ -157,7 +157,8 @@ if args.logdir != '':
         for name, param in model.named_parameters():
             writer.add_histogram('parameters/' + name, param.clone().cpu().data.numpy(), 0)
 
-validation_set.run_ground_truth(writer)
+
+validation_set.run_ground_truth(writer=writer)
 
 criterion = nn.MSELoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
