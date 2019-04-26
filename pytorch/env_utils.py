@@ -111,21 +111,27 @@ class WrappedSSPEnv(Wrapper):
         )
         self.env = self._wrapped_env
 
-        self.observation_space = gym.spaces.Box(
-            low=-np.ones(dim*3),
-            high=np.ones(dim*3),
-        )
         self.action_space = self._wrapped_env.action_space
 
         if map_encoding == 'ssp':
             # This will remain constant for the current map
             self.map_ssp = maze_sps[map_index, :]
+
+            # For compatibility with DeepRL code
+            self.state_dim = dim * 3
         else:
             self.map_ssp = np.zeros((n_mazes,))
             self.map_ssp[map_index] = 1
 
+            # For compatibility with DeepRL code
+            self.state_dim = dim * 2 + n_mazes
+
+        self.observation_space = gym.spaces.Box(
+            low=-np.ones(self.state_dim),
+            high=np.ones(self.state_dim),
+        )
+
         # For compatibility with DeepRL code
-        self.state_dim = dim * 3
         self.action_dim = 2
         self.name = 'ssp_env'
 

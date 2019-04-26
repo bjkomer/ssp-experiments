@@ -17,9 +17,9 @@ import gym
 
 # overwite of make_env from DeepRL
 # adapted from https://github.com/ikostrikov/pytorch-a2c-ppo-acktr/blob/master/envs.py
-def make_env(data, map_index, seed, rank, log_dir, episode_life=True):
+def make_env(data, map_index, seed, rank, log_dir, episode_life=True, map_encoding='ssp'):
     def _thunk():
-        env = WrappedSSPEnv(data=data, map_index=map_index)
+        env = WrappedSSPEnv(data=data, map_index=map_index, map_encoding=map_encoding)
         random_seed(seed)
 
         env.seed(seed + rank)
@@ -37,6 +37,7 @@ class Task:
     def __init__(self,
                  data,
                  map_index,
+                 map_encoding='ssp',
                  render=False,
                  num_envs=1,
                  single_process=True,
@@ -48,7 +49,7 @@ class Task:
             mkdir(log_dir)
         # TODO FIXME: need log and seed stuff as input here
         envs = [make_env(
-            data=data, map_index=map_index, seed=seed, rank=i, log_dir=log_dir, episode_life=episode_life
+            data=data, map_index=map_index, seed=seed, rank=i, log_dir=log_dir, episode_life=episode_life, map_encoding=map_encoding
         ) for i in range(num_envs)]
         if single_process:
             Wrapper = DummyVecEnv
@@ -103,15 +104,16 @@ def modified_gaussian_actor_critic_net(state_dim, action_dim, model_params, crit
     return net
 
 
-def ppo_continuous(data, map_index, model_params, n_samples=1e6, save_interval=1e5, log_name='ppo-multigoal-ssp', render=False, load_given_params=True):
+def ppo_continuous(data, map_index, model_params, map_encoding='ssp', n_samples=1e6, save_interval=1e5,
+                   log_name='ppo-multigoal-ssp', render=False, load_given_params=True):
     config = Config()
     log_dir = get_default_log_dir(ppo_continuous.__name__)
     # config.task_fn = lambda: Task(name)
     # config.eval_env = Task(name, log_dir=log_dir)
     # config.task_fn = lambda: WrappedSSPEnv(data=data, map_index=map_index)
     # config.eval_env = WrappedSSPEnv(data=data, map_index=map_index)
-    config.task_fn = lambda: Task(data=data, map_index=map_index, render=render)
-    config.eval_env = Task(data=data, map_index=map_index, log_dir=log_dir, render=render)
+    config.task_fn = lambda: Task(data=data, map_index=map_index, map_encoding=map_encoding, render=render)
+    config.eval_env = Task(data=data, map_index=map_index, map_encoding=map_encoding, log_dir=log_dir, render=render)
 
     # config.network_fn = lambda: GaussianActorCriticNet(
     #     config.state_dim, config.action_dim, actor_body=FCBody(config.state_dim, gate=F.tanh),
@@ -143,7 +145,7 @@ def ppo_continuous(data, map_index, model_params, n_samples=1e6, save_interval=1
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser('View a policy running on an enviromnent')
+    parser = argparse.ArgumentParser('Fine tune a policy with reinforcement learning')
 
     parser.add_argument('--dataset', type=str,
                         default='maze_datasets/maze_dataset_maze_style_50mazes_25goals_64res_13size_13seed.npz')
@@ -157,6 +159,7 @@ if __name__ == '__main__':
     parser.add_argument('--from-scratch', action='store_true', help='If set, start from scratch instead of loading model parameters')
     parser.add_argument('--log-name', type=str, default='ppo-multigoal-ssp', help='Tag for tf_log file and saved model')
     parser.add_argument('--gate', type=str, choices=['relu', 'tanh'], default='relu')
+    parser.add_argument('--map-encoding', type=str, default='ssp', choices=['ssp', 'one-hot'])
 
     args = parser.parse_args()
 
@@ -185,6 +188,7 @@ if __name__ == '__main__':
 
     ppo_continuous(
         data, args.map_index, model_params,
+        map_encoding=args.map_encoding,
         n_samples=args.n_samples,
         save_interval=args.save_interval,
         log_name=args.log_name,
