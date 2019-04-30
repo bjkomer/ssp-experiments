@@ -63,7 +63,7 @@ def make_multigoal_ssp_env(map_array, csp_scaling, csp_offset, object_locations,
 # TODO: format this an an actual wrapper env
 class WrappedSSPEnv(Wrapper):
 
-    def __init__(self, data, map_index, max_n_goals=10, map_encoding='ssp'):
+    def __init__(self, data, map_index, max_n_goals=10, map_encoding='ssp', random_object_locations=False):
         # n_mazes by size by size
         coarse_mazes = data['coarse_mazes']
 
@@ -90,15 +90,27 @@ class WrappedSSPEnv(Wrapper):
         dim = x_axis_vec.shape[0]
 
         xs = data['xs']
+        ys = data['ys']
 
         csp_offset = coarse_mazes.shape[1] / 2.
         csp_scaling = xs[-1] / (coarse_mazes.shape[1] / 2.)
 
         object_locations = OrderedDict()
-        # NOTE: currently only 13 possible objects
-        # Only using up to 10 goals
-        for gi in range(min(max_n_goals, n_goals)):
-            object_locations[possible_objects[gi]] = (goals[map_index, gi, :] / csp_scaling) + csp_offset
+        if random_object_locations:
+            # use random locations rather than locations from the dataset
+            for gi in range(min(max_n_goals, n_goals)):
+                # Choose a random location that is not a wall
+                x_ind = np.random.randint(low=0, high=len(xs))
+                y_ind = np.random.randint(low=0, high=len(xs))
+                while fine_mazes[map_index, x_ind, y_ind] == 1:
+                    x_ind = np.random.randint(low=0, high=len(xs))
+                    y_ind = np.random.randint(low=0, high=len(xs))
+                object_locations[possible_objects[gi]] = (np.array([xs[x_ind], ys[y_ind]]) / csp_scaling) + csp_offset
+        else:
+            # NOTE: currently only 13 possible objects
+            # Only using up to 10 goals
+            for gi in range(min(max_n_goals, n_goals)):
+                object_locations[possible_objects[gi]] = (goals[map_index, gi, :] / csp_scaling) + csp_offset
 
         self._wrapped_env = make_multigoal_ssp_env(
             map_array=coarse_mazes[map_index, :, :],

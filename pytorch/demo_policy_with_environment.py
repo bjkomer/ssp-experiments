@@ -13,6 +13,8 @@ if __name__ == '__main__':
     parser.add_argument('--model-folder', type=str, default='', help='Saved model to load from')
     parser.add_argument('--map-index', type=int, default=0, help='Index for picking which map in the dataset to use')
     parser.add_argument('--noise', type=float, default=0.75, help='Magnitude of gaussian noise to add to the actions')
+    parser.add_argument('--random-goals', action='store_true', help='use random goal locations rather than those in the datasets')
+    parser.add_argument('--fine-tuned-weights', type=str, default='', help='optionally replace weights with fine tuned version from this file')
 
     args = parser.parse_args()
 
@@ -27,9 +29,26 @@ if __name__ == '__main__':
 
     model, map_encoding = load_model(model_path, params_path, n_mazes)
 
+    if args.fine_tuned_weights != '':
+        weights = torch.load(args.fine_tuned_weights)
+
+        # print(weights.keys())
+        # print("")
+        # weights2 = torch.load(model_path)
+        # print(weights2.keys())
+
+        # Overwrite the weights with the fine-tuned ones
+        model.input_layer.weight = torch.nn.Parameter(weights['network.actor_body.layers.0.weight'])
+        model.input_layer.bias = torch.nn.Parameter(weights['network.actor_body.layers.0.bias'])
+
     model.eval()
 
-    env = WrappedSSPEnv(data=data, map_index=args.map_index, map_encoding=map_encoding)
+    env = WrappedSSPEnv(
+        data=data,
+        map_index=args.map_index,
+        map_encoding=map_encoding,
+        random_object_locations=args.random_goals
+    )
 
     num_episodes = 10
     time_steps = 1000
