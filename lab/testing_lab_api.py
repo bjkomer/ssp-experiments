@@ -10,6 +10,9 @@ from gridworlds.getch import getch
 import sys
 
 """
+levels found in:
+lab/game_scripts/levels/*
+
 Levels to use:
 contributed/dmlab30/explore_goal_locations_small
 contributed/dmlab30/explore_goal_locations_large
@@ -319,6 +322,8 @@ def run(length, width, height, fps, level, record, demo, demofiles, video):
         reward = env.step(action, num_steps=1)
 
         print(obs['DEBUG.POS.TRANS'])
+        print(obs['DEBUG.POS.ROT'])
+        print("")
         img[0].set_data(obs[obs_first_person])
         img[1].set_data(obs['DEBUG.CAMERA.TOP_DOWN'].T)
         plt.draw()

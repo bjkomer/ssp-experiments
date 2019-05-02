@@ -9,7 +9,7 @@ from env_utils import WrappedSSPEnv
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('View a policy running on an enviromnent')
 
-    parser.add_argument('--dataset', type=str, default='maze_datasets/maze_dataset_10mazes_25goals_64res_13seed.npz')
+    parser.add_argument('--dataset', type=str, default='maze_datasets/maze_dataset_maze_style_50mazes_25goals_64res_13size_13seed_modified.npz')
     parser.add_argument('--model-folder', type=str, default='', help='Saved model to load from')
     parser.add_argument('--map-index', type=int, default=0, help='Index for picking which map in the dataset to use')
     parser.add_argument('--noise', type=float, default=0.75, help='Magnitude of gaussian noise to add to the actions')

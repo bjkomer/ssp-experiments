@@ -8,7 +8,7 @@ from gym.core import Wrapper
 
 
 def make_multigoal_ssp_env(map_array, csp_scaling, csp_offset, object_locations, x_axis_vec, y_axis_vec, dim=512,
-                           continuous=True):
+                           continuous=True, movement_type='holonomic'):
     params = {
         'x_axis_vec': spa.SemanticPointer(data=x_axis_vec),
         'y_axis_vec': spa.SemanticPointer(data=y_axis_vec),
@@ -44,7 +44,7 @@ def make_multigoal_ssp_env(map_array, csp_scaling, csp_offset, object_locations,
         map_array=map_array,
         object_locations=object_locations,
         observations=obs_dict,
-        movement_type='holonomic',
+        movement_type=movement_type,
         max_lin_vel=5,
         max_ang_vel=5,
         continuous=continuous,
@@ -66,6 +66,7 @@ class WrappedSSPEnv(Wrapper):
     def __init__(self, data, map_index, max_n_goals=10, map_encoding='ssp',
                  random_object_locations=False,
                  discretize_actions=False,
+                 movement_type='holonomic'
                  ):
         """
         :param data: maze dataset to get parameters from
@@ -79,22 +80,30 @@ class WrappedSSPEnv(Wrapper):
         self.discretize_actions = discretize_actions
 
         # n_mazes by size by size
-        coarse_mazes = data['coarse_mazes']
+        coarse_mazes = data['coarse_mazes'].copy()
 
         # n_mazes by res by res
-        fine_mazes = data['fine_mazes']
+        fine_mazes = data['fine_mazes'].copy()
 
         # n_mazes by res by res by 2
         solved_mazes = data['solved_mazes']
 
+        # print(solved_mazes)
+        # print(np.max(solved_mazes))
+        # assert False
+
         # n_mazes by dim
-        maze_sps = data['maze_sps']
+        maze_sps = data['maze_sps'].copy()
+
+        # print(maze_sps)
+        # print(np.max(maze_sps))
+        # assert False
 
         # n_mazes by n_goals by dim
         goal_sps = data['goal_sps']
 
         # n_mazes by n_goals by 2
-        goals = data['goals']
+        goals = data['goals'].copy()
 
         n_goals = goals.shape[1]
         n_mazes = fine_mazes.shape[0]
@@ -134,6 +143,7 @@ class WrappedSSPEnv(Wrapper):
             x_axis_vec=x_axis_vec,
             y_axis_vec=y_axis_vec,
             dim=dim,
+            movement_type=movement_type,
         )
         self.env = self._wrapped_env
 
@@ -176,11 +186,14 @@ class WrappedSSPEnv(Wrapper):
         if self.discretize_actions:
             # TODO: allow more types of actions
             if action == 0:  # move forward
-                wrapped_action = np.array([0.75, 0])
+                # wrapped_action = np.array([0.75, 0])
+                wrapped_action = np.array([1.0, 0])
             elif action == 1:  # turn left?
-                wrapped_action = np.array([0, .25])
+                # wrapped_action = np.array([0, .25])
+                wrapped_action = np.array([0, 1.0])
             elif action == 2:  # turn right?
-                wrapped_action = np.array([0, -.25])
+                # wrapped_action = np.array([0, -.25])
+                wrapped_action = np.array([0, -1.0])
             else:
                 print("Warning, invalid discrete action chosen ({}). Performing no-op".format(action))
                 wrapped_action = np.array([0, 0])

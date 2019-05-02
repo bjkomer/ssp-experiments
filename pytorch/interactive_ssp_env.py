@@ -6,9 +6,10 @@ from gridworlds.getch import getch
 
 parser = argparse.ArgumentParser('Control the agent with a keyboard')
 
-parser.add_argument('--dataset', type=str, default='maze_datasets/maze_dataset_10mazes_25goals_64res_13seed.npz')
+parser.add_argument('--dataset', type=str, default='maze_datasets/maze_dataset_maze_style_50mazes_25goals_64res_13size_13seed_modified.npz')
 parser.add_argument('--map-index', type=int, default=0, help='Index for picking which map in the dataset to use')
 parser.add_argument('--noise', type=float, default=0.75, help='Magnitude of gaussian noise to add to the actions')
+parser.add_argument('--movement-type', type=str, default='holonomic', choices=['holonomic', 'directional'])
 parser.add_argument('--random-goals', action='store_true',
                     help='use random goal locations rather than those in the datasets')
 
@@ -33,13 +34,17 @@ def keyboard_action():
     action_str = getch()
 
     if ord(action_str) == UP:
-        action = np.array([.75, 0])
+        # action = np.array([.75, 0])
+        action = np.array([1.0, 0])
     elif ord(action_str) == DOWN:
-        action = np.array([-.75, 0])
+        # action = np.array([-.75, 0])
+        action = np.array([-1.0, 0])
     elif ord(action_str) == LEFT:
-        action = np.array([0, -.25])
+        # action = np.array([0, -.25])
+        action = np.array([0, -1.0])
     elif ord(action_str) == RIGHT:
-        action = np.array([0, .25])
+        # action = np.array([0, .25])
+        action = np.array([0, 1.0])
     else:
         action = np.array([0, 0])
 
@@ -49,12 +54,13 @@ def keyboard_action():
 
     return action
 
-
+# TODO: make non-holonomic
 env = WrappedSSPEnv(
     data=data,
     map_index=args.map_index,
     map_encoding='ssp',
-    random_object_locations=args.random_goals
+    random_object_locations=args.random_goals,
+    movement_type=args.movement_type,
 )
 
 num_episodes = 10
