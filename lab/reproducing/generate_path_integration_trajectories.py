@@ -188,4 +188,5 @@ np.savez(
     x_axis_vec=x_axis_vec,
     y_axis_vec=y_axis_vec,
     ssp_scaling=args.ssp_scaling,
+    env_size=args.env_size,
 )

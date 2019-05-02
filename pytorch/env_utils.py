@@ -63,7 +63,21 @@ def make_multigoal_ssp_env(map_array, csp_scaling, csp_offset, object_locations,
 # TODO: format this an an actual wrapper env
 class WrappedSSPEnv(Wrapper):
 
-    def __init__(self, data, map_index, max_n_goals=10, map_encoding='ssp', random_object_locations=False):
+    def __init__(self, data, map_index, max_n_goals=10, map_encoding='ssp',
+                 random_object_locations=False,
+                 discretize_actions=False,
+                 ):
+        """
+        :param data: maze dataset to get parameters from
+        :param map_index: the map to use from the maze dataset
+        :param max_n_goals: maximum number of goal locations to switch between
+        :param map_encoding: type of map ID encoding, either ssp or one-hot
+        :param random_object_locations: if true, randomly choose goal locations rather than use those in the dataset
+        :param discretize_actions: if true, the environment interface will accept discrete actions and then convert them
+                                   to the appropriate continuous actions in the Gridworld environment
+        """
+        self.discretize_actions = discretize_actions
+
         # n_mazes by size by size
         coarse_mazes = data['coarse_mazes']
 
@@ -123,7 +137,11 @@ class WrappedSSPEnv(Wrapper):
         )
         self.env = self._wrapped_env
 
-        self.action_space = self._wrapped_env.action_space
+        if self.discretize_actions:
+            # Forward, turn left, and turn right
+            self.action_space = gym.spaces.Discrete(3)
+        else:
+            self.action_space = self._wrapped_env.action_space
 
         if map_encoding == 'ssp':
             # This will remain constant for the current map
@@ -155,7 +173,20 @@ class WrappedSSPEnv(Wrapper):
         return np.concatenate([self.map_ssp, agent_ssp, goal_ssp])
 
     def step(self, action):
-        obs, reward, done, info = self._wrapped_env.step(action)
+        if self.discretize_actions:
+            # TODO: allow more types of actions
+            if action == 0:  # move forward
+                wrapped_action = np.array([0.75, 0])
+            elif action == 1:  # turn left?
+                wrapped_action = np.array([0, .25])
+            elif action == 2:  # turn right?
+                wrapped_action = np.array([0, -.25])
+            else:
+                print("Warning, invalid discrete action chosen ({}). Performing no-op".format(action))
+                wrapped_action = np.array([0, 0])
+        else:
+            wrapped_action = action
+        obs, reward, done, info = self._wrapped_env.step(wrapped_action)
 
         return self.modify_obs(obs), reward, done, info
 
