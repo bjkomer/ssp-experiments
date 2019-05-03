@@ -29,7 +29,8 @@ ACTIONS = [
 
 class EnvInterface(gym.Env):
 
-    def __init__(self, episode_length=1000, width=64, height=64, fps=60,
+    def __init__(self, use_vision=True, use_pos=True,
+                 episode_length=1000, width=64, height=64, fps=60,
                  level='contributed/dmlab30/explore_goal_locations_small',
                  record=None, demo=None, demofiles=None, video=None,
                  num_steps=1, seed=1):
@@ -54,6 +55,12 @@ class EnvInterface(gym.Env):
         self.n_blocks = 11
         self.maze_size = self.n_blocks * self.block_size
 
+        # If true, get vision as an observation
+        self.use_vision = use_vision
+
+        # If true, get x,y,th as an observation
+        self.use_pos = use_pos
+
         # Number of simulator steps per .step() call
         self.num_steps = num_steps
 
@@ -76,6 +83,7 @@ class EnvInterface(gym.Env):
         if video:
             config['video'] = video
 
+        # TODO: possibly remove some obs that are not being used during training to speed things up
         obs_list = [
             'RGB_INTERLEAVED',
             'DEBUG.POS.TRANS',
@@ -133,18 +141,27 @@ class EnvInterface(gym.Env):
         :return: observation vector
         """
 
-        pos = raw_obs['DEBUG.POS.TRANS']
-        # Convert to between -1 and 1
-        pos_x = ((pos[0] / self.maze_size) - .5) * 2
-        pos_y = ((pos[1] / self.maze_size) - .5) * 2
+        if self.use_pos:
+            pos = raw_obs['DEBUG.POS.TRANS']
+            # Convert to between -1 and 1
+            pos_x = ((pos[0] / self.maze_size) - .5) * 2
+            pos_y = ((pos[1] / self.maze_size) - .5) * 2
 
-        # angle between -180 and 180 degrees
-        # convert it to between -1 and 1
-        ang = raw_obs['DEBUG.POS.ROT'][1] / 180.
+            # angle between -180 and 180 degrees
+            # convert it to between -1 and 1
+            ang = raw_obs['DEBUG.POS.ROT'][1] / 180.
 
-        img = raw_obs[self.obs_first_person]
+            # TODO: have option to convert position to ssp here
 
-        # TODO: have option to convert position to ssp here
+        if self.use_vision:
+            img = raw_obs[self.obs_first_person]
 
-        obs = np.concatenate([pos_x, pos_y, ang, img.flatten()])
+        if self.use_vision and self.use_pos
+            obs = np.concatenate([pos_x, pos_y, ang, img.flatten()])
+        elif self.use_pos:
+            obs = np.concatenate([pos_x, pos_y, ang])
+        elif self.use_vision:
+            obs = img.flatten().copy()
+        else:
+            raise NotImplementedError("Must use at least one of vision or pose for observations")
         return obs
