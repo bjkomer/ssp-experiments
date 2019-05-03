@@ -156,7 +156,7 @@ class EnvInterface(gym.Env):
         if self.use_vision:
             img = raw_obs[self.obs_first_person]
 
-        if self.use_vision and self.use_pos
+        if self.use_vision and self.use_pos:
             obs = np.concatenate([pos_x, pos_y, ang, img.flatten()])
         elif self.use_pos:
             obs = np.concatenate([pos_x, pos_y, ang])
