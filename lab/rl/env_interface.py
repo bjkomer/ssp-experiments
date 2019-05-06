@@ -65,7 +65,8 @@ class EnvInterface(gym.Env):
         self.num_steps = num_steps
 
         # Seed for the maze layout (also goal order)
-        self.seed = seed
+        # TODO: will need a different seed for maze layout and goal order
+        self._seed = seed
 
         self.episode_length = episode_length
 
@@ -113,7 +114,7 @@ class EnvInterface(gym.Env):
     def reset(self):
         self.steps_so_far = 0
 
-        self.env.reset(seed=self.seed)
+        self.env.reset(seed=self._seed)
         raw_obs = self.env.observations()
 
         return self.parse_raw_obs(raw_obs)
@@ -161,7 +162,11 @@ class EnvInterface(gym.Env):
         elif self.use_pos:
             obs = np.concatenate([pos_x, pos_y, ang])
         elif self.use_vision:
-            obs = img.flatten().copy()
+            # obs = img.flatten().copy()
+            obs = np.transpose(img.copy(), (2, 0, 1))
         else:
             raise NotImplementedError("Must use at least one of vision or pose for observations")
         return obs
+
+    def seed(self, seed):
+        self._seed = seed

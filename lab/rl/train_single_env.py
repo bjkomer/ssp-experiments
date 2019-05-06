@@ -5,7 +5,7 @@ import argparse
 import torch
 from deep_rl import random_seed, ImageNormalizer, SignNormalizer, PPOAgent, Config, CategoricalActorCriticNet, \
     NatureConvBody, get_logger
-from deep_rl.utils import run_steps, mkdir, generate_tag, get_default_log_dir
+from deep_rl.utils import run_steps, mkdir, get_default_log_dir #generate_tag
 from gym.spaces.box import Box
 from gym.spaces.discrete import Discrete
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv, VecEnv
@@ -76,7 +76,9 @@ def ppo_pixel(log_name='ppo-dmlab-image', render=False):
     )
 
     config.optimizer_fn = lambda params: torch.optim.RMSprop(params, lr=0.00025, alpha=0.99, eps=1e-5)
-    config.network_fn = lambda: CategoricalActorCriticNet(config.state_dim, config.action_dim, NatureConvBody())
+    config.network_fn = lambda: CategoricalActorCriticNet(
+        config.state_dim, config.action_dim, NatureConvBody(in_channels=3)
+    )
     config.state_normalizer = ImageNormalizer()
     config.reward_normalizer = SignNormalizer()
     config.discount = 0.99
