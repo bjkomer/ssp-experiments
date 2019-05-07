@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from datasets import train_test_loaders
+from datasets import localization_train_test_loaders
 from models import SSPPathIntegrationModel
 from datetime import datetime
 from tensorboardX import SummaryWriter
@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 from path_integration_utils import pc_to_loc_v
 
 
-parser = argparse.ArgumentParser('Run 2D supervised path integration experiment using pytorch')
+parser = argparse.ArgumentParser('Run 2D supervised localization experiment using pytorch')
 
 parser = add_parameters(parser)
 
@@ -33,8 +33,9 @@ parser.add_argument('--n-epochs', type=int, default=20)
 parser.add_argument('--n-samples', type=int, default=1000)
 parser.add_argument('--encoding', type=str, default='ssp', choices=['ssp', '2d', 'pc'])
 parser.add_argument('--eval-period', type=int, default=50)
-parser.add_argument('--logdir', type=str, default='output/ssp_path_integration',
+parser.add_argument('--logdir', type=str, default='output/ssp_localization',
                     help='Directory for saved model and tensorboard log')
+# TODO: update default to use dataset with distance sensor measurements (or boundary cell activations)
 parser.add_argument('--dataset', type=str, default='../lab/reproducing/data/path_integration_trajectories_logits_200t_15s_seed13.npz')
 parser.add_argument('--load-saved-model', type=str, default='', help='Saved model to load from')
 parser.add_argument('--use-cosine-loss', action='store_true')
@@ -43,6 +44,11 @@ args = parser.parse_args()
 
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
+
+if args.use_cosine_loss:
+    print("Using Cosine Loss")
+else:
+    print("Using MSE Loss")
 
 current_time = datetime.now().strftime('%b%d_%H-%M-%S')
 save_dir = os.path.join(args.logdir, current_time)
@@ -56,6 +62,8 @@ ssp_scaling = data['ssp_scaling']
 
 pc_centers = data['pc_centers']
 pc_activations = data['pc_activations']
+
+n_sensors = data['n_sensors']
 
 if args.encoding == 'ssp':
     dim = 512
@@ -85,7 +93,14 @@ batch_size = args.minibatch_size#10
 n_epochs = args.n_epochs#20
 # n_epochs = 5
 
-model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=dim)
+
+
+# Input is x and y velocity plus the distance sensor measurements
+model = SSPPathIntegrationModel(
+    inputs_size=2 + n_sensors,
+    unroll_length=rollout_length,
+    sp_dim=dim
+)
 
 if args.load_saved_model:
     model.load_state_dict(torch.load(args.load_saved_model), strict=False)
@@ -96,15 +111,12 @@ if args.encoding == 'pc':
     # more numerically stable. Do not use softmax beforehand
     criterion = nn.BCEWithLogitsLoss()
 else:
-    # TODO: try out cosine similarity here as well, it works better than MSE as a loss for SSP cleanup
-    if args.use_cosine_loss:
-        criterion = nn.CosineEmbeddingLoss()
-    else:
-        criterion = nn.MSELoss()
+    cosine_criterion = nn.CosineEmbeddingLoss()
+    mse_criterion = nn.MSELoss()
 
 optimizer = optim.RMSprop(model.parameters(), lr=args.learning_rate, momentum=args.momentum)
 
-trainloader, testloader = train_test_loaders(
+trainloader, testloader = localization_train_test_loaders(
     data,
     n_train_samples=n_samples,
     n_test_samples=n_samples,
@@ -122,7 +134,7 @@ for epoch in range(n_epochs):
     print("Epoch {} of {}".format(epoch + 1, n_epochs))
 
 
-    # TODO: modularize this and clean it up
+    # TODO: modularize this and clean it up ++
     # Every 'eval_period' epochs, create a test loss and image
     if epoch % args.eval_period == 0:
         print("Evaluating")
@@ -140,11 +152,9 @@ for epoch in range(n_epochs):
                     # place cell version needs to explicitly do the softmax here
                     loss = criterion(ssp_pred, F.softmax(ssp_outputs.permute(1, 0, 2), dim=2))
                 else:
-                    if args.use_cosine_loss:
-                        loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2),
-                                         torch.ones(ssp_pred.shape[0], ssp_pred.shape[0]))
-                    else:
-                        loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
+                    cosine_loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2),
+                                     torch.ones(ssp_pred.shape[0], ssp_pred.shape[0]))
+                    mse_loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
 
                 print("test loss", loss.data.item())
 
@@ -239,7 +249,7 @@ for epoch in range(n_epochs):
         optimizer.zero_grad()
         # model.zero_grad()
 
-        ssp_pred = model(velocity_inputs, ssp_inputs)
+        ssp_pred = model(velocity_inputs, sensor_inputs, ssp_inputs)
 
         # NOTE: need to permute axes of the targets here because the output is
         #       (sequence length, batch, units) instead of (batch, sequence_length, units)
@@ -248,13 +258,14 @@ for epoch in range(n_epochs):
             # place cell version needs to explicitly do the softmax here
             loss = criterion(ssp_pred, F.softmax(ssp_outputs.permute(1, 0, 2), dim=2))
         else:
-            if args.use_cosine_loss:
-                loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2),
-                                 torch.ones(ssp_pred.shape[0], ssp_pred.shape[0]))
-            else:
-                loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
+            cosine_loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2),
+                             torch.ones(ssp_pred.shape[0], ssp_pred.shape[0]))
+            mse_loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
 
-        loss.backward()
+        if args.use_cosine_loss:
+            cosine_loss.backward()
+        else:
+            mse_loss.backward()
 
         # Gradient Clipping
         torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_thresh)
@@ -374,41 +385,9 @@ with torch.no_grad():
     writer.add_figure("final predictions end", fig_pred_end)
     writer.add_figure("final ground truth end", fig_truth_end)
 
-    # predictions = np.zeros((ssp_pred.shape[0] * ssp_pred.shape[1], 2))
-    # coords = np.zeros((ssp_pred.shape[0] * ssp_pred.shape[1], 2))
-    #
-    # # #TODO: vectorize this to make it much faster (ssp_to_loc needs to be modified to support vectorization)
-    # # #TODO: just get the ground truth coords from the dataset, rather than computing them here?
-    # # for step in range(ssp_pred.shape[0]):
-    # #     for sample in range(ssp_pred.shape[1]):
-    # #         predictions[step*ssp_pred.shape[1] + sample, :] = ssp_to_loc(ssp_pred[step, sample, :], heatmap_vectors, xs, ys)
-    # #         coords[step * ssp_pred.shape[1] + sample, :] = ssp_to_loc(ssp_outputs[sample, step, :], heatmap_vectors, xs, ys)
-    #
-    # print("computing prediction locations")
-    # predictions[:, :] = ssp_to_loc_v(
-    #     ssp_pred.detach().numpy().reshape(ssp_pred.shape[0] * ssp_pred.shape[1], ssp_pred.shape[2]),
-    #     heatmap_vectors, xs, ys
-    # )
-    # print("computing ground truth locations")
-    # coords[:, :] = ssp_to_loc_v(
-    #     ssp_outputs.detach().numpy().reshape(ssp_outputs.shape[0] * ssp_outputs.shape[1], ssp_outputs.shape[2]),
-    #     heatmap_vectors, xs, ys
-    # )
-    #
-    # fig_pred, ax_pred = plt.subplots()
-    # fig_truth, ax_truth = plt.subplots()
-    #
-    # # plot_predictions(predictions, coords, ax_pred, min_val=0, max_val=2.2*ssp_scaling)
-    # # plot_predictions(coords, coords, ax_truth, min_val=0, max_val=2.2*ssp_scaling)
-    # print("plotting predicted locations")
-    # plot_predictions_v(predictions, coords, ax_pred, min_val=0, max_val=2.2*ssp_scaling)
-    # print("plotting ground truth locations")
-    # plot_predictions_v(coords, coords, ax_truth, min_val=0, max_val=2.2*ssp_scaling)
-    #
-    # writer.add_figure("predictions", fig_pred)
-    # writer.add_figure("ground truth", fig_truth)
+
 
 if args.encoding == 'ssp':
-    torch.save(model.state_dict(), os.path.join(save_dir, 'ssp_path_integration_model.pt'))
+    torch.save(model.state_dict(), os.path.join(save_dir, 'ssp_localization_model.pt'))
 elif args.encoding == '2d':
-    torch.save(model.state_dict(), os.path.join(save_dir, '2d_path_integration_model.pt'))
+    torch.save(model.state_dict(), os.path.join(save_dir, '2d_localization_model.pt'))
