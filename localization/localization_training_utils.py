@@ -3,11 +3,12 @@ from spatial_semantic_pointers.utils import encode_point, encode_random, ssp_to_
 from spatial_semantic_pointers.plots import plot_predictions, plot_predictions_v
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.utils.data as data
 import matplotlib.pyplot as plt
 
 
-class ValidationSet(object):
+class TrajectoryValidationSet(object):
 
     def __init__(self, dataloader, heatmap_vectors, xs, ys, ssp_scaling=5, spatial_encoding='ssp'):
 
@@ -25,15 +26,15 @@ class ValidationSet(object):
         with torch.no_grad():
             # Everything is in one batch, so this loop will only happen once
             for i, data in enumerate(self.dataloader):
-                velocity_inputs, sensor_inputs, ssp_inputs, ssp_outputs = data
+                combined_inputs, ssp_inputs, ssp_outputs = data
 
-                ssp_pred = model(velocity_inputs, sensor_inputs, ssp_inputs)
+                ssp_pred = model(combined_inputs, ssp_inputs)
 
                 # NOTE: need to permute axes of the targets here because the output is
                 #       (sequence length, batch, units) instead of (batch, sequence_length, units)
                 #       could also permute the outputs instead
                 cosine_loss = self.cosine_criterion(ssp_pred, ssp_outputs.permute(1, 0, 2),
-                                 torch.ones(ssp_pred.shape[0], ssp_pred.shape[0]))
+                                 torch.ones(ssp_pred.shape[0], ssp_pred.shape[1]))
                 mse_loss = self.mse_criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
 
                 print("test mse loss", mse_loss.data.item())
@@ -146,6 +147,21 @@ class LocalizationTrajectoryDataset(data.Dataset):
         return self.combined_inputs.shape[0]
 
 
+class LocalizationSnapshotDataset(data.Dataset):
+
+    def __init__(self, sensor_inputs, ssp_outputs):
+
+        self.sensor_inputs = sensor_inputs.astype(np.float32)
+        self.ssp_outputs = ssp_outputs.astype(np.float32)
+
+    def __getitem__(self, index):
+
+        return self.sensor_inputs[index], self.ssp_outputs[index]
+
+    def __len__(self):
+        return self.sensor_inputs.shape[0]
+
+
 def localization_train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_length=100, batch_size=10, encoding='ssp'):
 
     # Option to use SSPs or the 2D location directly
@@ -247,6 +263,71 @@ def localization_train_test_loaders(data, n_train_samples=1000, n_test_samples=1
     return trainloader, testloader
 
 
+# TODO: need to handle multiple mazes still
+def snapshot_localization_train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, batch_size=10, encoding='ssp'):
+
+    # Option to use SSPs or the 2D location directly
+    assert encoding in ['ssp', '2d']
+
+    positions = data['positions']
+
+    dist_sensors = data['dist_sensors']
+    n_sensors = dist_sensors.shape[2]
+
+    ssps = data['ssps']
+    n_place_cells = data['pc_centers'].shape[0]
+
+    pc_activations = data['pc_activations']
+
+    n_trajectories = positions.shape[0]
+    trajectory_length = positions.shape[1]
+    dim = ssps.shape[2]
+
+    for test_set, n_samples in enumerate([n_train_samples, n_test_samples]):
+
+        sensor_inputs = np.zeros((n_samples, n_sensors))
+
+        # these include outputs for every time-step
+        ssp_outputs = np.zeros((n_samples, dim))
+
+        # for the 2D encoding method
+        pos_outputs = np.zeros((n_samples, 2))
+
+        for i in range(n_samples):
+            # choose random trajectory
+            sample_ind = np.random.randint(low=0, high=n_trajectories)
+
+            sensor_inputs[i, :, :] = dist_sensors[traj_ind, :]
+
+            # ssp output is shifted by one timestep (since it is a prediction of the future by one step)
+            ssp_outputs[i, :, :] = ssps[traj_ind, :]
+
+            # for the 2D encoding method
+            pos_outputs[i, :, :] = positions[traj_ind, :]
+
+        if encoding == 'ssp':
+            dataset = LocalizationSnapshotDataset(
+                sensor_inputs=sensor_inputs,
+                ssp_outputs=ssp_outputs,
+            )
+        elif encoding == '2d':
+            dataset = LocalizationSnapshotDataset(
+                sensor_inputs=sensor_inputs,
+                ssp_outputs=pos_outputs,
+            )
+
+        if test_set == 0:
+            trainloader = torch.utils.data.DataLoader(
+                dataset, batch_size=batch_size, shuffle=True, num_workers=0,
+            )
+        elif test_set == 1:
+            testloader = torch.utils.data.DataLoader(
+                dataset, batch_size=n_samples, shuffle=True, num_workers=0,
+            )
+
+    return trainloader, testloader
+
+
 class LocalizationModel(nn.Module):
 
     def __init__(self, input_size, lstm_hidden_size=128, linear_hidden_size=512,
@@ -328,6 +409,38 @@ class LocalizationModel(nn.Module):
         ssp_pred = self.ssp_output(features)
 
         return ssp_pred, output
+
+
+# TODO: have this somewhere globally accessible instead of many copies
+class FeedForward(nn.Module):
+    """
+    Single hidden layer feed-forward model
+    """
+
+    def __init__(self, input_size=512, hidden_size=512, output_size=512):
+        super(FeedForward, self).__init__()
+
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.output_size = output_size
+
+        self.input_layer = nn.Linear(self.input_size, self.hidden_size)
+        self.output_layer = nn.Linear(self.hidden_size, self.output_size)
+
+    def forward(self, inputs):
+
+        features = F.relu(self.input_layer(inputs))
+        prediction = self.output_layer(features)
+
+        return prediction
+
+    def forward_activations(self, inputs):
+        """Returns the hidden layer activations as well as the prediction"""
+
+        features = F.relu(self.input_layer(inputs))
+        prediction = self.output_layer(features)
+
+        return prediction, features
 
 
 def pc_to_loc_v(pc_activations, centers, jitter=0.01):

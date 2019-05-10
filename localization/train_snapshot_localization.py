@@ -19,10 +19,10 @@ import json
 from spatial_semantic_pointers.utils import get_heatmap_vectors, ssp_to_loc, ssp_to_loc_v
 from spatial_semantic_pointers.plots import plot_predictions, plot_predictions_v
 import matplotlib.pyplot as plt
-from localization_training_utils import ValidationSet, localization_train_test_loaders, LocalizationModel, pc_to_loc_v
+from localization_training_utils import ValidationSet, snapshot_localization_train_test_loaders, FeedForward, pc_to_loc_v
 
 
-parser = argparse.ArgumentParser('Run 2D supervised localization experiment using pytorch')
+parser = argparse.ArgumentParser('Run 2D supervised localization experiment with snapshots using pytorch')
 
 parser = add_parameters(parser)
 
@@ -31,19 +31,23 @@ parser.add_argument('--n-epochs', type=int, default=20)
 parser.add_argument('--n-samples', type=int, default=1000)
 parser.add_argument('--encoding', type=str, default='ssp', choices=['ssp', '2d', 'pc'])
 parser.add_argument('--eval-period', type=int, default=50)
-parser.add_argument('--logdir', type=str, default='output/ssp_localization',
+parser.add_argument('--logdir', type=str, default='output/ssp_snapshot_localization',
                     help='Directory for saved model and tensorboard log')
 # TODO: update default to use dataset with distance sensor measurements (or boundary cell activations)
 parser.add_argument('--dataset', type=str, default='../lab/reproducing/data/path_integration_trajectories_logits_200t_15s_seed13.npz')
 parser.add_argument('--load-saved-model', type=str, default='', help='Saved model to load from')
-parser.add_argument('--use-cosine-loss', action='store_true')
+parser.add_argument('--loss-function', type=str, default='cosine', choices=['cosine', 'mse'])
 
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-if args.use_cosine_loss:
+use_cosine_loss = False
+if args.loss_function == 'cosine':
+    use_cosine_loss = True
+
+if use_cosine_loss:
     print("Using Cosine Loss")
 else:
     print("Using MSE Loss")
@@ -86,37 +90,31 @@ heatmap_vectors = get_heatmap_vectors(xs, ys, x_axis_vec, y_axis_vec)
 
 # n_samples = 5000
 n_samples = args.n_samples#1000
-rollout_length = args.trajectory_length#100
+# rollout_length = args.trajectory_length#100
 batch_size = args.minibatch_size#10
 n_epochs = args.n_epochs#20
 # n_epochs = 5
 
-# Input is x and y velocity plus the distance sensor measurements
-model = LocalizationModel(
-    input_size=2 + n_sensors,
-    unroll_length=rollout_length,
-    sp_dim=dim
+# Input is the distance sensor measurements
+model = FeedForward(
+    input_size=n_sensors,
+    hidden_size=512,
+    output_size=dim,
 )
 
 if args.load_saved_model:
     model.load_state_dict(torch.load(args.load_saved_model), strict=False)
 
-if args.encoding == 'pc':
-    # Binary cross-entropy loss
-    # criterion = nn.BCELoss()
-    # more numerically stable. Do not use softmax beforehand
-    criterion = nn.BCEWithLogitsLoss()
-else:
-    cosine_criterion = nn.CosineEmbeddingLoss()
-    mse_criterion = nn.MSELoss()
+cosine_criterion = nn.CosineEmbeddingLoss()
+mse_criterion = nn.MSELoss()
 
 optimizer = optim.RMSprop(model.parameters(), lr=args.learning_rate, momentum=args.momentum)
 
-trainloader, testloader = localization_train_test_loaders(
+trainloader, testloader = snapshot_localization_train_test_loaders(
     data,
     n_train_samples=n_samples,
     n_test_samples=n_samples,
-    rollout_length=rollout_length,
+    # rollout_length=rollout_length,
     batch_size=batch_size,
     encoding=args.encoding,
 )
@@ -161,18 +159,10 @@ for epoch in range(n_epochs):
 
         ssp_pred = model(velocity_inputs, sensor_inputs, ssp_inputs)
 
-        # NOTE: need to permute axes of the targets here because the output is
-        #       (sequence length, batch, units) instead of (batch, sequence_length, units)
-        #       could also permute the outputs instead
-        if args.encoding == 'pc':
-            # place cell version needs to explicitly do the softmax here
-            loss = criterion(ssp_pred, F.softmax(ssp_outputs.permute(1, 0, 2), dim=2))
-        else:
-            cosine_loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2),
-                             torch.ones(ssp_pred.shape[0], ssp_pred.shape[0]))
-            mse_loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
+        cosine_loss = cosine_criterion(ssp_pred, ssp_outputs, torch.ones(ssp_pred.shape[0]))
+        mse_loss = mse_criterion(ssp_pred, ssp_outputs)
 
-        if args.use_cosine_loss:
+        if use_cosine_loss:
             cosine_loss.backward()
         else:
             mse_loss.backward()
@@ -202,6 +192,6 @@ validation_set.run_eval(
 )
 
 if args.encoding == 'ssp':
-    torch.save(model.state_dict(), os.path.join(save_dir, 'ssp_localization_model.pt'))
+    torch.save(model.state_dict(), os.path.join(save_dir, 'ssp_snapshot_localization_model.pt'))
 elif args.encoding == '2d':
-    torch.save(model.state_dict(), os.path.join(save_dir, '2d_localization_model.pt'))
+    torch.save(model.state_dict(), os.path.join(save_dir, '2d_snapshot_localization_model.pt'))
