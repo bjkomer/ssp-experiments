@@ -10,6 +10,7 @@ parser = argparse.ArgumentParser('View rate maps from a 2D supervised path integ
 
 parser.add_argument('--data', type=str, default='output/rate_maps.npz', help='Rate map file')
 parser.add_argument('--corr-prefix', type=str, default='output/cross_corr', help='Rate map file')
+parser.add_argument('--image-path', type=str, default='', help='If given, save SAC images in this folder')
 
 args = parser.parse_args()
 
@@ -197,53 +198,77 @@ else:
     print(gridness_scores_truth)
 
 
-inds = np.argsort(gridness_scores_pred)
+# Save images if a path is given
+if args.image_path != '':
+    pred_folder = os.path.join(args.image_path, 'pred')
+    truth_folder = os.path.join(args.image_path, 'truth')
 
-print(gridness_scores_pred[inds[0]])
-print(gridness_scores_pred[inds[-1]])
+    if not os.path.exists(truth_folder):
+        os.makedirs(truth_folder)
+    if not os.path.exists(pred_folder):
+        os.makedirs(pred_folder)
 
-plt.imshow(ccs_pred[0, inds[-1], :, :])
-plt.show()
+    for ni in range(n_neurons):
+        # NOTE: a SAG is calculated for a bunch of rotations. Currently only saving one of them
 
-inds = np.argsort(gridness_scores_truth)
+        fig, ax = plt.subplots()
+        ax.imshow(ccs_pred[0, ni, :, :])
+        ax.set_title("Gridness Score: {}".format(gridness_scores_pred[ni]))
+        fig.savefig("{}/neuron_{}".format(pred_folder, ni + 1))
 
-print(gridness_scores_truth[inds[0]])
-print(gridness_scores_truth[inds[-1]])
+        fig, ax = plt.subplots()
+        ax.imshow(ccs_truth[0, ni, :, :])
+        ax.set_title("Gridness Score: {}".format(gridness_scores_truth[ni]))
+        fig.savefig("{}/neuron_{}".format(truth_folder, ni + 1))
+else:
 
-plt.imshow(ccs_truth[0, inds[-1], :, :])
-plt.show()
+    inds = np.argsort(gridness_scores_pred)
 
+    print(gridness_scores_pred[inds[0]])
+    print(gridness_scores_pred[inds[-1]])
 
+    plt.imshow(ccs_pred[0, inds[-1], :, :])
+    plt.show()
 
+    inds = np.argsort(gridness_scores_truth)
 
-plt.imshow(rate_maps_truth[inds[-1], :, :])
-plt.show()
+    print(gridness_scores_truth[inds[0]])
+    print(gridness_scores_truth[inds[-1]])
 
-plt.imshow(rate_maps_truth[inds[0], :, :])
-plt.show()
-
-corr = signal.correlate2d(
-    rate_maps_pred[inds[-1], :, :],
-    rate_maps_pred[inds[-1], :, :],
-    mode='full',
-    boundary='fill',
-    fillvalue=0,
-)
-
-plt.imshow(corr)
-plt.show()
+    plt.imshow(ccs_truth[0, inds[-1], :, :])
+    plt.show()
 
 
-corr = signal.correlate2d(
-    rate_maps_pred[inds[0], :, :],
-    rate_maps_pred[inds[0], :, :],
-    mode='full',
-    boundary='fill',
-    fillvalue=0,
-)
 
-plt.imshow(corr)
-plt.show()
+
+    plt.imshow(rate_maps_truth[inds[-1], :, :])
+    plt.show()
+
+    plt.imshow(rate_maps_truth[inds[0], :, :])
+    plt.show()
+
+    corr = signal.correlate2d(
+        rate_maps_pred[inds[-1], :, :],
+        rate_maps_pred[inds[-1], :, :],
+        mode='full',
+        boundary='fill',
+        fillvalue=0,
+    )
+
+    plt.imshow(corr)
+    plt.show()
+
+
+    corr = signal.correlate2d(
+        rate_maps_pred[inds[0], :, :],
+        rate_maps_pred[inds[0], :, :],
+        mode='full',
+        boundary='fill',
+        fillvalue=0,
+    )
+
+    plt.imshow(corr)
+    plt.show()
 
 
 
