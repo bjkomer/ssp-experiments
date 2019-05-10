@@ -19,8 +19,7 @@ import json
 from spatial_semantic_pointers.utils import get_heatmap_vectors, ssp_to_loc, ssp_to_loc_v
 from spatial_semantic_pointers.plots import plot_predictions, plot_predictions_v
 import matplotlib.pyplot as plt
-from path_integration_utils import pc_to_loc_v
-from localization_training_utils import ValidationSet, localization_train_test_loaders, LocalizationModel
+from localization_training_utils import ValidationSet, localization_train_test_loaders, LocalizationModel, pc_to_loc_v
 
 
 parser = argparse.ArgumentParser('Run 2D supervised localization experiment using pytorch')
