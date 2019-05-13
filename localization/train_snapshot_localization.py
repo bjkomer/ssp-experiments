@@ -19,7 +19,7 @@ import json
 from spatial_semantic_pointers.utils import get_heatmap_vectors, ssp_to_loc, ssp_to_loc_v
 from spatial_semantic_pointers.plots import plot_predictions, plot_predictions_v
 import matplotlib.pyplot as plt
-from localization_training_utils import ValidationSet, snapshot_localization_train_test_loaders, FeedForward, pc_to_loc_v
+from localization_training_utils import SnapshotValidationSet, snapshot_localization_train_test_loaders, FeedForward, pc_to_loc_v
 
 
 parser = argparse.ArgumentParser('Run 2D supervised localization experiment with snapshots using pytorch')
@@ -34,9 +34,10 @@ parser.add_argument('--eval-period', type=int, default=50)
 parser.add_argument('--logdir', type=str, default='output/ssp_snapshot_localization',
                     help='Directory for saved model and tensorboard log')
 # TODO: update default to use dataset with distance sensor measurements (or boundary cell activations)
-parser.add_argument('--dataset', type=str, default='../lab/reproducing/data/path_integration_trajectories_logits_200t_15s_seed13.npz')
+parser.add_argument('--dataset', type=str, default='datasets/localization_maze_style_10mazes_25goals_64res_13size_13seed_modified.npz')
 parser.add_argument('--load-saved-model', type=str, default='', help='Saved model to load from')
 parser.add_argument('--loss-function', type=str, default='cosine', choices=['cosine', 'mse'])
+parser.add_argument('--n-mazes', type=int, default=0, help='number of mazes to use. Set to 0 to use all in the dataset')
 
 args = parser.parse_args()
 
@@ -58,32 +59,36 @@ writer = SummaryWriter(log_dir=save_dir)
 
 data = np.load(args.dataset)
 
-x_axis_vec = data['x_axis_vec']
-y_axis_vec = data['y_axis_vec']
-ssp_scaling = data['ssp_scaling']
+x_axis_vec = data['x_axis_sp']
+y_axis_vec = data['y_axis_sp']
+# ssp_scaling = data['ssp_scaling']
+xs = data['xs']
+ys = data['ys']
 
-pc_centers = data['pc_centers']
-pc_activations = data['pc_activations']
+# pc_centers = data['pc_centers']
+# pc_activations = data['pc_activations']
 
-n_sensors = data['n_sensors']
+# dist sensors is (n_mazes, res, res, n_sensors)
+n_sensors = data['dist_sensors'].shape[3]
+n_mazes = data['coarse_mazes'].shape[0]
 
 if args.encoding == 'ssp':
     dim = 512
 elif args.encoding == '2d':
     dim = 2
-    ssp_scaling = 1  # no scaling used for 2D coordinates directly
+    # ssp_scaling = 1  # no scaling used for 2D coordinates directly
 elif args.encoding == 'pc':
     dim = args.n_place_cells
-    ssp_scaling = 1
+    # ssp_scaling = 1
 else:
     raise NotImplementedError
 
-limit_low = 0 * ssp_scaling
-limit_high = 2.2 * ssp_scaling
-res = 128 #256
-
-xs = np.linspace(limit_low, limit_high, res)
-ys = np.linspace(limit_low, limit_high, res)
+# limit_low = xs[0]#0 * ssp_scaling
+# limit_high = xs[-1]#2.2 * ssp_scaling
+# res = 128 #256
+#
+# xs = np.linspace(limit_low, limit_high, res)
+# ys = np.linspace(limit_low, limit_high, res)
 
 # Used for visualization of test set performance using pos = ssp_to_loc(sp, heatmap_vectors, xs, ys)
 heatmap_vectors = get_heatmap_vectors(xs, ys, x_axis_vec, y_axis_vec)
@@ -97,7 +102,7 @@ n_epochs = args.n_epochs#20
 
 # Input is the distance sensor measurements
 model = FeedForward(
-    input_size=n_sensors,
+    input_size=n_sensors + n_mazes,
     hidden_size=512,
     output_size=dim,
 )
@@ -117,14 +122,15 @@ trainloader, testloader = snapshot_localization_train_test_loaders(
     # rollout_length=rollout_length,
     batch_size=batch_size,
     encoding=args.encoding,
+    n_mazes_to_use=args.n_mazes,
 )
 
-validation_set = ValidationSet(
+validation_set = SnapshotValidationSet(
     dataloader=testloader,
     heatmap_vectors=heatmap_vectors,
     xs=xs,
     ys=ys,
-    ssp_scaling=ssp_scaling,
+    # ssp_scaling=ssp_scaling,
     spatial_encoding=args.encoding,
 )
 
@@ -150,14 +156,17 @@ for epoch in range(n_epochs):
     avg_cosine_loss = 0
     n_batches = 0
     for i, data in enumerate(trainloader):
-        velocity_inputs, sensor_inputs, ssp_inputs, ssp_outputs = data
+        # sensor_inputs, maze_ids, ssp_outputs = data
+        # sensor and map IDs combined
+        combined_inputs, ssp_outputs = data
 
-        if ssp_inputs.size()[0] != batch_size:
+        if combined_inputs.size()[0] != batch_size:
             continue  # Drop data, not enough for a batch
         optimizer.zero_grad()
         # model.zero_grad()
 
-        ssp_pred = model(velocity_inputs, sensor_inputs, ssp_inputs)
+        # ssp_pred = model(sensor_inputs, maze_ids)
+        ssp_pred = model(combined_inputs)
 
         cosine_loss = cosine_criterion(ssp_pred, ssp_outputs, torch.ones(ssp_pred.shape[0]))
         mse_loss = mse_criterion(ssp_pred, ssp_outputs)

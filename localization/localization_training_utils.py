@@ -1,5 +1,5 @@
 import numpy as np
-from spatial_semantic_pointers.utils import encode_point, encode_random, ssp_to_loc, ssp_to_loc_v
+from spatial_semantic_pointers.utils import encode_point, encode_random, ssp_to_loc, ssp_to_loc_v, get_heatmap_vectors
 from spatial_semantic_pointers.plots import plot_predictions, plot_predictions_v
 import torch
 import torch.nn as nn
@@ -120,6 +120,96 @@ class TrajectoryValidationSet(object):
             writer.add_figure("ground truth end", fig_truth_end, epoch)
 
 
+class SnapshotValidationSet(object):
+
+    def __init__(self, dataloader, heatmap_vectors, xs, ys, spatial_encoding='ssp'):
+
+        self.dataloader = dataloader
+        self.heatmap_vectors = heatmap_vectors
+        self.xs = xs
+        self.ys = ys
+        self.spatial_encoding = spatial_encoding
+        self.cosine_criterion = nn.CosineEmbeddingLoss()
+        self.mse_criterion = nn.MSELoss()
+
+    def run_eval(self, model, writer, epoch):
+
+        with torch.no_grad():
+            # Everything is in one batch, so this loop will only happen once
+            for i, data in enumerate(self.dataloader):
+                # sensor_inputs, map_ids, ssp_outputs = data
+                # sensors and map ID combined
+                combined_inputs, ssp_outputs = data
+
+                # ssp_pred = model(sensor_inputs, map_ids)
+                ssp_pred = model(combined_inputs)
+
+                cosine_loss = self.cosine_criterion(ssp_pred, ssp_outputs, torch.ones(ssp_pred.shape[0]))
+                mse_loss = self.mse_criterion(ssp_pred, ssp_outputs)
+
+                print("test mse loss", mse_loss.data.item())
+                print("test cosine loss", mse_loss.data.item())
+
+            writer.add_scalar('test_mse_loss', mse_loss.data.item(), epoch)
+            writer.add_scalar('test_cosine_loss', cosine_loss.data.item(), epoch)
+
+            # One prediction and ground truth coord for every element in the batch
+            # NOTE: this is assuming the eval set only has one giant batch
+            predictions = np.zeros((ssp_pred.shape[0], 2))
+            coords = np.zeros((ssp_pred.shape[0], 2))
+
+            if self.spatial_encoding == 'ssp':
+                print("computing prediction locations")
+                predictions[:, :] = ssp_to_loc_v(
+                    ssp_pred.detach().numpy()[:, :],
+                    self.heatmap_vectors, self.xs, self.ys
+                )
+
+                print("computing ground truth locations")
+                coords[:, :] = ssp_to_loc_v(
+                    ssp_outputs.detach().numpy()[:, :],
+                    self.heatmap_vectors, self.xs, self.ys
+                )
+
+            elif self.spatial_encoding == '2d':
+                print("copying prediction locations")
+                predictions[:, :] = ssp_pred.detach().numpy()[:, :]
+                print("copying ground truth locations")
+                coords[:, :] = ssp_outputs.detach().numpy()[:, :]
+
+            fig_pred, ax_pred = plt.subplots()
+            fig_truth, ax_truth = plt.subplots()
+
+            print("plotting predicted locations")
+            plot_predictions_v(
+                # predictions / self.ssp_scaling,
+                # coords / self.ssp_scaling,
+                predictions,
+                coords,
+                ax_pred,
+                # min_val=0,
+                # max_val=2.2
+                min_val=self.xs[0],
+                max_val=self.xs[-1],
+            )
+
+            print("plotting ground truth locations")
+            plot_predictions_v(
+                # coords / self.ssp_scaling,
+                # coords / self.ssp_scaling,
+                coords,
+                coords,
+                ax_truth,
+                # min_val=0,
+                # max_val=2.2
+                min_val=self.xs[0],
+                max_val=self.xs[-1],
+            )
+
+            writer.add_figure("predictions", fig_pred, epoch)
+            writer.add_figure("ground truth", fig_truth, epoch)
+
+
 class LocalizationTrajectoryDataset(data.Dataset):
 
     def __init__(self, velocity_inputs, sensor_inputs, ssp_inputs, ssp_outputs, return_velocity_list=True):
@@ -149,14 +239,18 @@ class LocalizationTrajectoryDataset(data.Dataset):
 
 class LocalizationSnapshotDataset(data.Dataset):
 
-    def __init__(self, sensor_inputs, ssp_outputs):
+    def __init__(self, sensor_inputs, maze_ids, ssp_outputs):
 
         self.sensor_inputs = sensor_inputs.astype(np.float32)
+        self.maze_ids = maze_ids.astype(np.float32)
         self.ssp_outputs = ssp_outputs.astype(np.float32)
+        self.combined_inputs = np.hstack([self.sensor_inputs, self.maze_ids])
+        assert(self.sensor_inputs.shape[0] == self.combined_inputs.shape[0])
 
     def __getitem__(self, index):
 
-        return self.sensor_inputs[index], self.ssp_outputs[index]
+        # return self.sensor_inputs[index], self.maze_ids[index], self.ssp_outputs[index]
+        return self.combined_inputs[index], self.ssp_outputs[index]
 
     def __len__(self):
         return self.sensor_inputs.shape[0]
@@ -264,24 +358,32 @@ def localization_train_test_loaders(data, n_train_samples=1000, n_test_samples=1
 
 
 # TODO: need to handle multiple mazes still
-def snapshot_localization_train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, batch_size=10, encoding='ssp'):
+def snapshot_localization_train_test_loaders(
+        data, n_train_samples=1000, n_test_samples=1000, batch_size=10, encoding='ssp', n_mazes_to_use=0
+):
 
     # Option to use SSPs or the 2D location directly
     assert encoding in ['ssp', '2d']
 
-    positions = data['positions']
+    xs = data['xs']
+    ys = data['ys']
+    x_axis_vec = data['x_axis_sp']
+    y_axis_vec = data['y_axis_sp']
+    heatmap_vectors = get_heatmap_vectors(xs, ys, x_axis_vec, y_axis_vec)
 
+    # positions = data['positions']
+
+    # shape is (n_mazes, res, res, n_sensors)
     dist_sensors = data['dist_sensors']
-    n_sensors = dist_sensors.shape[2]
 
-    ssps = data['ssps']
-    n_place_cells = data['pc_centers'].shape[0]
+    fine_mazes = data['fine_mazes']
 
-    pc_activations = data['pc_activations']
+    n_sensors = dist_sensors.shape[3]
 
-    n_trajectories = positions.shape[0]
-    trajectory_length = positions.shape[1]
-    dim = ssps.shape[2]
+    # ssps = data['ssps']
+
+    n_mazes = data['coarse_mazes'].shape[0]
+    dim = x_axis_vec.shape[0]
 
     for test_set, n_samples in enumerate([n_train_samples, n_test_samples]):
 
@@ -293,26 +395,43 @@ def snapshot_localization_train_test_loaders(data, n_train_samples=1000, n_test_
         # for the 2D encoding method
         pos_outputs = np.zeros((n_samples, 2))
 
+        maze_ids = np.zeros((n_samples, n_mazes))
+
         for i in range(n_samples):
-            # choose random trajectory
-            sample_ind = np.random.randint(low=0, high=n_trajectories)
+            # choose random maze and position in maze
+            if n_mazes_to_use <= 0:
+                # use all available mazes
+                maze_ind = np.random.randint(low=0, high=n_mazes)
+            else:
+                # use only some mazes
+                maze_ind = np.random.randint(low=0, high=n_mazes_to_use)
+            xi = np.random.randint(low=0, high=len(xs))
+            yi = np.random.randint(low=0, high=len(ys))
+            # Keep choosing position until it is not inside a wall
+            while fine_mazes[maze_ind, xi, yi] == 1:
+                xi = np.random.randint(low=0, high=len(xs))
+                yi = np.random.randint(low=0, high=len(ys))
 
-            sensor_inputs[i, :, :] = dist_sensors[traj_ind, :]
+            sensor_inputs[i, :] = dist_sensors[maze_ind, xi, yi, :]
 
-            # ssp output is shifted by one timestep (since it is a prediction of the future by one step)
-            ssp_outputs[i, :, :] = ssps[traj_ind, :]
+            ssp_outputs[i, :] = heatmap_vectors[xi, yi, :]
+
+            # one-hot maze ID
+            maze_ids[i, maze_ind] = 1
 
             # for the 2D encoding method
-            pos_outputs[i, :, :] = positions[traj_ind, :]
+            pos_outputs[i, :] = np.array([xs[xi], ys[yi]])
 
         if encoding == 'ssp':
             dataset = LocalizationSnapshotDataset(
                 sensor_inputs=sensor_inputs,
+                maze_ids=maze_ids,
                 ssp_outputs=ssp_outputs,
             )
         elif encoding == '2d':
             dataset = LocalizationSnapshotDataset(
                 sensor_inputs=sensor_inputs,
+                maze_ids=maze_ids,
                 ssp_outputs=pos_outputs,
             )
 
