@@ -80,7 +80,7 @@ env = GridWorldEnv(
     screen_height=300,
 )
 
-agent = RandomTrajectoryAgent()
+agent = RandomTrajectoryAgent(obs_index_dict=env.obs_index_dict)
 
 
 num_episodes = 10

@@ -33,8 +33,12 @@ class TrajectoryValidationSet(object):
                 # NOTE: need to permute axes of the targets here because the output is
                 #       (sequence length, batch, units) instead of (batch, sequence_length, units)
                 #       could also permute the outputs instead
-                cosine_loss = self.cosine_criterion(ssp_pred, ssp_outputs.permute(1, 0, 2),
-                                 torch.ones(ssp_pred.shape[0], ssp_pred.shape[1]))
+                # NOTE: for cosine loss the input needs to be flattened first
+                cosine_loss = self.cosine_criterion(
+                    ssp_pred.reshape(ssp_pred.shape[0] * ssp_pred.shape[1], ssp_pred.shape[2]),
+                    ssp_outputs.permute(1, 0, 2).reshape(ssp_pred.shape[0] * ssp_pred.shape[1], ssp_pred.shape[2]),
+                    torch.ones(ssp_pred.shape[0] * ssp_pred.shape[1])
+                )
                 mse_loss = self.mse_criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
 
                 print("test mse loss", mse_loss.data.item())
@@ -212,13 +216,17 @@ class SnapshotValidationSet(object):
 
 class LocalizationTrajectoryDataset(data.Dataset):
 
-    def __init__(self, velocity_inputs, sensor_inputs, ssp_inputs, ssp_outputs, return_velocity_list=True):
+    def __init__(self, velocity_inputs, sensor_inputs, maze_ids, ssp_inputs, ssp_outputs, return_velocity_list=True):
 
         self.velocity_inputs = velocity_inputs.astype(np.float32)
         self.sensor_inputs = sensor_inputs.astype(np.float32)
-        self.combined_inputs = np.hstack([self.velocity_inputs, self.sensor_inputs])
+        self.maze_ids = maze_ids.astype(np.float32)
+
+        # self.combined_inputs = np.hstack([self.velocity_inputs, self.sensor_inputs, self.maze_ids])
+        self.combined_inputs = np.concatenate([self.velocity_inputs, self.sensor_inputs, self.maze_ids], axis=2)
         assert (self.velocity_inputs.shape[0] == self.combined_inputs.shape[0])
         assert (self.velocity_inputs.shape[1] == self.combined_inputs.shape[1])
+        assert (self.combined_inputs.shape[2] == self.velocity_inputs.shape[2] + self.sensor_inputs.shape[2] + self.maze_ids.shape[2])
         self.ssp_inputs = ssp_inputs.astype(np.float32)
         self.ssp_outputs = ssp_outputs.astype(np.float32)
 
@@ -256,7 +264,10 @@ class LocalizationSnapshotDataset(data.Dataset):
         return self.sensor_inputs.shape[0]
 
 
-def localization_train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_length=100, batch_size=10, encoding='ssp'):
+def localization_train_test_loaders(
+        data, n_train_samples=1000, n_test_samples=1000,
+        rollout_length=100, batch_size=10, encoding='ssp', n_mazes_to_use=0
+):
 
     # Option to use SSPs or the 2D location directly
     assert encoding in ['ssp', '2d', 'pc']
@@ -264,17 +275,20 @@ def localization_train_test_loaders(data, n_train_samples=1000, n_test_samples=1
     positions = data['positions']
 
     dist_sensors = data['dist_sensors']
-    n_sensors = dist_sensors.shape[2]
+    n_sensors = dist_sensors.shape[3]
 
     cartesian_vels = data['cartesian_vels']
     ssps = data['ssps']
-    n_place_cells = data['pc_centers'].shape[0]
+    # n_place_cells = data['pc_centers'].shape[0]
+    #
+    # pc_activations = data['pc_activations']
 
-    pc_activations = data['pc_activations']
+    coarse_maps = data['coarse_maps']
+    n_mazes = coarse_maps.shape[0]
 
     n_trajectories = positions.shape[0]
     trajectory_length = positions.shape[1]
-    dim = ssps.shape[2]
+    dim = ssps.shape[3]
 
     for test_set, n_samples in enumerate([n_train_samples, n_test_samples]):
 
@@ -292,12 +306,21 @@ def localization_train_test_loaders(data, n_train_samples=1000, n_test_samples=1
 
         pos_inputs = np.zeros((n_samples, 2))
 
-        # for the place cell encoding method
-        pc_outputs = np.zeros((n_samples, rollout_length, n_place_cells))
+        # # for the place cell encoding method
+        # pc_outputs = np.zeros((n_samples, rollout_length, n_place_cells))
+        #
+        # pc_inputs = np.zeros((n_samples, n_place_cells))
 
-        pc_inputs = np.zeros((n_samples, n_place_cells))
+        maze_ids = np.zeros((n_samples, rollout_length, n_mazes))
 
         for i in range(n_samples):
+            # choose random map
+            if n_mazes_to_use <= 0:
+                # use all available mazes
+                maze_ind = np.random.randint(low=0, high=n_mazes)
+            else:
+                # use only some mazes
+                maze_ind = np.random.randint(low=0, high=n_mazes_to_use)
             # choose random trajectory
             traj_ind = np.random.randint(low=0, high=n_trajectories)
             # choose random segment of trajectory
@@ -306,27 +329,31 @@ def localization_train_test_loaders(data, n_train_samples=1000, n_test_samples=1
             # index of final step of the trajectory
             step_ind_final = step_ind + rollout_length
 
-            velocity_inputs[i, :, :] = cartesian_vels[traj_ind, step_ind:step_ind_final, :]
+            velocity_inputs[i, :, :] = cartesian_vels[maze_ind, traj_ind, step_ind:step_ind_final, :]
 
-            sensor_inputs[i, :, :] = dist_sensors[traj_ind, step_ind:step_ind_final, :]
+            sensor_inputs[i, :, :] = dist_sensors[maze_ind, traj_ind, step_ind:step_ind_final, :]
 
             # ssp output is shifted by one timestep (since it is a prediction of the future by one step)
-            ssp_outputs[i, :, :] = ssps[traj_ind, step_ind + 1:step_ind_final + 1, :]
+            ssp_outputs[i, :, :] = ssps[maze_ind, traj_ind, step_ind + 1:step_ind_final + 1, :]
             # initial state of the LSTM is a linear transform of the ground truth ssp
-            ssp_inputs[i, :] = ssps[traj_ind, step_ind]
+            ssp_inputs[i, :] = ssps[maze_ind, traj_ind, step_ind]
 
             # for the 2D encoding method
-            pos_outputs[i, :, :] = positions[traj_ind, step_ind + 1:step_ind_final + 1, :]
-            pos_inputs[i, :] = positions[traj_ind, step_ind]
+            pos_outputs[i, :, :] = positions[maze_ind, traj_ind, step_ind + 1:step_ind_final + 1, :]
+            pos_inputs[i, :] = positions[maze_ind, traj_ind, step_ind]
 
-            # for the place cell encoding method
-            pc_outputs[i, :, :] = pc_activations[traj_ind, step_ind + 1:step_ind_final + 1, :]
-            pc_inputs[i, :] = pc_activations[traj_ind, step_ind]
+            # # for the place cell encoding method
+            # pc_outputs[i, :, :] = pc_activations[traj_ind, step_ind + 1:step_ind_final + 1, :]
+            # pc_inputs[i, :] = pc_activations[traj_ind, step_ind]
+
+            # one-hot maze ID
+            maze_ids[i, :, maze_ind] = 1
 
         if encoding == 'ssp':
             dataset = LocalizationTrajectoryDataset(
                 velocity_inputs=velocity_inputs,
                 sensor_inputs=sensor_inputs,
+                maze_ids=maze_ids,
                 ssp_inputs=ssp_inputs,
                 ssp_outputs=ssp_outputs,
             )
@@ -334,16 +361,17 @@ def localization_train_test_loaders(data, n_train_samples=1000, n_test_samples=1
             dataset = LocalizationTrajectoryDataset(
                 velocity_inputs=velocity_inputs,
                 sensor_inputs=sensor_inputs,
+                maze_ids=maze_ids,
                 ssp_inputs=pos_inputs,
                 ssp_outputs=pos_outputs,
             )
-        elif encoding == 'pc':
-            dataset = LocalizationTrajectoryDataset(
-                velocity_inputs=velocity_inputs,
-                sensor_inputs=sensor_inputs,
-                ssp_inputs=pc_inputs,
-                ssp_outputs=pc_outputs,
-            )
+        # elif encoding == 'pc':
+        #     dataset = LocalizationTrajectoryDataset(
+        #         velocity_inputs=velocity_inputs,
+        #         sensor_inputs=sensor_inputs,
+        #         ssp_inputs=pc_inputs,
+        #         ssp_outputs=pc_outputs,
+        #     )
 
         if test_set == 0:
             trainloader = torch.utils.data.DataLoader(
@@ -450,7 +478,7 @@ def snapshot_localization_train_test_loaders(
 class LocalizationModel(nn.Module):
 
     def __init__(self, input_size, lstm_hidden_size=128, linear_hidden_size=512,
-                 unroll_length=100, sp_dim=512,):
+                 unroll_length=100, sp_dim=512, dropout_p=0.5):
 
         super(LocalizationModel, self).__init__()
 
@@ -473,7 +501,7 @@ class LocalizationModel(nn.Module):
             out_features=self.linear_hidden_size,
         )
 
-        self.dropout = nn.Dropout(p=.5)
+        self.dropout = nn.Dropout(p=dropout_p)
 
         self.ssp_output = nn.Linear(
             in_features=self.linear_hidden_size,

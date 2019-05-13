@@ -29,12 +29,12 @@ parser = add_parameters(parser)
 parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--n-epochs', type=int, default=20)
 parser.add_argument('--n-samples', type=int, default=1000)
-parser.add_argument('--encoding', type=str, default='ssp', choices=['ssp', '2d', 'pc'])
+parser.add_argument('--encoding', type=str, default='ssp', choices=['ssp', '2d'])
 parser.add_argument('--eval-period', type=int, default=50)
 parser.add_argument('--logdir', type=str, default='output/ssp_trajectory_localization',
                     help='Directory for saved model and tensorboard log')
 # TODO: update default to use dataset with distance sensor measurements (or boundary cell activations)
-parser.add_argument('--dataset', type=str, default='../lab/reproducing/data/path_integration_trajectories_logits_200t_15s_seed13.npz')
+parser.add_argument('--dataset', type=str, default='data/localization_trajectories_5m_200t_250s_seed13.npz')
 parser.add_argument('--load-saved-model', type=str, default='', help='Saved model to load from')
 parser.add_argument('--loss-function', type=str, default='cosine', choices=['cosine', 'mse'])
 
@@ -61,25 +61,25 @@ data = np.load(args.dataset)
 x_axis_vec = data['x_axis_vec']
 y_axis_vec = data['y_axis_vec']
 ssp_scaling = data['ssp_scaling']
+ssp_offset = data['ssp_offset']
 
-pc_centers = data['pc_centers']
-pc_activations = data['pc_activations']
+# shape of coarse maps is (n_maps, env_size, env_size)
+coarse_maps = data['coarse_maps']
+n_maps = coarse_maps.shape[0]
+env_size = coarse_maps.shape[1]
 
-n_sensors = data['n_sensors']
+# pc_centers = data['pc_centers']
+# pc_activations = data['pc_activations']
 
-if args.encoding == 'ssp':
-    dim = 512
-elif args.encoding == '2d':
-    dim = 2
-    ssp_scaling = 1  # no scaling used for 2D coordinates directly
-elif args.encoding == 'pc':
-    dim = args.n_place_cells
-    ssp_scaling = 1
-else:
-    raise NotImplementedError
+# shape of dist_sensors is (n_maps, n_trajectories, n_steps, n_sensors)
+n_sensors = data['dist_sensors'].shape[3]
 
-limit_low = 0 * ssp_scaling
-limit_high = 2.2 * ssp_scaling
+# shape of ssps is (n_maps, n_trajectories, n_steps, dim)
+dim = data['ssps'].shape[3]
+
+
+limit_low = -ssp_offset * ssp_scaling
+limit_high = (env_size - ssp_offset) * ssp_scaling
 res = 128 #256
 
 xs = np.linspace(limit_low, limit_high, res)
@@ -95,9 +95,9 @@ batch_size = args.minibatch_size#10
 n_epochs = args.n_epochs#20
 # n_epochs = 5
 
-# Input is x and y velocity plus the distance sensor measurements
+# Input is x and y velocity plus the distance sensor measurements, plus map ID
 model = LocalizationModel(
-    input_size=2 + n_sensors,
+    input_size=2 + n_sensors + n_maps,
     unroll_length=rollout_length,
     sp_dim=dim
 )
@@ -105,14 +105,17 @@ model = LocalizationModel(
 if args.load_saved_model:
     model.load_state_dict(torch.load(args.load_saved_model), strict=False)
 
-if args.encoding == 'pc':
-    # Binary cross-entropy loss
-    # criterion = nn.BCELoss()
-    # more numerically stable. Do not use softmax beforehand
-    criterion = nn.BCEWithLogitsLoss()
-else:
-    cosine_criterion = nn.CosineEmbeddingLoss()
-    mse_criterion = nn.MSELoss()
+# if args.encoding == 'pc':
+#     # Binary cross-entropy loss
+#     # criterion = nn.BCELoss()
+#     # more numerically stable. Do not use softmax beforehand
+#     criterion = nn.BCEWithLogitsLoss()
+# else:
+#     cosine_criterion = nn.CosineEmbeddingLoss()
+#     mse_criterion = nn.MSELoss()
+
+cosine_criterion = nn.CosineEmbeddingLoss()
+mse_criterion = nn.MSELoss()
 
 optimizer = optim.RMSprop(model.parameters(), lr=args.learning_rate, momentum=args.momentum)
 
@@ -156,25 +159,37 @@ for epoch in range(n_epochs):
     avg_cosine_loss = 0
     n_batches = 0
     for i, data in enumerate(trainloader):
-        velocity_inputs, sensor_inputs, ssp_inputs, ssp_outputs = data
+        # velocity_inputs, sensor_inputs, ssp_inputs, ssp_outputs = data
+        combined_inputs, ssp_inputs, ssp_outputs = data
 
         if ssp_inputs.size()[0] != batch_size:
             continue  # Drop data, not enough for a batch
         optimizer.zero_grad()
         # model.zero_grad()
 
-        ssp_pred = model(velocity_inputs, sensor_inputs, ssp_inputs)
+        ssp_pred = model(combined_inputs, ssp_inputs)
+
+        # # NOTE: need to permute axes of the targets here because the output is
+        # #       (sequence length, batch, units) instead of (batch, sequence_length, units)
+        # #       could also permute the outputs instead
+        # if args.encoding == 'pc':
+        #     # place cell version needs to explicitly do the softmax here
+        #     loss = criterion(ssp_pred, F.softmax(ssp_outputs.permute(1, 0, 2), dim=2))
+        # else:
+        #     cosine_loss = cosine_criterion(ssp_pred, ssp_outputs.permute(1, 0, 2),
+        #                      torch.ones(ssp_pred.shape[0], ssp_pred.shape[1]))
+        #     mse_loss = mse_criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
 
         # NOTE: need to permute axes of the targets here because the output is
         #       (sequence length, batch, units) instead of (batch, sequence_length, units)
         #       could also permute the outputs instead
-        if args.encoding == 'pc':
-            # place cell version needs to explicitly do the softmax here
-            loss = criterion(ssp_pred, F.softmax(ssp_outputs.permute(1, 0, 2), dim=2))
-        else:
-            cosine_loss = cosine_criterion(ssp_pred, ssp_outputs.permute(1, 0, 2),
-                             torch.ones(ssp_pred.shape[0], ssp_pred.shape[1]))
-            mse_loss = mse_criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
+        # NOTE: for cosine loss the input needs to be flattened first
+        cosine_loss = cosine_criterion(
+            ssp_pred.reshape(ssp_pred.shape[0] * ssp_pred.shape[1], ssp_pred.shape[2]),
+            ssp_outputs.permute(1, 0, 2).reshape(ssp_pred.shape[0] * ssp_pred.shape[1], ssp_pred.shape[2]),
+            torch.ones(ssp_pred.shape[0] * ssp_pred.shape[1])
+        )
+        mse_loss = mse_criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
 
         if use_cosine_loss:
             cosine_loss.backward()

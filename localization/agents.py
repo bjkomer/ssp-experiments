@@ -4,6 +4,7 @@ import numpy as np
 class RandomTrajectoryAgent(object):
 
     def __init__(self,
+                 obs_index_dict,
                  lin_vel_rayleigh_scale=.13,
                  rot_vel_std=330,
                  dt=0.1, #0.02
@@ -11,6 +12,8 @@ class RandomTrajectoryAgent(object):
                  avoidance_weight=.005,
                  n_sensors=36,
                  ):
+
+        self.obs_index_dict = obs_index_dict
 
         # Initialize simulated head direction
         self.th = 0
@@ -28,6 +31,8 @@ class RandomTrajectoryAgent(object):
         self.avoidance_matrix[1, :] = np.linspace(-1., 1., n_sensors) * avoidance_weight
 
     def act(self, obs):
+
+        distances = obs[self.obs_index_dict['dist_sensors']]
 
         lin_vel = np.random.rayleigh(scale=self.lin_vel_rayleigh_scale)
         ang_vel = np.random.normal(loc=0, scale=self.rot_vel_std) * np.pi / 180
@@ -47,7 +52,7 @@ class RandomTrajectoryAgent(object):
 
         # optional wall avoidance bias
         if self.avoid_walls:
-            vel_change = np.dot(self.avoidance_matrix, obs)
+            vel_change = np.dot(self.avoidance_matrix, distances)
             cartesian_vel_x += vel_change[0]
             cartesian_vel_y += vel_change[1]
 
