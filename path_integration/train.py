@@ -96,11 +96,9 @@ if args.encoding == 'pc':
     # more numerically stable. Do not use softmax beforehand
     criterion = nn.BCEWithLogitsLoss()
 else:
-    # TODO: try out cosine similarity here as well, it works better than MSE as a loss for SSP cleanup
-    if args.use_cosine_loss:
-        criterion = nn.CosineEmbeddingLoss()
-    else:
-        criterion = nn.MSELoss()
+    # trying out cosine similarity here as well, it works better than MSE as a loss for SSP cleanup
+    cosine_criterion = nn.CosineEmbeddingLoss()
+    mse_criterion = nn.MSELoss()
 
 optimizer = optim.RMSprop(model.parameters(), lr=args.learning_rate, momentum=args.momentum)
 
@@ -139,19 +137,23 @@ for epoch in range(n_epochs):
                 if args.encoding == 'pc':
                     # place cell version needs to explicitly do the softmax here
                     loss = criterion(ssp_pred, F.softmax(ssp_outputs.permute(1, 0, 2), dim=2))
+                    print("test loss", loss.data.item())
+                    writer.add_scalar('test_loss', loss.data.item(), epoch)
                 else:
-                    if args.use_cosine_loss:
-                        loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2),
-                                         torch.ones(ssp_pred.shape[0], ssp_pred.shape[0]))
-                    else:
-                        loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
+                    cosine_loss = cosine_criterion(
+                        ssp_pred.reshape(ssp_pred.shape[0] * ssp_pred.shape[1], ssp_pred.shape[2]),
+                        ssp_outputs.permute(1, 0, 2).reshape(ssp_pred.shape[0] * ssp_pred.shape[1], ssp_pred.shape[2]),
+                        torch.ones(ssp_pred.shape[0] * ssp_pred.shape[1])
+                    )
+                    mse_loss = mse_criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
 
-                print("test loss", loss.data.item())
+                    print("test cosine loss", cosine_loss.data.item())
+                    print("test mse loss", mse_loss.data.item())
+                    writer.add_scalar('test_cosine_loss', cosine_loss.data.item(), epoch)
+                    writer.add_scalar('test_mse_loss', mse_loss.data.item(), epoch)
 
-            writer.add_scalar('test_loss', loss.data.item(), epoch)
-
-            print("ssp_pred.shape", ssp_pred.shape)
-            print("ssp_outputs.shape", ssp_outputs.shape)
+            # print("ssp_pred.shape", ssp_pred.shape)
+            # print("ssp_outputs.shape", ssp_outputs.shape)
 
             # Just use start and end location to save on memory and computation
             predictions_start = np.zeros((ssp_pred.shape[1], 2))
@@ -229,7 +231,9 @@ for epoch in range(n_epochs):
             writer.add_figure("ground truth end", fig_truth_end, epoch)
 
 
-    avg_loss = 0
+    avg_bce_loss = 0
+    avg_cosine_loss = 0
+    avg_mse_loss = 0
     n_batches = 0
     for i, data in enumerate(trainloader):
         velocity_inputs, ssp_inputs, ssp_outputs = data
@@ -247,28 +251,44 @@ for epoch in range(n_epochs):
         if args.encoding == 'pc':
             # place cell version needs to explicitly do the softmax here
             loss = criterion(ssp_pred, F.softmax(ssp_outputs.permute(1, 0, 2), dim=2))
+            loss.backward()
+            avg_bce_loss += loss.data.item()
         else:
-            if args.use_cosine_loss:
-                loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2),
-                                 torch.ones(ssp_pred.shape[0], ssp_pred.shape[0]))
-            else:
-                loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
+            cosine_loss = cosine_criterion(
+                ssp_pred.reshape(ssp_pred.shape[0] * ssp_pred.shape[1], ssp_pred.shape[2]),
+                ssp_outputs.permute(1, 0, 2).reshape(ssp_pred.shape[0] * ssp_pred.shape[1], ssp_pred.shape[2]),
+                torch.ones(ssp_pred.shape[0] * ssp_pred.shape[1])
+            )
+            mse_loss = mse_criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
 
-        loss.backward()
+            if args.use_cosine_loss:
+                cosine_loss.backward()
+            else:
+                mse_loss.backward()
+
+            avg_cosine_loss += cosine_loss.data.item()
+            avg_mse_loss += mse_loss.data.item()
 
         # Gradient Clipping
         torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_thresh)
 
         optimizer.step()
 
-        avg_loss += loss.data.item()
+        # avg_loss += loss.data.item()
         n_batches += 1
 
-    avg_loss /= n_batches
-    print("loss:", avg_loss)
-    writer.add_scalar('avg_loss', avg_loss, epoch + 1)
+    if args.encoding == 'pc':
+        avg_bce_loss /= n_batches
+        print("bce loss:", avg_bce_loss)
+        writer.add_scalar('avg_bce_loss', avg_bce_loss, epoch + 1)
+    else:
+        avg_cosine_loss /= n_batches
+        avg_mse_loss /= n_batches
+        print("cosine loss:", avg_cosine_loss)
+        print("mse loss:", avg_mse_loss)
 
-
+        writer.add_scalar('avg_cosine_loss', avg_cosine_loss, epoch + 1)
+        writer.add_scalar('avg_mse_loss', avg_mse_loss, epoch + 1)
 
 
 print("Testing")
@@ -285,19 +305,20 @@ with torch.no_grad():
         if args.encoding == 'pc':
             # place cell version needs to explicitly do the softmax here
             loss = criterion(ssp_pred, F.softmax(ssp_outputs.permute(1, 0, 2), dim=2))
+            print("final test loss", loss.data.item())
+            writer.add_scalar('final_test_loss', loss.data.item(), epoch)
         else:
-            if args.use_cosine_loss:
-                loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2),
-                                 torch.ones(ssp_pred.shape[0], ssp_pred.shape[0]))
-            else:
-                loss = criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
+            cosine_loss = cosine_criterion(
+                ssp_pred.reshape(ssp_pred.shape[0] * ssp_pred.shape[1], ssp_pred.shape[2]),
+                ssp_outputs.permute(1, 0, 2).reshape(ssp_pred.shape[0] * ssp_pred.shape[1], ssp_pred.shape[2]),
+                torch.ones(ssp_pred.shape[0] * ssp_pred.shape[1])
+            )
+            mse_loss = mse_criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
 
-        print("test loss", loss.data.item())
-
-    writer.add_scalar('final_test_loss', loss.data.item())
-
-    print("ssp_pred.shape", ssp_pred.shape)
-    print("ssp_outputs.shape", ssp_outputs.shape)
+            print("final test cosine loss", cosine_loss.data.item())
+            print("final test mse loss", mse_loss.data.item())
+            writer.add_scalar('final_test_cosine_loss', cosine_loss.data.item(), epoch)
+            writer.add_scalar('final_test_mse_loss', mse_loss.data.item(), epoch)
 
     # Just use start and end location to save on memory and computation
     predictions_start = np.zeros((ssp_pred.shape[1], 2))

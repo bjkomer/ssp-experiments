@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 class TrajectoryValidationSet(object):
 
-    def __init__(self, dataloader, heatmap_vectors, xs, ys, ssp_scaling=5, spatial_encoding='ssp'):
+    def __init__(self, dataloader, heatmap_vectors, xs, ys, ssp_scaling=1, spatial_encoding='ssp'):
 
         self.dataloader = dataloader
         self.heatmap_vectors = heatmap_vectors
@@ -91,30 +91,30 @@ class TrajectoryValidationSet(object):
                 predictions_start / self.ssp_scaling,
                 coords_start / self.ssp_scaling,
                 ax_pred_start,
-                min_val=0,
-                max_val=2.2
+                min_val=self.xs[0],
+                max_val=self.xs[-1],
             )
             plot_predictions_v(
                 predictions_end / self.ssp_scaling,
                 coords_end / self.ssp_scaling,
                 ax_pred_end,
-                min_val=0,
-                max_val=2.2
+                min_val=self.xs[0],
+                max_val=self.xs[-1],
             )
             print("plotting ground truth locations")
             plot_predictions_v(
                 coords_start / self.ssp_scaling,
                 coords_start / self.ssp_scaling,
                 ax_truth_start,
-                min_val=0,
-                max_val=2.2
+                min_val=self.xs[0],
+                max_val=self.xs[-1],
             )
             plot_predictions_v(
                 coords_end / self.ssp_scaling,
                 coords_end / self.ssp_scaling,
                 ax_truth_end,
-                min_val=0,
-                max_val=2.2
+                min_val=self.xs[0],
+                max_val=self.xs[-1],
             )
 
             writer.add_figure("predictions start", fig_pred_start, epoch)
