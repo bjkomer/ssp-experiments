@@ -101,27 +101,31 @@ class TrajectoryValidationSet(object):
                 min_val=self.xs[0],
                 max_val=self.xs[-1],
             )
-            print("plotting ground truth locations")
-            plot_predictions_v(
-                coords_start / self.ssp_scaling,
-                coords_start / self.ssp_scaling,
-                ax_truth_start,
-                min_val=self.xs[0],
-                max_val=self.xs[-1],
-            )
-            plot_predictions_v(
-                coords_end / self.ssp_scaling,
-                coords_end / self.ssp_scaling,
-                ax_truth_end,
-                min_val=self.xs[0],
-                max_val=self.xs[-1],
-            )
 
             writer.add_figure("predictions start", fig_pred_start, epoch)
-            writer.add_figure("ground truth start", fig_truth_start, epoch)
-
             writer.add_figure("predictions end", fig_pred_end, epoch)
-            writer.add_figure("ground truth end", fig_truth_end, epoch)
+
+            # Only plotting ground truth if the epoch is 0
+            if epoch == 0:
+
+                print("plotting ground truth locations")
+                plot_predictions_v(
+                    coords_start / self.ssp_scaling,
+                    coords_start / self.ssp_scaling,
+                    ax_truth_start,
+                    min_val=self.xs[0],
+                    max_val=self.xs[-1],
+                )
+                plot_predictions_v(
+                    coords_end / self.ssp_scaling,
+                    coords_end / self.ssp_scaling,
+                    ax_truth_end,
+                    min_val=self.xs[0],
+                    max_val=self.xs[-1],
+                )
+
+                writer.add_figure("ground truth start", fig_truth_start, epoch)
+                writer.add_figure("ground truth end", fig_truth_end, epoch)
 
 
 class SnapshotValidationSet(object):
@@ -197,21 +201,24 @@ class SnapshotValidationSet(object):
                 max_val=self.xs[-1],
             )
 
-            print("plotting ground truth locations")
-            plot_predictions_v(
-                # coords / self.ssp_scaling,
-                # coords / self.ssp_scaling,
-                coords,
-                coords,
-                ax_truth,
-                # min_val=0,
-                # max_val=2.2
-                min_val=self.xs[0],
-                max_val=self.xs[-1],
-            )
-
             writer.add_figure("predictions", fig_pred, epoch)
-            writer.add_figure("ground truth", fig_truth, epoch)
+
+            # Only plot ground truth if epoch is 0
+            if epoch == 0:
+                print("plotting ground truth locations")
+                plot_predictions_v(
+                    # coords / self.ssp_scaling,
+                    # coords / self.ssp_scaling,
+                    coords,
+                    coords,
+                    ax_truth,
+                    # min_val=0,
+                    # max_val=2.2
+                    min_val=self.xs[0],
+                    max_val=self.xs[-1],
+                )
+
+                writer.add_figure("ground truth", fig_truth, epoch)
 
 
 class LocalizationTrajectoryDataset(data.Dataset):
