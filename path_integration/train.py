@@ -37,7 +37,8 @@ parser.add_argument('--logdir', type=str, default='output/ssp_path_integration',
                     help='Directory for saved model and tensorboard log')
 parser.add_argument('--dataset', type=str, default='../lab/reproducing/data/path_integration_trajectories_logits_200t_15s_seed13.npz')
 parser.add_argument('--load-saved-model', type=str, default='', help='Saved model to load from')
-parser.add_argument('--use-cosine-loss', action='store_true')
+# parser.add_argument('--use-cosine-loss', action='store_true')
+parser.add_argument('--loss-function', type=str, default='mse', choices=['mse', 'cosine', 'combined', 'alternating', 'scaled'])
 
 args = parser.parse_args()
 
@@ -115,6 +116,10 @@ params = vars(args)
 with open(os.path.join(save_dir, "params.json"), "w") as f:
     json.dump(params, f)
 
+# Keep track of running average losses, to adaptively scale the weight between them
+running_avg_cosine_loss = 1.
+running_avg_mse_loss = 1.
+
 print("Training")
 for epoch in range(n_epochs):
     print("Epoch {} of {}".format(epoch + 1, n_epochs))
@@ -151,6 +156,14 @@ for epoch in range(n_epochs):
                     print("test mse loss", mse_loss.data.item())
                     writer.add_scalar('test_cosine_loss', cosine_loss.data.item(), epoch)
                     writer.add_scalar('test_mse_loss', mse_loss.data.item(), epoch)
+                    writer.add_scalar('test_combined_loss', mse_loss.data.item() + cosine_loss.data.item(), epoch)
+                    c_f = (running_avg_mse_loss / (running_avg_mse_loss + running_avg_cosine_loss))
+                    m_f = (running_avg_cosine_loss / (running_avg_mse_loss + running_avg_cosine_loss))
+                    writer.add_scalar(
+                        'test_scaled_loss',
+                        mse_loss.data.item() * m_f + cosine_loss.data.item() * c_f,
+                        epoch
+                    )
 
             # print("ssp_pred.shape", ssp_pred.shape)
             # print("ssp_outputs.shape", ssp_outputs.shape)
@@ -234,6 +247,8 @@ for epoch in range(n_epochs):
     avg_bce_loss = 0
     avg_cosine_loss = 0
     avg_mse_loss = 0
+    avg_combined_loss = 0
+    avg_scaled_loss = 0
     n_batches = 0
     for i, data in enumerate(trainloader):
         velocity_inputs, ssp_inputs, ssp_outputs = data
@@ -260,14 +275,31 @@ for epoch in range(n_epochs):
                 torch.ones(ssp_pred.shape[0] * ssp_pred.shape[1])
             )
             mse_loss = mse_criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
+            loss = cosine_loss + mse_loss
 
-            if args.use_cosine_loss:
+            # adaptive weighted combination of the two loss functions
+            c_f = (running_avg_mse_loss / (running_avg_mse_loss + running_avg_cosine_loss))
+            m_f = (running_avg_cosine_loss / (running_avg_mse_loss + running_avg_cosine_loss))
+            scaled_loss = cosine_loss * c_f + mse_loss * m_f
+
+            if args.loss_function == 'cosine':
                 cosine_loss.backward()
-            else:
+            elif args.loss_function == 'mse':
                 mse_loss.backward()
+            elif args.loss_function == 'combined':
+                loss.backward()
+            elif args.loss_function == 'alternating':
+                if epoch % 2 == 0:
+                    cosine_loss.backward()
+                else:
+                    mse_loss.backward()
+            elif args.loss_function == 'scaled':
+                scaled_loss.backward()
 
             avg_cosine_loss += cosine_loss.data.item()
             avg_mse_loss += mse_loss.data.item()
+            avg_combined_loss += (cosine_loss.data.item() + mse_loss.data.item())
+            avg_scaled_loss += scaled_loss.data.item()
 
         # Gradient Clipping
         torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_thresh)
@@ -284,11 +316,22 @@ for epoch in range(n_epochs):
     else:
         avg_cosine_loss /= n_batches
         avg_mse_loss /= n_batches
+        avg_combined_loss /= n_batches
+        avg_scaled_loss /= n_batches
         print("cosine loss:", avg_cosine_loss)
         print("mse loss:", avg_mse_loss)
+        print("combined loss:", avg_combined_loss)
+        print("scaled loss:", avg_scaled_loss)
+
+        running_avg_cosine_loss = 0.9 * running_avg_cosine_loss + 0.1 * avg_cosine_loss
+        running_avg_mse_loss = 0.9 * running_avg_mse_loss + 0.1 * avg_mse_loss
+        print("running_avg_cosine_loss", running_avg_cosine_loss)
+        print("running_avg_mse_loss", running_avg_mse_loss)
 
         writer.add_scalar('avg_cosine_loss', avg_cosine_loss, epoch + 1)
         writer.add_scalar('avg_mse_loss', avg_mse_loss, epoch + 1)
+        writer.add_scalar('avg_combined_loss', avg_combined_loss, epoch + 1)
+        writer.add_scalar('avg_scaled_loss', avg_scaled_loss, epoch + 1)
 
 
 print("Testing")
@@ -319,6 +362,14 @@ with torch.no_grad():
             print("final test mse loss", mse_loss.data.item())
             writer.add_scalar('final_test_cosine_loss', cosine_loss.data.item(), epoch)
             writer.add_scalar('final_test_mse_loss', mse_loss.data.item(), epoch)
+            writer.add_scalar('final_test_combined_loss', mse_loss.data.item() + cosine_loss.data.item(), epoch)
+            c_f = (running_avg_mse_loss / (running_avg_mse_loss + running_avg_cosine_loss))
+            m_f = (running_avg_cosine_loss / (running_avg_mse_loss + running_avg_cosine_loss))
+            writer.add_scalar(
+                'final_test_scaled_loss',
+                mse_loss.data.item() * m_f + cosine_loss.data.item() * c_f,
+                epoch
+            )
 
     # Just use start and end location to save on memory and computation
     predictions_start = np.zeros((ssp_pred.shape[1], 2))
