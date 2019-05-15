@@ -282,12 +282,27 @@ def run(length, width, height, fps, level, record, demo, demofiles, video):
         'DEBUG.MAZE.LAYOUT',
         'DEBUG.MAZE.VARIATION',
         'DEBUG.CAMERA.PLAYER_VIEW_NO_RETICLE',
+
+        # 'DEBUG.FLAGS.RED',
+        # 'DEBUG.FLAGS.BLUE',
+        # 'DEBUG.FLAGS.RED_HOME',
+        # 'DEBUG.FLAGS.BLUE_HOME',
+        #
+        # 'DEBUG.PLAYERS.ID',
+        # 'DEBUG.PLAYERS.TEAM',
+        # 'DEBUG.PLAYERS.NAME',
     ]
 
     obs_first_person = 'RGB_INTERLEAVED'
     # obs_first_person = 'DEBUG.CAMERA.PLAYER_VIEW_NO_RETICLE'
 
     env = deepmind_lab.Lab(level, obs_list, config=config)
+
+    # import pprint
+    # pprint.pprint(env.observation_spec())
+    # assert False
+    # print(dir(env))
+    # assert False
 
     env.reset()
 
@@ -321,6 +336,19 @@ def run(length, width, height, fps, level, record, demo, demofiles, video):
         action = agent.step(reward, obs[obs_first_person])
         reward = env.step(action, num_steps=1)
 
+        # print(obs['DEBUG.MAZE.LAYOUT'])
+        # print("")
+        # print(obs['DEBUG.MAZE.VARIATION'])
+        # print("")
+        # print(obs['DEBUG.FLAGS.RED'])
+        # print(obs['DEBUG.FLAGS.BLUE'])
+        # print(obs['DEBUG.FLAGS.RED_HOME'])
+        # print(obs['DEBUG.FLAGS.BLUE_HOME'])
+        # print("")
+        # print(obs['DEBUG.PLAYERS.ID'])
+        # print(obs['DEBUG.PLAYERS.TEAM'])
+        # print(obs['DEBUG.PLAYERS.NAME'])
+        # print("")
         print(obs['DEBUG.POS.TRANS'])
         print(obs['DEBUG.POS.ROT'])
         print("")
