@@ -1,18 +1,18 @@
 # Compute grid scores for rate maps using deepmind's code for consistency
 import scores
 import utils
-from run_network import run_and_gather_activations
+from run_network import run_and_gather_activations, run_and_gather_localization_activations
 import numpy as np
 
 import argparse
 
 parser = argparse.ArgumentParser('Compute grid scores for a path integration model')
 parser.add_argument('--n-samples', type=int, default=5000)
+parser.add_argument('--use-localization', action='store_true')
 
 args = parser.parse_args()
 
-fname_pred = 'sac_{}samples_pred.pdf'.format(args.n_samples)
-fname_truth = 'sac_{}samples_truth.pdf'.format(args.n_samples)
+
 
 ssp_scaling = 5
 
@@ -25,12 +25,22 @@ latest_epoch_scorer = scores.GridScorer(
     mask_parameters=masks_parameters,
 )
 
-activations, predictions, coords = run_and_gather_activations(
-    n_samples=args.n_samples
-)
+if args.use_localization:
+    fname_pred = 'loc_sac_{}samples_pred.pdf'.format(args.n_samples)
+    fname_truth = 'loc_sac_{}samples_truth.pdf'.format(args.n_samples)
+    # This version has distance sensor measurements as well
+    activations, predictions, coords = run_and_gather_localization_activations(
+        n_samples=args.n_samples
+    )
+else:
+    fname_pred = 'sac_{}samples_pred.pdf'.format(args.n_samples)
+    fname_truth = 'sac_{}samples_truth.pdf'.format(args.n_samples)
+    activations, predictions, coords = run_and_gather_activations(
+        n_samples=args.n_samples
+    )
 
-predictions = predictions / ssp_scaling
-coords = coords / ssp_scaling
+    predictions = predictions / ssp_scaling
+    coords = coords / ssp_scaling
 
 print(np.max(predictions))
 print(np.min(predictions))
