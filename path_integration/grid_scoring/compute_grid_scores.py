@@ -9,6 +9,9 @@ import argparse
 parser = argparse.ArgumentParser('Compute grid scores for a path integration model')
 parser.add_argument('--n-samples', type=int, default=5000)
 parser.add_argument('--use-localization', action='store_true')
+# TODO: use these parameters
+parser.add_argument('--dataset', type=str, default='')
+parser.add_argument('--model', type=str, default='')
 
 args = parser.parse_args()
 
@@ -33,10 +36,16 @@ if args.use_localization:
         n_samples=args.n_samples
     )
 else:
-    fname_pred = 'sac_{}samples_pred.pdf'.format(args.n_samples)
-    fname_truth = 'sac_{}samples_truth.pdf'.format(args.n_samples)
+    # "../lab/reproducing/data/path_integration_trajectories_logits_1000t_15s_seed13.npz"
+    # ../output/ssp_path_integration/ssp_encoding_scaled_loss/gpu3runs/May14_14-31-33/ssp_path_integration_model.pt
+    # fname_pred = 'sac_{}samples_pred.pdf'.format(args.n_samples)
+    # fname_truth = 'sac_{}samples_truth.pdf'.format(args.n_samples)
+    fname_pred = 'scaled_hybrid_sac_{}samples_pred.pdf'.format(args.n_samples)
+    fname_truth = 'scaled_hybrid_sac_{}samples_truth.pdf'.format(args.n_samples)
     activations, predictions, coords = run_and_gather_activations(
-        n_samples=args.n_samples
+        n_samples=args.n_samples,
+        dataset="../lab/reproducing/data/path_integration_trajectories_logits_1000t_15s_seed13.npz",
+        model_path="../output/ssp_path_integration/ssp_encoding_scaled_loss/gpu3runs/May14_14-31-33/ssp_path_integration_model.pt",
     )
 
     predictions = predictions / ssp_scaling
