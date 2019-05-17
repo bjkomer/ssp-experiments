@@ -36,7 +36,7 @@ if args.use_localization:
         n_samples=args.n_samples
     )
 else:
-    # "../lab/reproducing/data/path_integration_trajectories_logits_1000t_15s_seed13.npz"
+    # "../../lab/reproducing/data/path_integration_trajectories_logits_1000t_15s_seed13.npz"
     # ../output/ssp_path_integration/ssp_encoding_scaled_loss/gpu3runs/May14_14-31-33/ssp_path_integration_model.pt
     # fname_pred = 'sac_{}samples_pred.pdf'.format(args.n_samples)
     # fname_truth = 'sac_{}samples_truth.pdf'.format(args.n_samples)
@@ -44,7 +44,7 @@ else:
     fname_truth = 'scaled_hybrid_sac_{}samples_truth.pdf'.format(args.n_samples)
     activations, predictions, coords = run_and_gather_activations(
         n_samples=args.n_samples,
-        dataset="../lab/reproducing/data/path_integration_trajectories_logits_1000t_15s_seed13.npz",
+        dataset="../../lab/reproducing/data/path_integration_trajectories_logits_1000t_15s_seed13.npz",
         model_path="../output/ssp_path_integration/ssp_encoding_scaled_loss/gpu3runs/May14_14-31-33/ssp_path_integration_model.pt",
     )
 
