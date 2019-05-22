@@ -19,14 +19,27 @@ args = parser.parse_args()
 
 ssp_scaling = args.ssp_scaling
 
-starts = [0.2] * 10
-ends = np.linspace(0.4, 1.0, num=10)
-masks_parameters = zip(starts, ends.tolist())
-latest_epoch_scorer = scores.GridScorer(
-    nbins=20,
-    coords_range=((0, 2.2), (0, 2.2)), #data_reader.get_coord_range(),
-    mask_parameters=masks_parameters,
-)
+if args.use_localization:
+
+    starts = [0.2] * 10
+    ends = np.linspace(0.4, 5.0, num=10)
+    masks_parameters = zip(starts, ends.tolist())
+    latest_epoch_scorer = scores.GridScorer(
+        nbins=20,
+        coords_range=((0, 10.), (0, 10.)), #data_reader.get_coord_range(),
+        mask_parameters=masks_parameters,
+    )
+
+else:
+
+    starts = [0.2] * 10
+    ends = np.linspace(0.4, 1.0, num=10)
+    masks_parameters = zip(starts, ends.tolist())
+    latest_epoch_scorer = scores.GridScorer(
+        nbins=20,
+        coords_range=((0, 2.2), (0, 2.2)), #data_reader.get_coord_range(),
+        mask_parameters=masks_parameters,
+    )
 
 fname_pred = '{}_{}samples_pred.pdf'.format(args.fname_prefix, args.n_samples)
 fname_truth = '{}_{}samples_truth.pdf'.format(args.fname_prefix, args.n_samples)
