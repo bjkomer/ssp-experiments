@@ -29,12 +29,15 @@ ACTIONS = [
 
 class EnvInterface(gym.Env):
 
-    def __init__(self, use_vision=True, use_pos=True,
+    def __init__(self,
+                 obs=('agent_pos', 'goal_pos', 'vision'),
+                 use_vision=True, use_pos=True,
                  episode_length=1000, width=64, height=64, fps=60,
                  level='contributed/dmlab30/explore_goal_locations_small',
                  record=None, demo=None, demofiles=None, video=None,
                  num_steps=1, seed=1):
         """
+        :param obs: a tuple of string values representing what observations to return
         :param episode_length: episode length
         :param width: width of visual image
         :param height: height of visual image
@@ -54,6 +57,8 @@ class EnvInterface(gym.Env):
         self.block_size = 100
         self.n_blocks = 11
         self.maze_size = self.n_blocks * self.block_size
+
+        self.obs = obs
 
         # If true, get vision as an observation
         self.use_vision = use_vision
@@ -93,6 +98,7 @@ class EnvInterface(gym.Env):
             'DEBUG.MAZE.LAYOUT',
             'DEBUG.MAZE.VARIATION',
             'DEBUG.CAMERA.PLAYER_VIEW_NO_RETICLE',
+            'DEBUG.GOAL.POS',
         ]
 
         self.obs_first_person = 'RGB_INTERLEAVED'
@@ -105,10 +111,18 @@ class EnvInterface(gym.Env):
         # actions are: look_left, look_right, strafe_left, strafe_right, forward, and backward
         self.action_space = gym.spaces.Discrete(6)
 
+        self.obs_dim = 0
+        if 'agent_pos' in self.obs:
+            self.obs_dim += 3
+        if 'goal_pos' in self.obs:
+            self.obs_dim += 2
+        if 'vision' in self.obs:
+            self.obs_dim += 3 * width * height
+
         # observations are x,y,th and 3 channel image of width by height
         self.observation_space = gym.spaces.Box(
-            low=-1*np.ones((3 + 3 * width * height,)),
-            high=np.ones((3 + 3 * width * height,))
+            low=-1*np.ones((self.obs_dim,)),
+            high=np.ones((self.obs_dim,))
         )
 
     def reset(self):
@@ -142,7 +156,7 @@ class EnvInterface(gym.Env):
         :return: observation vector
         """
 
-        if self.use_pos:
+        if 'agent_pos' in self.obs:
             pos = raw_obs['DEBUG.POS.TRANS']
             # Convert to between -1 and 1
             pos_x = ((pos[0] / self.maze_size) - .5) * 2
@@ -154,17 +168,28 @@ class EnvInterface(gym.Env):
 
             # TODO: have option to convert position to ssp here
 
-        if self.use_vision:
+        if 'goal_pos' in self.obs:
+            goal_pos = raw_obs['DEBUG.GOAL.POS']
+            # Convert to between -1 and 1
+            goal_pos_x = ((goal_pos[0] / self.maze_size) - .5) * 2
+            goal_pos_y = ((goal_pos[1] / self.maze_size) - .5) * 2
+
+            # TODO: have option to convert position to ssp here
+
+        if 'vision' in self.obs:
             img = raw_obs[self.obs_first_person]
 
-        if self.use_vision and self.use_pos:
-            obs = np.concatenate([pos_x, pos_y, ang, img.flatten()])
-        elif self.use_pos:
-            obs = np.concatenate([pos_x, pos_y, ang])
-        elif self.use_vision:
+        if 'vision' in self.obs and 'agent_pos' in self.obs and 'goal_pos' in self.obs:
+            obs = np.concatenate([np.array([pos_x, pos_y, ang, goal_pos_x, goal_pos_y]), img.flatten()])
+        elif 'vision' in self.obs and 'agent_pos' in self.obs:
+            obs = np.concatenate([np.array([pos_x, pos_y, ang]), img.flatten()])
+        elif 'agent_pos' in self.obs:
+            obs = np.array([pos_x, pos_y, ang])
+        elif 'vision' in self.obs:
             # obs = img.flatten().copy()
             obs = np.transpose(img.copy(), (2, 0, 1))
         else:
+            # TODO: not all possibilities implemented yet
             raise NotImplementedError("Must use at least one of vision or pose for observations")
         return obs
 
