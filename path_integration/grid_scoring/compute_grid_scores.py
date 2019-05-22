@@ -12,12 +12,12 @@ parser.add_argument('--use-localization', action='store_true')
 # TODO: use these parameters
 parser.add_argument('--dataset', type=str, default='')
 parser.add_argument('--model', type=str, default='')
+parser.add_argument('--fname-prefix', type=str, default='sac')
+parser.add_argument('--ssp-scaling', type=float, default=5.0)
 
 args = parser.parse_args()
 
-
-
-ssp_scaling = 5
+ssp_scaling = args.ssp_scaling
 
 starts = [0.2] * 10
 ends = np.linspace(0.4, 1.0, num=10)
@@ -28,24 +28,47 @@ latest_epoch_scorer = scores.GridScorer(
     mask_parameters=masks_parameters,
 )
 
+fname_pred = '{}_{}samples_pred.pdf'.format(args.fname_prefix, args.n_samples)
+fname_truth = '{}_{}samples_truth.pdf'.format(args.fname_prefix, args.n_samples)
+
+if args.dataset == '':
+    if args.use_localization:
+        dataset = '../../localization/data/localization_trajectories_5m_200t_250s_seed13.npz'
+    else:
+        dataset = '../../lab/reproducing/data/path_integration_trajectories_logits_200t_15s_seed13.npz'
+        dataset = "../../lab/reproducing/data/path_integration_trajectories_logits_1000t_15s_seed13.npz"
+else:
+    dataset = args.dataset
+
+if args.model == '':
+    if args.use_localization:
+        model = '../../localization/output/ssp_trajectory_localization/May13_16-00-27/ssp_trajectory_localization_model.pt'
+    else:
+        model = '../output/ssp_path_integration/clipped/Mar22_15-24-10/ssp_path_integration_model.pt'
+        model = "../output/ssp_path_integration/ssp_encoding_scaled_loss/gpu3runs/May14_14-31-33/ssp_path_integration_model.pt"
+else:
+    model = args.model
+
 if args.use_localization:
-    fname_pred = 'loc_sac_{}samples_pred.pdf'.format(args.n_samples)
-    fname_truth = 'loc_sac_{}samples_truth.pdf'.format(args.n_samples)
+    # fname_pred = 'loc_sac_{}samples_pred.pdf'.format(args.n_samples)
+    # fname_truth = 'loc_sac_{}samples_truth.pdf'.format(args.n_samples)
     # This version has distance sensor measurements as well
     activations, predictions, coords = run_and_gather_localization_activations(
-        n_samples=args.n_samples
+        n_samples=args.n_samples,
+        dataset=dataset,
+        model_path=model
     )
 else:
     # "../../lab/reproducing/data/path_integration_trajectories_logits_1000t_15s_seed13.npz"
     # ../output/ssp_path_integration/ssp_encoding_scaled_loss/gpu3runs/May14_14-31-33/ssp_path_integration_model.pt
     # fname_pred = 'sac_{}samples_pred.pdf'.format(args.n_samples)
     # fname_truth = 'sac_{}samples_truth.pdf'.format(args.n_samples)
-    fname_pred = 'scaled_hybrid_sac_{}samples_pred.pdf'.format(args.n_samples)
-    fname_truth = 'scaled_hybrid_sac_{}samples_truth.pdf'.format(args.n_samples)
+    # fname_pred = 'scaled_hybrid_sac_{}samples_pred.pdf'.format(args.n_samples)
+    # fname_truth = 'scaled_hybrid_sac_{}samples_truth.pdf'.format(args.n_samples)
     activations, predictions, coords = run_and_gather_activations(
         n_samples=args.n_samples,
-        dataset="../../lab/reproducing/data/path_integration_trajectories_logits_1000t_15s_seed13.npz",
-        model_path="../output/ssp_path_integration/ssp_encoding_scaled_loss/gpu3runs/May14_14-31-33/ssp_path_integration_model.pt",
+        dataset=dataset,
+        model_path=model,
     )
 
     predictions = predictions / ssp_scaling
