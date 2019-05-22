@@ -283,6 +283,8 @@ def run(length, width, height, fps, level, record, demo, demofiles, video):
         'DEBUG.MAZE.VARIATION',
         'DEBUG.CAMERA.PLAYER_VIEW_NO_RETICLE',
 
+        'DEBUG.GOAL.POS',
+
         # 'DEBUG.FLAGS.RED',
         # 'DEBUG.FLAGS.BLUE',
         # 'DEBUG.FLAGS.RED_HOME',
@@ -336,6 +338,8 @@ def run(length, width, height, fps, level, record, demo, demofiles, video):
         action = agent.step(reward, obs[obs_first_person])
         reward = env.step(action, num_steps=1)
 
+        print(obs['DEBUG.GOAL.POS'])
+        print("")
         # print(obs['DEBUG.MAZE.LAYOUT'])
         # print("")
         # print(obs['DEBUG.MAZE.VARIATION'])
