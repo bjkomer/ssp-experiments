@@ -23,6 +23,7 @@ parser.add_argument('--map-style', type=str, default='blocks', choices=['blocks'
 parser.add_argument('--map-size', type=int, default=10, help='height and width of the maze, in cells')
 parser.add_argument('--ssp-scaling', type=float, default=1.0, help='amount to multiply coordinates by before converting to SSP')
 parser.add_argument('--ssp-offset', type=float, default=0.0)
+parser.add_argument('--maze-dataset', type=str, default='', help='if given, use the maze layouts from the dataset instead of random')
 
 args = parser.parse_args()
 
@@ -104,50 +105,50 @@ ssps = np.zeros((args.n_maps, args.n_trajectories, trajectory_steps, args.sp_dim
 cartesian_vels = np.zeros((args.n_maps, args.n_trajectories, trajectory_steps, 2))
 
 
-def get_pc_activations(centers, pos, std, include_softmax=False):
-    if include_softmax:
-        num = np.zeros((centers.shape[0],))
-        for ci in range(centers.shape[0]):
-            num[ci] = np.exp(-np.linalg.norm(pos - pc_centers[ci, :]) / (2 * std ** 2))
-        denom = np.sum(num)
-        if denom == 0:
-            print("0 in denominator for pc_activation, returning 0")
-            return num * 0
-        return num / denom
-    else:
-        # num = np.zeros((centers.shape[0],))
-        # for ci in range(centers.shape[0]):
-        #     num[ci] = -np.linalg.norm(pos - pc_centers[ci, :]) / (2 * std ** 2)
-        # return num
-        logp = np.zeros((centers.shape[0],))
-        for ci in range(centers.shape[0]):
-            logp[ci] = -np.linalg.norm(pos - pc_centers[ci, :]) / (2 * std ** 2)
-        # log_posteriors = logp - np.log(np.sum(np.exp(logp)))
-        log_posteriors = logp - logsumexp(logp)
-        return log_posteriors
-
-
-def get_hd_activations(centers, ang, conc, include_softmax=False):
-    if include_softmax:
-        num = np.zeros((centers.shape[0],))
-        for hi in range(centers.shape[0]):
-            num[hi] = np.exp(conc * np.cos(ang - hd_centers[hi]))
-        denom = np.sum(num)
-        if denom == 0:
-            print("0 in denominator for hd_activation, returning 0")
-            return num * 0
-        return num / denom
-    else:
-        # num = np.zeros((centers.shape[0],))
-        # for hi in range(centers.shape[0]):
-        #     num[hi] = np.exp(conc * np.cos(ang - hd_centers[hi]))
-        # return num
-        logp = np.zeros((centers.shape[0],))
-        for hi in range(centers.shape[0]):
-            logp[hi] = -np.exp(conc * np.cos(ang - hd_centers[hi]))
-        # log_posteriors = logp - np.log(np.sum(np.exp(logp)))
-        log_posteriors = logp - logsumexp(logp)
-        return log_posteriors
+# def get_pc_activations(centers, pos, std, include_softmax=False):
+#     if include_softmax:
+#         num = np.zeros((centers.shape[0],))
+#         for ci in range(centers.shape[0]):
+#             num[ci] = np.exp(-np.linalg.norm(pos - pc_centers[ci, :]) / (2 * std ** 2))
+#         denom = np.sum(num)
+#         if denom == 0:
+#             print("0 in denominator for pc_activation, returning 0")
+#             return num * 0
+#         return num / denom
+#     else:
+#         # num = np.zeros((centers.shape[0],))
+#         # for ci in range(centers.shape[0]):
+#         #     num[ci] = -np.linalg.norm(pos - pc_centers[ci, :]) / (2 * std ** 2)
+#         # return num
+#         logp = np.zeros((centers.shape[0],))
+#         for ci in range(centers.shape[0]):
+#             logp[ci] = -np.linalg.norm(pos - pc_centers[ci, :]) / (2 * std ** 2)
+#         # log_posteriors = logp - np.log(np.sum(np.exp(logp)))
+#         log_posteriors = logp - logsumexp(logp)
+#         return log_posteriors
+#
+#
+# def get_hd_activations(centers, ang, conc, include_softmax=False):
+#     if include_softmax:
+#         num = np.zeros((centers.shape[0],))
+#         for hi in range(centers.shape[0]):
+#             num[hi] = np.exp(conc * np.cos(ang - hd_centers[hi]))
+#         denom = np.sum(num)
+#         if denom == 0:
+#             print("0 in denominator for hd_activation, returning 0")
+#             return num * 0
+#         return num / denom
+#     else:
+#         # num = np.zeros((centers.shape[0],))
+#         # for hi in range(centers.shape[0]):
+#         #     num[hi] = np.exp(conc * np.cos(ang - hd_centers[hi]))
+#         # return num
+#         logp = np.zeros((centers.shape[0],))
+#         for hi in range(centers.shape[0]):
+#             logp[hi] = -np.exp(conc * np.cos(ang - hd_centers[hi]))
+#         # log_posteriors = logp - np.log(np.sum(np.exp(logp)))
+#         log_posteriors = logp - logsumexp(logp)
+#         return log_posteriors
 
 
 def get_ssp_activation(pos):
@@ -155,10 +156,15 @@ def get_ssp_activation(pos):
     return encode_point(pos[0]*args.ssp_scaling, pos[1]*args.ssp_scaling, x_axis_sp, y_axis_sp).v
 
 
+if args.maze_dataset:
+    coarse_maps = np.load(args.maze_dataset)['coarse_maps']
+
 for mi in range(args.n_maps):
     print("Map {} of {}".format(mi + 1, args.n_maps))
 
-    coarse_maps[mi, :, :] = generate_maze(map_style=params['map_style'], side_len=params['map_size'])
+    if args.maze_dataset == '':
+        # Generate maps if not given
+        coarse_maps[mi, :, :] = generate_maze(map_style=params['map_style'], side_len=params['map_size'])
 
     env = GridWorldEnv(
         map_array=coarse_maps[mi, :, :],
