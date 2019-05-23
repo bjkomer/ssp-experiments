@@ -127,6 +127,7 @@ time_steps = 10000#100
 returns = np.zeros((num_episodes,))
 for e in range(num_episodes):
     obs = env.reset(goal_distance=params['goal_distance'])
+    agent.snapshot_localize(obs)
     for s in range(params['episode_length']):
         env.render()
         env._render_extras()
