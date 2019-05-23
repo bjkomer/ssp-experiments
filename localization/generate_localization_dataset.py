@@ -157,7 +157,7 @@ def get_ssp_activation(pos):
 
 
 if args.maze_dataset:
-    coarse_maps = np.load(args.maze_dataset)['coarse_maps']
+    coarse_maps = np.load(args.maze_dataset)['coarse_mazes']
 
 for mi in range(args.n_maps):
     print("Map {} of {}".format(mi + 1, args.n_maps))
