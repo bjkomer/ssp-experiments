@@ -244,7 +244,7 @@ def policy_gt(map_id, agent_ssp, goal_ssp, env, coarse_planning=True):
 
         env.render_ghost(x=start_indices[0], y=start_indices[1])
 
-        solved_maze = solve_maze(maze, start_indices=start_indices, goal_indices=goal_indices, full_solve=True)
+        solved_maze = solve_maze(maze, start_indices=start_indices, goal_indices=goal_indices, full_solve=True, strict_cornering=True)
 
         # Return the action for the current location
         return solved_maze[start_indices[0], start_indices[1], :]
@@ -257,7 +257,7 @@ def policy_gt(map_id, agent_ssp, goal_ssp, env, coarse_planning=True):
         vs = np.tensordot(goal_ssp.squeeze(0).detach().numpy(), heatmap_vectors, axes=([0], [2]))
         goal_indices = np.unravel_index(vs.argmax(), vs.shape)
 
-        solved_maze = solve_maze(maze, start_indices=start_indices, goal_indices=goal_indices, full_solve=False)
+        solved_maze = solve_maze(maze, start_indices=start_indices, goal_indices=goal_indices, full_solve=False, strict_cornering=True)
 
         # Return the action for the current location
         return solved_maze[start_indices[0], start_indices[1], :]
@@ -312,8 +312,16 @@ for e in range(num_episodes):
             env=env,  # only used for some ground truth options
             use_cleanup_gt=True,
             use_localization_gt=True,
-            use_policy_gt=True,
+            use_policy_gt=False,
         )
+
+        # localization ghost
+        agent_ssp = agent.localization_network(
+            inputs=(torch.cat([velocity, distances, map_id], dim=1),),
+            initial_ssp=agent.agent_ssp
+        ).squeeze(0)
+        agent_loc = ssp_to_loc(agent_ssp.squeeze(0).detach().numpy(), heatmap_vectors, xs, ys)
+        env.render_ghost(x=agent_loc[0], y=agent_loc[1])
 
         # Add small amount of noise to the action
         action += np.random.normal(size=2) * args.noise
