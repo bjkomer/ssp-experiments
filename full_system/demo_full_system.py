@@ -96,6 +96,7 @@ data = np.load(args.dataset)
 
 # n_mazes by size by size
 coarse_mazes = data['coarse_mazes']
+coarse_size = coarse_mazes.shape[1]
 
 # n_mazes by res by res
 fine_mazes = data['fine_mazes']
@@ -103,37 +104,20 @@ xs = data['xs']
 ys = data['ys']
 res = fine_mazes.shape[1]
 
-print(xs)
-
 map_array = coarse_mazes[args.maze_index, :, :]
 
 x_axis_sp = spa.SemanticPointer(data=data['x_axis_sp'])
 y_axis_sp = spa.SemanticPointer(data=data['y_axis_sp'])
 
-# TODO: choose a random set of locations in free space to place goals
-# FIXME: TEMP placeholders
-semantic_goal = spa.SemanticPointer(ssp_dim)
-item_memory = spa.SemanticPointer(data=np.zeros((ssp_dim,)))
+# fixed random set of locations for the goals
 n_goals = 10  # TODO: make this a parameter
 object_locations = OrderedDict()
 vocab = {}
 for i in range(n_goals):
-    sp_name = possible_objects[i]  #'GOAL{}'.format(i + 1)
+    sp_name = possible_objects[i]
+    # If set to None, the environment will choose a random free space on init
     object_locations[sp_name] = None
-    # Choose random indices within the fine maze
-    indx = np.random.randint(low=0, high=res)
-    indy = np.random.randint(low=0, high=res)
-    while fine_mazes[args.maze_index, indx, indy] == 1:
-        # Keep trying different locations until one is not in a wall
-        indx = np.random.randint(low=0, high=res)
-        indy = np.random.randint(low=0, high=res)
-    x = xs[indx]
-    y = ys[indy]
-    object_locations[sp_name] = np.array([x, y])
     vocab[sp_name] = spa.SemanticPointer(ssp_dim)
-    item_memory += vocab[sp_name] * encode_point(x, y, x_axis_sp, y_axis_sp)
-item_memory.normalize()
-
 
 env = GridWorldEnv(
     map_array=map_array,
@@ -150,12 +134,20 @@ env = GridWorldEnv(
     screen_height=300,
 )
 
-# for i in range(n_goals):
-#     sp_name = possible_objects[i]
-#     object_locations[sp_name] = np.array([x, y])
-#     vocab[sp_name] = spa.SemanticPointer(ssp_dim)
-#     item_memory += vocab[sp_name] * encode_point(x, y, x_axis_sp, y_axis_sp)
-# item_memory.normalize()
+# Fill the item memory with the correct SSP for remembering the goal locations
+item_memory = spa.SemanticPointer(data=np.zeros((ssp_dim,)))
+limit_range = xs[-1] - xs[0]
+for i in range(n_goals):
+    sp_name = possible_objects[i]
+    x_env, y_env = env.object_locations[sp_name][[0, 1]]
+
+    # Need to scale to SSP coordinates
+    # Env is 0 to 13, SSP is -5 to 5
+    x = ((x_env - 0) / coarse_size) * limit_range + xs[0]
+    y = ((y_env - 0) / coarse_size) * limit_range + ys[0]
+
+    item_memory += vocab[sp_name] * encode_point(x, y, x_axis_sp, y_axis_sp)
+item_memory.normalize()
 
 cleanup_network = FeedForward(input_size=ssp_dim, hidden_size=512, output_size=ssp_dim)
 cleanup_network.load_state_dict(torch.load(args.cleanup_network), strict=False)
@@ -228,8 +220,7 @@ for e in range(num_episodes):
         # if reward != 0:
         #    print(reward)
         # time.sleep(dt)
-        # ignoring done flag and not using fixed episodes, which effectively means there is no goal
-        # if done:
-        #     break
+        if done:
+            break
 
 print(returns)
