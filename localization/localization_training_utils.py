@@ -530,7 +530,7 @@ class LocalizationModel(nn.Module):
 
     def forward(self, inputs, initial_ssp):
         """
-        :param inputs: contains both velocity and distance sensor measurments
+        :param inputs: contains both velocity and distance sensor measurments (and potentially map_id)
         :param initial_ssp: SSP ground truth for the start location of the trajectory
         :return: predicted SSP for agent location at the end of the trajectory
         """
