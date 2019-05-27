@@ -9,16 +9,20 @@ import argparse
 import torch
 from gridworlds.envs import GridWorldEnv, generate_obs_dict
 from gridworlds.constants import possible_objects
+from gridworlds.optimal_planner import OptimalPlanner
 from agent import GoalFindingAgent
 import nengo.spa as spa
 from collections import OrderedDict
-from spatial_semantic_pointers.utils import encode_point
+from spatial_semantic_pointers.utils import encode_point, ssp_to_loc, get_heatmap_vectors
 
 # softlinked from ../pytorch/models.py
 from models import FeedForward
 
 # softlinked from ../localization/localization_training_utils.py
 from localization_training_utils import LocalizationModel
+
+# softlinked from ../pytorch/path_utils.py
+from path_utils import solve_maze
 
 parser = argparse.ArgumentParser('Demo full system on a maze task')
 
@@ -68,7 +72,7 @@ params = {
     # 'map_style': args.map_style,
     'map_size': 10,
     'fixed_episode_length': False,  # Setting to false so location resets are not automatic
-    'episode_length': 200, #1000,
+    'episode_length': 1000,  #200,
     'max_lin_vel': 5,
     'max_ang_vel': 5,
     'dt': 0.1,
@@ -104,19 +108,38 @@ xs = data['xs']
 ys = data['ys']
 res = fine_mazes.shape[1]
 
+coarse_xs = np.linspace(xs[0], xs[-1], coarse_size)
+coarse_ys = np.linspace(ys[0], ys[-1], coarse_size)
+
 map_array = coarse_mazes[args.maze_index, :, :]
 
 x_axis_sp = spa.SemanticPointer(data=data['x_axis_sp'])
 y_axis_sp = spa.SemanticPointer(data=data['y_axis_sp'])
+heatmap_vectors = get_heatmap_vectors(xs, ys, x_axis_sp, y_axis_sp)
+coarse_heatmap_vectors = get_heatmap_vectors(coarse_xs, coarse_ys, x_axis_sp, y_axis_sp)
 
 # fixed random set of locations for the goals
+limit_range = xs[-1] - xs[0]
+
+goal_sps = data['goal_sps']
+goals = data['goals']
+# print(np.min(goals))
+# print(np.max(goals))
+goals_scaled = ((goals - xs[0]) / limit_range) * coarse_size
+# print(np.min(goals_scaled))
+# print(np.max(goals_scaled))
+
 n_goals = 10  # TODO: make this a parameter
 object_locations = OrderedDict()
 vocab = {}
+use_dataset_goals = True
 for i in range(n_goals):
     sp_name = possible_objects[i]
-    # If set to None, the environment will choose a random free space on init
-    object_locations[sp_name] = None
+    if use_dataset_goals:
+        object_locations[sp_name] = goals_scaled[args.maze_index, i]  # using goal locations from the dataset
+    else:
+        # If set to None, the environment will choose a random free space on init
+        object_locations[sp_name] = None
     vocab[sp_name] = spa.SemanticPointer(ssp_dim)
 
 env = GridWorldEnv(
@@ -132,11 +155,12 @@ env = GridWorldEnv(
     dt=params['dt'],
     screen_width=300,
     screen_height=300,
+    debug_ghost=True,
 )
 
 # Fill the item memory with the correct SSP for remembering the goal locations
 item_memory = spa.SemanticPointer(data=np.zeros((ssp_dim,)))
-limit_range = xs[-1] - xs[0]
+
 for i in range(n_goals):
     sp_name = possible_objects[i]
     x_env, y_env = env.object_locations[sp_name][[0, 1]]
@@ -148,6 +172,8 @@ for i in range(n_goals):
 
     item_memory += vocab[sp_name] * encode_point(x, y, x_axis_sp, y_axis_sp)
 item_memory.normalize()
+
+# Component functions of the full system
 
 cleanup_network = FeedForward(input_size=ssp_dim, hidden_size=512, output_size=ssp_dim)
 cleanup_network.load_state_dict(torch.load(args.cleanup_network), strict=False)
@@ -174,11 +200,79 @@ snapshot_localization_network = FeedForward(
 snapshot_localization_network.load_state_dict(torch.load(args.snapshot_localization_network), strict=False)
 snapshot_localization_network.eval()
 
+
+# Ground truth versions of the above functions
+planner = OptimalPlanner(continuous=True, directional=False)
+
+
+def cleanup_gt(env):
+    x = ((env.goal_state[0] - 0) / coarse_size) * limit_range + xs[0]
+    y = ((env.goal_state[1] - 0) / coarse_size) * limit_range + ys[0]
+    goal_ssp = encode_point(x, y, x_axis_sp, y_axis_sp)
+    return torch.Tensor(goal_ssp.v).unsqueeze(0)
+
+
+def localization_gt(env):
+    x = ((env.state[0] - 0) / coarse_size) * limit_range + xs[0]
+    y = ((env.state[1] - 0) / coarse_size) * limit_range + ys[0]
+    agent_ssp = encode_point(x, y, x_axis_sp, y_axis_sp)
+    return torch.Tensor(agent_ssp.v).unsqueeze(0)
+
+
+def policy_gt(map_id, agent_ssp, goal_ssp, env, coarse_planning=True):
+    if coarse_planning:
+        maze = coarse_mazes[np.argmax(map_id)]
+
+        if True:
+            # Convert agent and goal SSP into 2D locations
+            agent_loc = ssp_to_loc(agent_ssp.squeeze(0).detach().numpy(), heatmap_vectors, xs, ys)
+            goal_loc = ssp_to_loc(goal_ssp.squeeze(0).detach().numpy(), heatmap_vectors, xs, ys)
+
+            agent_loc_scaled = ((agent_loc - xs[0]) / limit_range) * coarse_size
+            goal_loc_scaled = ((goal_loc - xs[0]) / limit_range) * coarse_size
+
+            start_indices = np.round(agent_loc_scaled).astype(np.int32)
+            goal_indices = np.round(goal_loc_scaled).astype(np.int32)
+            # start_indices = np.ceil(agent_loc_scaled).astype(np.int32)
+            # goal_indices = np.ceil(goal_loc_scaled).astype(np.int32)
+        else:
+            vs = np.tensordot(agent_ssp.squeeze(0).detach().numpy(), coarse_heatmap_vectors, axes=([0], [2]))
+            start_indices = np.unravel_index(vs.argmax(), vs.shape)
+
+            vs = np.tensordot(goal_ssp.squeeze(0).detach().numpy(), coarse_heatmap_vectors, axes=([0], [2]))
+            goal_indices = np.unravel_index(vs.argmax(), vs.shape)
+
+        env.render_ghost(x=start_indices[0], y=start_indices[1])
+
+        solved_maze = solve_maze(maze, start_indices=start_indices, goal_indices=goal_indices, full_solve=True)
+
+        # Return the action for the current location
+        return solved_maze[start_indices[0], start_indices[1], :]
+    else:
+        maze = fine_mazes[np.argmax(map_id)]
+
+        vs = np.tensordot(agent_ssp.squeeze(0).detach().numpy(), heatmap_vectors, axes=([0], [2]))
+        start_indices = np.unravel_index(vs.argmax(), vs.shape)
+
+        vs = np.tensordot(goal_ssp.squeeze(0).detach().numpy(), heatmap_vectors, axes=([0], [2]))
+        goal_indices = np.unravel_index(vs.argmax(), vs.shape)
+
+        solved_maze = solve_maze(maze, start_indices=start_indices, goal_indices=goal_indices, full_solve=False)
+
+        # Return the action for the current location
+        return solved_maze[start_indices[0], start_indices[1], :]
+
+
 agent = GoalFindingAgent(
     cleanup_network=cleanup_network,
     localization_network=localization_network,
     policy_network=policy_network,
     snapshot_localization_network=snapshot_localization_network,
+
+    cleanup_gt=cleanup_gt,
+    localization_gt=localization_gt,
+    policy_gt=policy_gt,
+    snapshot_localization_gt=localization_gt,  # Exact same function as regular localization ground truth
 )
 
 num_episodes = 10
@@ -192,7 +286,12 @@ for e in range(num_episodes):
     semantic_goal = vocab[env.goal_object]
 
     distances = torch.Tensor(obs).unsqueeze(0)
-    agent.snapshot_localize(distances, map_id)
+    agent.snapshot_localize(
+        distances,
+        map_id,
+        env,
+        use_localization_gt=True
+    )
     action = np.zeros((2,))
     for s in range(params['episode_length']):
         env.render()
@@ -209,6 +308,11 @@ for e in range(num_episodes):
             semantic_goal=semantic_goal,
             map_id=map_id,
             item_memory=item_memory,
+
+            env=env,  # only used for some ground truth options
+            use_cleanup_gt=True,
+            use_localization_gt=True,
+            use_policy_gt=True,
         )
 
         # Add small amount of noise to the action

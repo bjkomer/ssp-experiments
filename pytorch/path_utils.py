@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from spatial_semantic_pointers.utils import generate_region_vector
 from gridworlds.maze_generation import generate_maze
 
-from skimage.draw import line
+from skimage.draw import line, line_aa
 
 # Up, Down, Left, Right
 U = 1
@@ -205,7 +205,7 @@ def generate_maze_sp(size, xs, ys, x_axis_sp, y_axis_sp, normalize=True, obstacl
     return sp, maze, fine_maze
 
 
-def expand_node(distances, solved_maze, maze, node, wall_value=1000):
+def expand_node(distances, solved_maze, maze, node, wall_value=1000, strict_cornering=False):
     current_value = distances[node[0], node[1]]
 
     # Generate list of indices for all nodes around the current node
@@ -237,7 +237,10 @@ def expand_node(distances, solved_maze, maze, node, wall_value=1000):
                     # print(dist_sorted_indices)
                     # print(dist_sorted_indices.shape)
                     # rr, cc = line(int(x), int(y), int(dist_sorted_indices[0][i][0]), int(dist_sorted_indices[0][i][1]))
-                    rr, cc = line(int(x), int(y), int(dist_sorted_indices[0, i, 0]), int(dist_sorted_indices[0, i, 1]))
+                    if strict_cornering:
+                        rr, cc, _ = line_aa(int(x), int(y), int(dist_sorted_indices[0, i, 0]), int(dist_sorted_indices[0, i, 1]))
+                    else:
+                        rr, cc = line(int(x), int(y), int(dist_sorted_indices[0, i, 0]), int(dist_sorted_indices[0, i, 1]))
 
                     if ((len(rr) > 2) and np.all(distances[rr[1:-1], cc[1:-1]] < 2*wall_value)) or np.all(distances[rr, cc] < 2*wall_value):
 
@@ -263,7 +266,7 @@ def expand_node(distances, solved_maze, maze, node, wall_value=1000):
 
 
 # TODO: make some tests and visualizations to make sure this function is doing the correct thing
-def solve_maze(maze, start_indices, goal_indices, full_solve=False, wall_value=1000):
+def solve_maze(maze, start_indices, goal_indices, full_solve=False, wall_value=1000, strict_cornering=False):
 
     # Direction to move for each cell in the maze
     solved_maze = np.zeros((maze.shape[0], maze.shape[1], 2))
@@ -297,7 +300,8 @@ def solve_maze(maze, start_indices, goal_indices, full_solve=False, wall_value=1
             solved_maze=solved_maze,
             maze=maze,
             node=next_node,
-            wall_value=wall_value
+            wall_value=wall_value,
+            strict_cornering=strict_cornering,
         )
         to_expand += new_nodes
         # print(np.round(distances).astype(np.int32))
