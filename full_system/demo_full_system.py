@@ -52,14 +52,6 @@ np.random.seed(args.seed)
 
 ssp_dim = 512
 n_sensors = 36
-n_maps = 10
-
-# Size of map IDs. Equal to n_maps if using one-hot encoding
-id_size = n_maps
-
-map_id = np.zeros((n_maps,))
-map_id[args.maze_index] = 1
-map_id = torch.Tensor(map_id).unsqueeze(0)
 
 params = {
     'continuous': True,
@@ -101,6 +93,14 @@ data = np.load(args.dataset)
 # n_mazes by size by size
 coarse_mazes = data['coarse_mazes']
 coarse_size = coarse_mazes.shape[1]
+n_maps = coarse_mazes.shape[0]
+
+# Size of map IDs. Equal to n_maps if using one-hot encoding
+id_size = n_maps
+
+map_id = np.zeros((n_maps,))
+map_id[args.maze_index] = 1
+map_id = torch.Tensor(map_id).unsqueeze(0)
 
 # n_mazes by res by res
 fine_mazes = data['fine_mazes']
@@ -176,7 +176,7 @@ item_memory.normalize()
 # Component functions of the full system
 
 cleanup_network = FeedForward(input_size=ssp_dim, hidden_size=512, output_size=ssp_dim)
-cleanup_network.load_state_dict(torch.load(args.cleanup_network), strict=False)
+cleanup_network.load_state_dict(torch.load(args.cleanup_network), strict=True)
 cleanup_network.eval()
 
 # Input is x and y velocity plus the distance sensor measurements, plus map ID
@@ -185,11 +185,11 @@ localization_network = LocalizationModel(
     unroll_length=1, #rollout_length,
     sp_dim=ssp_dim
 )
-localization_network.load_state_dict(torch.load(args.localization_network), strict=False)
+localization_network.load_state_dict(torch.load(args.localization_network), strict=True)
 localization_network.eval()
 
 policy_network = FeedForward(input_size=id_size + ssp_dim * 2, output_size=2)
-policy_network.load_state_dict(torch.load(args.policy_network), strict=False)
+policy_network.load_state_dict(torch.load(args.policy_network), strict=True)
 policy_network.eval()
 
 snapshot_localization_network = FeedForward(
@@ -197,7 +197,7 @@ snapshot_localization_network = FeedForward(
     hidden_size=512,
     output_size=ssp_dim,
 )
-snapshot_localization_network.load_state_dict(torch.load(args.snapshot_localization_network), strict=False)
+snapshot_localization_network.load_state_dict(torch.load(args.snapshot_localization_network), strict=True)
 snapshot_localization_network.eval()
 
 
@@ -242,7 +242,7 @@ def policy_gt(map_id, agent_ssp, goal_ssp, env, coarse_planning=True):
             vs = np.tensordot(goal_ssp.squeeze(0).detach().numpy(), coarse_heatmap_vectors, axes=([0], [2]))
             goal_indices = np.unravel_index(vs.argmax(), vs.shape)
 
-        env.render_ghost(x=start_indices[0], y=start_indices[1])
+        # env.render_ghost(x=start_indices[0], y=start_indices[1])
 
         solved_maze = solve_maze(maze, start_indices=start_indices, goal_indices=goal_indices, full_solve=True, strict_cornering=True)
 
@@ -315,12 +315,18 @@ for e in range(num_episodes):
             use_policy_gt=False,
         )
 
-        # localization ghost
-        agent_ssp = agent.localization_network(
-            inputs=(torch.cat([velocity, distances, map_id], dim=1),),
-            initial_ssp=agent.agent_ssp
-        ).squeeze(0)
+        if False:
+            # localization ghost
+            agent_ssp = agent.localization_network(
+                inputs=(torch.cat([velocity, distances, map_id], dim=1),),
+                initial_ssp=agent.agent_ssp
+            ).squeeze(0)
+        else:
+            # snapshot localization ghost
+            agent_ssp = agent.snapshot_localization_network(torch.cat([distances, map_id], dim=1))
         agent_loc = ssp_to_loc(agent_ssp.squeeze(0).detach().numpy(), heatmap_vectors, xs, ys)
+        # Scale to env coordinates, from (-5,5) to (0,13)
+        agent_loc = ((agent_loc - xs[0]) / limit_range) * coarse_size
         env.render_ghost(x=agent_loc[0], y=agent_loc[1])
 
         # Add small amount of noise to the action

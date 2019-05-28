@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 # from spatial_semantic_pointers.utils import encode_point
 
 
@@ -48,33 +49,36 @@ class GoalFindingAgent(object):
         :return: 2D holonomic velocity action
         """
 
-        if use_cleanup_gt:
-            goal_ssp = self.cleanup_gt(env)
-        else:
-            noisy_goal_ssp = item_memory *~ semantic_goal
-            goal_ssp = self.cleanup_network(torch.Tensor(noisy_goal_ssp.v).unsqueeze(0))
+        with torch.no_grad():
+            if use_cleanup_gt:
+                goal_ssp = self.cleanup_gt(env)
+            else:
+                noisy_goal_ssp = item_memory *~ semantic_goal
+                goal_ssp = self.cleanup_network(torch.Tensor(noisy_goal_ssp.v).unsqueeze(0))
+                # Normalize the result
+                goal_ssp = goal_ssp / float(np.linalg.norm(goal_ssp.detach().numpy()))
 
-        if use_localization_gt:
-            self.agent_ssp = self.localization_gt(env)
-        else:
-            # Just one step of the recurrent network
-            # dim is set to 1 because there is a batch dimension
-            # inputs are wrapped as a tuple because the network is expecting a tuple of tensors
-            self.agent_ssp = self.localization_network(
-                inputs=(torch.cat([velocity, distances, map_id], dim=1),),
-                initial_ssp=self.agent_ssp
-            ).squeeze(0)
+            if use_localization_gt:
+                self.agent_ssp = self.localization_gt(env)
+            else:
+                # Just one step of the recurrent network
+                # dim is set to 1 because there is a batch dimension
+                # inputs are wrapped as a tuple because the network is expecting a tuple of tensors
+                self.agent_ssp = self.localization_network(
+                    inputs=(torch.cat([velocity, distances, map_id], dim=1),),
+                    initial_ssp=self.agent_ssp
+                ).squeeze(0)
 
-        if use_policy_gt:
-            vel_action = self.policy_gt(map_id=map_id, agent_ssp=self.agent_ssp, goal_ssp=goal_ssp, env=env)
-        else:
-            vel_action = self.policy_network(
-                torch.cat([map_id, self.agent_ssp, goal_ssp], dim=1)
-            ).squeeze(0).detach().numpy()
+            if use_policy_gt:
+                vel_action = self.policy_gt(map_id=map_id, agent_ssp=self.agent_ssp, goal_ssp=goal_ssp, env=env)
+            else:
+                vel_action = self.policy_network(
+                    torch.cat([map_id, self.agent_ssp, goal_ssp], dim=1)
+                ).squeeze(0).detach().numpy()
 
-        # TODO: possibly do a transform on the action output if the environment needs it
+            # TODO: possibly do a transform on the action output if the environment needs it
 
-        return vel_action
+            return vel_action
 
     # def compute_goal_ssp(self, semantic_goal, item_memory, ground_truth=False):
     #     if ground_truth:

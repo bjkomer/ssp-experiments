@@ -174,7 +174,7 @@ else:
     raise NotImplementedError
 
 # quick workaround for the single_maze tests
-if 'single_maze' in args.load_saved_model:
+if 'single_maze' in args.load_saved_model or '1maze' in args.load_saved_model:
     validation_set = ValidationSet(
         data=data, maze_sps=maze_sps, maze_indices=[0], goal_indices=[0, 1, 2, 3], subsample=args.subsample,
         spatial_encoding=args.spatial_encoding,
