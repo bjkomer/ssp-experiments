@@ -82,6 +82,12 @@ limit_low = -ssp_offset * ssp_scaling
 limit_high = (env_size - ssp_offset) * ssp_scaling
 res = 128 #256
 
+#TEMP FIXME DEBUGGING
+print("limit_low", limit_low)
+print("limit_high", limit_high)
+# limit_low = -5
+# limit_high = 5
+
 xs = np.linspace(limit_low, limit_high, res)
 ys = np.linspace(limit_low, limit_high, res)
 

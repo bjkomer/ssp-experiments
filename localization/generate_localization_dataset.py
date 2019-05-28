@@ -195,6 +195,7 @@ for mi in range(args.n_maps):
         dist_sensors[mi, n, 0, :] = obs[env.obs_index_dict['dist_sensors']]
         ssps[mi, n, 0, :] = obs[env.obs_index_dict['agent_csp']]
 
+        # TODO: should this be converted from env coordinates to SSP coordinates?
         positions[mi, n, 0, 0] = env.state[0]
         positions[mi, n, 0, 1] = env.state[1]
 
@@ -217,7 +218,7 @@ for mi in range(args.n_maps):
             obs, reward, done, info = env.step(action)
 
             dist_sensors[mi, n, s, :] = obs[env.obs_index_dict['dist_sensors']]
-            ssps[mi, n, s, :] = obs[env.obs_index_dict['agent_csp']]
+            ssps[mi, n, s, :] = obs[env.obs_index_dict['agent_csp']]  # TODO: make sure this observation is correct
 
             positions[mi, n, s, 0] = env.state[0]
             positions[mi, n, s, 1] = env.state[1]
