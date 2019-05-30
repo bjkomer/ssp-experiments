@@ -132,7 +132,7 @@ goals_scaled = ((goals - xs[0]) / limit_range) * coarse_size
 n_goals = 10  # TODO: make this a parameter
 object_locations = OrderedDict()
 vocab = {}
-use_dataset_goals = True
+use_dataset_goals = False #True
 for i in range(n_goals):
     sp_name = possible_objects[i]
     if use_dataset_goals:

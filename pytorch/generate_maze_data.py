@@ -8,8 +8,8 @@ parser = argparse.ArgumentParser(
     'Generate random mazes, and their solutions for particular goal locations'
 )
 
-parser.add_argument('--maze-size', type=int, default=11, help='Size of the coarse maze structure')
-parser.add_argument('--map-style', type=str, default='blocks', choices=['blocks', 'maze', 'mixed'], help='Style of maze')
+parser.add_argument('--maze-size', type=int, default=13, help='Size of the coarse maze structure')
+parser.add_argument('--map-style', type=str, default='maze', choices=['blocks', 'maze', 'mixed'], help='Style of maze')
 parser.add_argument('--res', type=int, default=64, help='resolution of the fine maze')
 parser.add_argument('--limit-low', type=float, default=-5, help='lowest coordinate value')
 parser.add_argument('--limit-high', type=float, default=5, help='highest coordinate value')
@@ -88,7 +88,7 @@ for mi in range(args.n_mazes):
 
     if args.n_goals > n_free_spaces:
         # workaround for there being more goals than spaces. This is non-ideal and shouldn't happen
-        print("Warning, more goals desired than coarse free spaces in maze")
+        print("Warning, more goals desired than coarse free spaces in maze. n_free_spaces = {}".format(n_free_spaces))
         goal_indices = np.random.choice(n_free_spaces, args.n_goals, replace=True)
     else:
         goal_indices = np.random.choice(n_free_spaces, args.n_goals, replace=False)

@@ -46,6 +46,7 @@ parser.add_argument('--res', type=int, default=64, help='resolution of the fine 
 parser.add_argument('--limit-low', type=float, default=-5, help='lowest coordinate value')
 parser.add_argument('--limit-high', type=float, default=5, help='highest coordinate value')
 parser.add_argument('--dataset', type=str, default='maze_datasets/maze_dataset_10mazes_25goals_64res_13seed.npz')
+parser.add_argument('--use-wall-overlay', action='store_true', help='Use rainbow colours and wall overlay in validation images')
 parser.add_argument('--logdir', type=str, default='multi_maze_solve_function',
                     help='Directory for saved model and tensorboard log')
 parser.add_argument('--load-saved-model', type=str, default='', help='Saved model to load from')
@@ -96,7 +97,7 @@ else:
 # validation_set = ValidationSet(data=data, maze_indices=np.arange(n_mazes), goal_indices=[0])
 
 # quick workaround for the single_maze tests
-if 'single_maze' in args.logdir or '1mazes' in args.logdir:
+if 'single_maze' in args.logdir or '1maze' in args.logdir:
     validation_set = ValidationSet(
         data=data, maze_sps=maze_sps, maze_indices=[0], goal_indices=[0, 1, 2, 3], subsample=args.subsample,
         spatial_encoding=args.spatial_encoding,
@@ -169,7 +170,7 @@ for e in range(args.epoch_offset, args.epochs + args.epoch_offset):
     if e % args.viz_period == 0:
         print("Running Viz Set")
         # do a validation run and save images
-        validation_set.run_validation(model, writer, e)
+        validation_set.run_validation(model, writer, e, use_wall_overlay=args.use_wall_overlay)
 
         if e > 0:
             # Save a copy of the model at this stage
@@ -235,7 +236,7 @@ with torch.no_grad():
         writer.add_scalar('final_test_loss', loss.data.item())
 
 print("Visualization")
-validation_set.run_validation(model, writer, args.epochs + args.epoch_offset)
+validation_set.run_validation(model, writer, args.epochs + args.epoch_offset, use_wall_overlay=args.use_wall_overlay)
 
 
 # Close tensorboard writer
