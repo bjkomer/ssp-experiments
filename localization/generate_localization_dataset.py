@@ -24,6 +24,7 @@ parser.add_argument('--map-size', type=int, default=10, help='height and width o
 parser.add_argument('--ssp-scaling', type=float, default=1.0, help='amount to multiply coordinates by before converting to SSP')
 parser.add_argument('--ssp-offset', type=float, default=0.0)
 parser.add_argument('--maze-dataset', type=str, default='', help='if given, use the maze layouts from the dataset instead of random')
+parser.add_argument('--prefix', type=str, default='localization_trajectories', help='dataset prefix')
 
 args = parser.parse_args()
 
@@ -248,7 +249,8 @@ for mi in range(args.n_maps):
 #     activation_type = 'logits'
 
 np.savez(
-    'data/localization_trajectories_{}m_{}t_{}s_seed{}.npz'.format(
+    'data/{}_{}m_{}t_{}s_seed{}.npz'.format(
+        args.prefix,
         args.n_maps,
         args.n_trajectories,
         args.trajectory_steps,

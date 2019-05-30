@@ -16,7 +16,7 @@ from collections import OrderedDict
 from spatial_semantic_pointers.utils import encode_point, ssp_to_loc, get_heatmap_vectors
 
 # softlinked from ../pytorch/models.py
-from models import FeedForward
+from models import FeedForward, MLP
 
 # softlinked from ../localization/localization_training_utils.py
 from localization_training_utils import LocalizationModel
@@ -38,6 +38,7 @@ parser.add_argument('--policy-network', type=str,
 parser.add_argument('--snapshot-localization-network', type=str,
                     default='networks/snapshot_localization_network.pt',
                     help='localization from sensors without velocity, for initialization')
+parser.add_argument('--n-hidden-layers-policy', type=int, default=1, help='number of hidden layers in the policy network')
 parser.add_argument('--dataset', type=str,
                     default='../pytorch/maze_datasets/maze_dataset_maze_style_10mazes_25goals_64res_13size_13seed.npz',
                     # default='../pytorch/maze_datasets/maze_dataset_maze_style_50mazes_25goals_64res_13size_13seed_modified.npz',
@@ -188,7 +189,10 @@ localization_network = LocalizationModel(
 localization_network.load_state_dict(torch.load(args.localization_network), strict=True)
 localization_network.eval()
 
-policy_network = FeedForward(input_size=id_size + ssp_dim * 2, output_size=2)
+if args.n_hidden_layers_policy == 1:
+    policy_network = FeedForward(input_size=id_size + ssp_dim * 2, output_size=2)
+else:
+    policy_network = MLP(input_size=id_size + ssp_dim * 2, output_size=2, n_layers=args.n_hidden_layers_policy)
 policy_network.load_state_dict(torch.load(args.policy_network), strict=True)
 policy_network.eval()
 
@@ -201,8 +205,8 @@ snapshot_localization_network.load_state_dict(torch.load(args.snapshot_localizat
 snapshot_localization_network.eval()
 
 
-# Ground truth versions of the above functions
-planner = OptimalPlanner(continuous=True, directional=False)
+# # Ground truth versions of the above functions
+# planner = OptimalPlanner(continuous=True, directional=False)
 
 
 def cleanup_gt(env):
