@@ -20,9 +20,11 @@ parser.add_argument('--n-sensors', type=int, default=36, help='number of distanc
 parser.add_argument('--fov', type=float, default=360, help='field of view of distance sensors, in degrees')
 parser.add_argument('--n-maps', type=int, default=10, help='number of different map layouts to use')
 parser.add_argument('--map-style', type=str, default='blocks', choices=['blocks', 'maze'], help='type of map layout')
-parser.add_argument('--map-size', type=int, default=10, help='height and width of the maze, in cells')
-parser.add_argument('--ssp-scaling', type=float, default=1.0, help='amount to multiply coordinates by before converting to SSP')
-parser.add_argument('--ssp-offset', type=float, default=0.0)
+parser.add_argument('--map-size', type=int, default=13, help='height and width of the maze, in cells')
+# parser.add_argument('--ssp-scaling', type=float, default=1.0, help='amount to multiply coordinates by before converting to SSP')
+# parser.add_argument('--ssp-offset', type=float, default=0.0)
+parser.add_argument('--limit-low', type=float, default=-5.)
+parser.add_argument('--limit-high', type=float, default=5.)
 parser.add_argument('--maze-dataset', type=str, default='', help='if given, use the maze layouts from the dataset instead of random')
 parser.add_argument('--prefix', type=str, default='localization_trajectories', help='dataset prefix')
 
@@ -160,6 +162,12 @@ def get_ssp_activation(pos):
 if args.maze_dataset:
     coarse_maps = np.load(args.maze_dataset)['coarse_mazes']
 
+# compute scaling and offset that will transform a value in the range (0, map-size) to (limit_low, limit_high)
+
+map_size = coarse_maps.shape[1]
+ssp_scaling = (args.limit_high - args.limit_low) / map_size
+ssp_offset = map_size / 2.
+
 for mi in range(args.n_maps):
     print("Map {} of {}".format(mi + 1, args.n_maps))
 
@@ -180,8 +188,8 @@ for mi in range(args.n_maps):
         screen_width=300,
         screen_height=300,
         # TODO: use these parameters appropriately, and save them with the dataset
-        csp_scaling=args.ssp_scaling,  # multiply state by this value before creating a csp
-        csp_offset=args.ssp_offset,  # subtract this value from state before creating a csp
+        csp_scaling=ssp_scaling,  # multiply state by this value before creating a csp
+        csp_offset=ssp_offset,  # subtract this value from state before creating a csp
     )
 
     agent = RandomTrajectoryAgent(obs_index_dict=env.obs_index_dict)
@@ -272,6 +280,8 @@ np.savez(
     # ssp_scaling=args.ssp_scaling,
     # env_size=args.env_size,
     coarse_maps=coarse_maps,
-    ssp_scaling=args.ssp_scaling,
-    ssp_offset=args.ssp_offset,
+    # ssp_scaling=args.ssp_scaling,
+    # ssp_offset=args.ssp_offset,
+    ssp_scaling=ssp_scaling,
+    ssp_offset=ssp_offset,
 )
