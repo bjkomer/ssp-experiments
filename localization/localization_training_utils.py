@@ -290,11 +290,12 @@ def localization_train_test_loaders(
     #
     # pc_activations = data['pc_activations']
 
-    coarse_maps = data['coarse_maps']
-    n_mazes = coarse_maps.shape[0]
+    # coarse_maps = data['coarse_maps']
+    # n_mazes = coarse_maps.shape[0]
 
-    n_trajectories = positions.shape[0]
-    trajectory_length = positions.shape[1]
+    n_mazes = positions.shape[0]
+    n_trajectories = positions.shape[1]
+    trajectory_length = positions.shape[2]
     dim = ssps.shape[3]
 
     for test_set, n_samples in enumerate([n_train_samples, n_test_samples]):
