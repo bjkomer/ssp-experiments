@@ -80,7 +80,7 @@ dim = data['ssps'].shape[3]
 
 limit_low = -ssp_offset * ssp_scaling
 limit_high = (env_size - ssp_offset) * ssp_scaling
-res = 128 #256
+res = 256
 
 #TEMP FIXME DEBUGGING
 print("limit_low", limit_low)

@@ -58,6 +58,9 @@ limit_low = -ssp_offset * ssp_scaling
 limit_high = (env_size - ssp_offset) * ssp_scaling
 res = 256
 
+print("ssp limits")
+print(limit_low, limit_high)
+
 xs = np.linspace(limit_low, limit_high, res)
 ys = np.linspace(limit_low, limit_high, res)
 
