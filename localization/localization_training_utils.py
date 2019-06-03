@@ -298,6 +298,9 @@ def localization_train_test_loaders(
     trajectory_length = positions.shape[2]
     dim = ssps.shape[3]
 
+    # Split the trajectories into train and test sets
+    train_test_traj_split = n_trajectories // 2
+
     for test_set, n_samples in enumerate([n_train_samples, n_test_samples]):
 
         velocity_inputs = np.zeros((n_samples, rollout_length, 2))
@@ -330,7 +333,10 @@ def localization_train_test_loaders(
                 # use only some mazes
                 maze_ind = np.random.randint(low=0, high=n_mazes_to_use)
             # choose random trajectory
-            traj_ind = np.random.randint(low=0, high=n_trajectories)
+            if test_set == 0:
+                traj_ind = np.random.randint(low=0, high=train_test_traj_split)
+            elif test_set == 1:
+                traj_ind = np.random.randint(low=train_test_traj_split, high=n_trajectories)
             # choose random segment of trajectory
             step_ind = np.random.randint(low=0, high=trajectory_length - rollout_length - 1)
 
