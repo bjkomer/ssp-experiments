@@ -44,8 +44,11 @@ parser.add_argument('--dataset', type=str,
                     # default='../pytorch/maze_datasets/maze_dataset_maze_style_50mazes_25goals_64res_13size_13seed_modified.npz',
                     help='dataset to get the maze layout from')
 parser.add_argument('--maze-index', type=int, default=0, help='index within the dataset for the maze to use')
-parser.add_argument('--noise', type=float, default=0.75, help='Magnitude of gaussian noise to add to the actions')
+parser.add_argument('--noise', type=float, default=0.25, help='magnitude of gaussian noise to add to the actions')
 parser.add_argument('--seed', type=int, default=13)
+parser.add_argument('--use-dataset-goals', action='store_true', help='use only the goals the policy was trained on')
+parser.add_argument('--ghost', type=str, default='trajectory', choices=['none', 'snapshot_loc', 'trajectory_loc'],
+                    help='what information should be displayed by the ghost')
 
 args = parser.parse_args()
 
@@ -133,10 +136,9 @@ goals_scaled = ((goals - xs[0]) / limit_range) * coarse_size
 n_goals = 10  # TODO: make this a parameter
 object_locations = OrderedDict()
 vocab = {}
-use_dataset_goals = False #True
 for i in range(n_goals):
     sp_name = possible_objects[i]
-    if use_dataset_goals:
+    if args.use_dataset_goals:
         object_locations[sp_name] = goals_scaled[args.maze_index, i]  # using goal locations from the dataset
     else:
         # If set to None, the environment will choose a random free space on init
@@ -319,19 +321,20 @@ for e in range(num_episodes):
             use_policy_gt=False,
         )
 
-        if False:
-            # localization ghost
-            agent_ssp = agent.localization_network(
-                inputs=(torch.cat([velocity, distances, map_id], dim=1),),
-                initial_ssp=agent.agent_ssp
-            ).squeeze(0)
-        else:
-            # snapshot localization ghost
-            agent_ssp = agent.snapshot_localization_network(torch.cat([distances, map_id], dim=1))
-        agent_loc = ssp_to_loc(agent_ssp.squeeze(0).detach().numpy(), heatmap_vectors, xs, ys)
-        # Scale to env coordinates, from (-5,5) to (0,13)
-        agent_loc = ((agent_loc - xs[0]) / limit_range) * coarse_size
-        env.render_ghost(x=agent_loc[0], y=agent_loc[1])
+        if args.ghost != 'none':
+            if args.ghost == 'trajectory_loc':
+                # localization ghost
+                agent_ssp = agent.localization_network(
+                    inputs=(torch.cat([velocity, distances, map_id], dim=1),),
+                    initial_ssp=agent.agent_ssp
+                ).squeeze(0)
+            elif args.ghost == 'snapshot_loc':
+                # snapshot localization ghost
+                agent_ssp = agent.snapshot_localization_network(torch.cat([distances, map_id], dim=1))
+            agent_loc = ssp_to_loc(agent_ssp.squeeze(0).detach().numpy(), heatmap_vectors, xs, ys)
+            # Scale to env coordinates, from (-5,5) to (0,13)
+            agent_loc = ((agent_loc - xs[0]) / limit_range) * coarse_size
+            env.render_ghost(x=agent_loc[0], y=agent_loc[1])
 
         # Add small amount of noise to the action
         action += np.random.normal(size=2) * args.noise
