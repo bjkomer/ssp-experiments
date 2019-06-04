@@ -46,9 +46,14 @@ parser.add_argument('--dataset', type=str,
 parser.add_argument('--maze-index', type=int, default=0, help='index within the dataset for the maze to use')
 parser.add_argument('--noise', type=float, default=0.25, help='magnitude of gaussian noise to add to the actions')
 parser.add_argument('--seed', type=int, default=13)
+parser.add_argument('--use-snapshot-localization', action='store_true', help='localize with distance sensors only')
 parser.add_argument('--use-dataset-goals', action='store_true', help='use only the goals the policy was trained on')
-parser.add_argument('--ghost', type=str, default='trajectory', choices=['none', 'snapshot_loc', 'trajectory_loc'],
+parser.add_argument('--ghost', type=str, default='trajectory_loc', choices=['none', 'snapshot_loc', 'trajectory_loc'],
                     help='what information should be displayed by the ghost')
+parser.add_argument('--use-cleanup-gt', action='store_true')
+parser.add_argument('--use-policy-gt', action='store_true')
+parser.add_argument('--use-localization-gt', action='store_true')
+parser.add_argument('--use-snapshot-localization-gt', action='store_true')
 
 args = parser.parse_args()
 
@@ -275,6 +280,8 @@ agent = GoalFindingAgent(
     policy_network=policy_network,
     snapshot_localization_network=snapshot_localization_network,
 
+    use_snapshot_localization=args.use_snapshot_localization,
+
     cleanup_gt=cleanup_gt,
     localization_gt=localization_gt,
     policy_gt=policy_gt,
@@ -296,7 +303,7 @@ for e in range(num_episodes):
         distances,
         map_id,
         env,
-        use_localization_gt=True
+        use_localization_gt=args.use_snapshot_localization_gt
     )
     action = np.zeros((2,))
     for s in range(params['episode_length']):
@@ -316,9 +323,9 @@ for e in range(num_episodes):
             item_memory=item_memory,
 
             env=env,  # only used for some ground truth options
-            use_cleanup_gt=True,
-            use_localization_gt=True,
-            use_policy_gt=False,
+            use_cleanup_gt=args.use_cleanup_gt,
+            use_localization_gt=args.use_localization_gt,
+            use_policy_gt=args.use_policy_gt,
         )
 
         if args.ghost != 'none':

@@ -8,6 +8,7 @@ class GoalFindingAgent(object):
     def __init__(self,
                  cleanup_network, localization_network, policy_network, snapshot_localization_network,
                  cleanup_gt, localization_gt, policy_gt, snapshot_localization_gt,
+                 use_snapshot_localization=False,
                  ):
 
         self.cleanup_network = cleanup_network
@@ -20,6 +21,9 @@ class GoalFindingAgent(object):
         self.localization_gt = localization_gt
         self.policy_gt = policy_gt
         self.snapshot_localization_gt = snapshot_localization_gt
+
+        # If true, the snapshot localization network will be used every step
+        self.use_snapshot_localization = use_snapshot_localization
 
         # need a reasonable default for the agent ssp
         # maybe use a snapshot localization network that only uses distance sensors to initialize it?
@@ -61,13 +65,16 @@ class GoalFindingAgent(object):
             if use_localization_gt:
                 self.agent_ssp = self.localization_gt(env)
             else:
-                # Just one step of the recurrent network
-                # dim is set to 1 because there is a batch dimension
-                # inputs are wrapped as a tuple because the network is expecting a tuple of tensors
-                self.agent_ssp = self.localization_network(
-                    inputs=(torch.cat([velocity, distances, map_id], dim=1),),
-                    initial_ssp=self.agent_ssp
-                ).squeeze(0)
+                if self.use_snapshot_localization:
+                    self.snapshot_localize(distances=distances, map_id=map_id, env=env, use_localization_gt=False)
+                else:
+                    # Just one step of the recurrent network
+                    # dim is set to 1 because there is a batch dimension
+                    # inputs are wrapped as a tuple because the network is expecting a tuple of tensors
+                    self.agent_ssp = self.localization_network(
+                        inputs=(torch.cat([velocity, distances, map_id], dim=1),),
+                        initial_ssp=self.agent_ssp
+                    ).squeeze(0)
 
             if use_policy_gt:
                 vel_action = self.policy_gt(map_id=map_id, agent_ssp=self.agent_ssp, goal_ssp=goal_ssp, env=env)
