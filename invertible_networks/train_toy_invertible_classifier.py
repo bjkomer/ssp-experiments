@@ -1,28 +1,30 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from tensorboardX import SummaryWriter
 import argparse
 import json
 from datetime import datetime
 import os.path as osp
-from models import FeedForward
+from models import InvertibleBlock, InvertibleNetwork
 from toy_dataset import ToyDataset
 
 
 def main():
-    parser = argparse.ArgumentParser('Train a simple classifier on a toy dataset')
+    parser = argparse.ArgumentParser('Train a simple invertible classifier on a toy dataset')
 
     parser.add_argument('--dataset', type=str, default='')
     parser.add_argument('--train-fraction', type=float, default=.5, help='proportion of the dataset to use for training')
     parser.add_argument('--n-samples', type=int, default=10000)
     parser.add_argument('--hidden-size', type=int, default=512, help='Hidden size of the cleanup network')
+    parser.add_argument('--n-hidden-layers', type=int, default=1)
     parser.add_argument('--epochs', type=int, default=20)
     parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--seed', type=int, default=13)
-    parser.add_argument('--logdir', type=str, default='trained_models/simple_classifier',
+    parser.add_argument('--logdir', type=str, default='trained_models/invertible_classifier',
                         help='Directory for saved model and tensorboard log')
     parser.add_argument('--load-model', type=str, default='', help='Optional model to continue training from')
     parser.add_argument('--name', type=str, default='',
@@ -48,7 +50,17 @@ def main():
         dataset_test, batch_size=len(dataset_test), shuffle=False, num_workers=0,
     )
 
-    model = FeedForward(input_size=2, hidden_size=args.hidden_size, output_size=4)
+    input_size = 2
+    output_size = 4
+    hidden_sizes = [args.hidden_size] * args.n_hidden_layers
+    model = InvertibleNetwork(
+        input_output_size=max(input_size, output_size),
+        hidden_sizes=hidden_sizes,
+    )
+    # model = InvertibleBlock(
+    #     input_output_size=max(input_size, output_size),
+    #     hidden_size=args.hidden_size
+    # )
 
     # Open a tensorboard writer if a logging directory is given
     if args.logdir != '':
@@ -78,6 +90,10 @@ def main():
             optimizer.zero_grad()
 
             # outputs = torch.max(model(locations), 1)[1].unsqueeze(1)
+
+            # pad locations with zeros to match label dimensionality
+            locations = F.pad(locations, pad=(0, 2), mode='constant', value=0)
+
             outputs = model(locations)
 
             loss = criterion(outputs, labels)
@@ -109,6 +125,9 @@ def main():
         for i, data in enumerate(testloader):
 
             locations, labels = data
+
+            # pad locations with zeros to match label dimensionality
+            locations = F.pad(locations, pad=(0, 2), mode='constant', value=0)
 
             outputs = model(locations)
 
