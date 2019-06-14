@@ -2,12 +2,13 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch import distributions
 from tensorboardX import SummaryWriter
 import argparse
 import json
 from datetime import datetime
 import os.path as osp
-from models import InvertibleBlock, InvertibleNetwork
+from models import InvertibleBlock, InvertibleNetwork, inverse_multiquadratic, inverse_multiquadratic_v2
 from toy_dataset import ToyDataset
 
 
@@ -17,14 +18,14 @@ def main():
     parser.add_argument('--dataset', type=str, default='')
     parser.add_argument('--train-fraction', type=float, default=.5, help='proportion of the dataset to use for training')
     parser.add_argument('--n-samples', type=int, default=10000)
-    parser.add_argument('--hidden-size', type=int, default=512, help='Hidden size of the cleanup network')
+    parser.add_argument('--hidden-size', type=int, default=2, help='Hidden size of the s and t blocks')
     parser.add_argument('--n-hidden-layers', type=int, default=1)
     parser.add_argument('--epochs', type=int, default=20)
     parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--seed', type=int, default=13)
-    parser.add_argument('--logdir', type=str, default='trained_models/invertible_classifier',
+    parser.add_argument('--logdir', type=str, default='trained_models/invertible_latent_classifier',
                         help='Directory for saved model and tensorboard log')
     parser.add_argument('--load-model', type=str, default='', help='Optional model to continue training from')
     parser.add_argument('--name', type=str, default='',
@@ -52,9 +53,13 @@ def main():
 
     input_size = 2
     output_size = 4
+    latent_size = 2
+
+    input_padding = output_size + latent_size - input_size
+
     hidden_sizes = [args.hidden_size] * args.n_hidden_layers
     model = InvertibleNetwork(
-        input_output_size=max(input_size, output_size),
+        input_output_size=max(input_size, output_size + latent_size),
         hidden_sizes=hidden_sizes,
     )
     # model = InvertibleBlock(
@@ -73,6 +78,9 @@ def main():
                 writer.add_histogram('parameters/' + name, param.clone().cpu().data.numpy(), 0)
 
     criterion = nn.CrossEntropyLoss()
+
+    z_dist = distributions.MultivariateNormal(torch.zeros(latent_size), torch.eye(latent_size))
+
     # criterion = nn.NLLLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 
@@ -92,11 +100,43 @@ def main():
             # outputs = torch.max(model(locations), 1)[1].unsqueeze(1)
 
             # pad locations with zeros to match label dimensionality
-            locations = F.pad(locations, pad=(0, 2), mode='constant', value=0)
+            locations = F.pad(locations, pad=(0, input_padding), mode='constant', value=0)
 
+            # outputs, logp = model(locations)
             outputs = model(locations)
 
-            loss = criterion(outputs, labels)
+            output_class = outputs[:, :output_size]
+            output_latent = outputs[:, output_size:]
+
+            # print(outputs.shape)
+            # print(output_class.shape)
+            # print(output_latent.shape)
+
+            loss_class = criterion(output_class, labels)
+
+            # print(z_dist.sample((output_latent.shape[0],)).shape)
+            # assert False
+
+            # loss_latent = z_dist.log_prob(output_latent) + output_latent.sum()
+            # loss_latent = -(z_dist.sample((output_latent.shape[0],)).mean() - output_latent.mean())
+            loss_latent = inverse_multiquadratic_v2(
+                z_dist.sample((output_latent.shape[0],)),
+                output_latent
+            )
+            # TODO: make this correct
+            # loss_latent = (-z_dist.log_prob(output_latent).sum()).log()
+            # loss_latent = (-z_dist.log_prob(output_latent) + logp).sum().log()
+            # loss_latent = -(z_dist.log_prob(output_latent) + logp).mean()
+
+            loss = loss_class + loss_latent
+
+            print("loss_class:", loss_class.data.item())
+            print("loss_latent:", loss_latent.data.item())
+            print("loss:", loss.data.item())
+
+            # print(loss_class.shape)
+            # print(loss_latent.shape)
+            # print(loss.shape)
 
             avg_loss += loss.data.item()
             n_batches += 1
@@ -127,11 +167,28 @@ def main():
             locations, labels = data
 
             # pad locations with zeros to match label dimensionality
-            locations = F.pad(locations, pad=(0, 2), mode='constant', value=0)
+            locations = F.pad(locations, pad=(0, input_padding), mode='constant', value=0)
 
+            # outputs, logp = model(locations)
             outputs = model(locations)
 
-            loss = criterion(outputs, labels)
+            output_class = outputs[:, :output_size]
+            output_latent = outputs[:, output_size:]
+
+            loss_class = criterion(output_class, labels)
+
+            # loss_latent = z_dist.log_prob(output_latent) + output_latent.sum()
+            # loss_latent = -(z_dist.sample((output_latent.shape[0],)).mean() - output_latent.mean())
+            loss_latent = inverse_multiquadratic_v2(
+                z_dist.sample((output_latent.shape[0],)),
+                output_latent
+            )
+            # TODO: make this correct
+            # loss_latent = (-z_dist.log_prob(output_latent).sum()).log()
+            # loss_latent = (-z_dist.log_prob(output_latent) + logp).sum().log()
+            # loss_latent = -(z_dist.log_prob(output_latent) + logp).mean()
+
+            loss = loss_class + loss_latent
 
             print(loss.data.item())
 

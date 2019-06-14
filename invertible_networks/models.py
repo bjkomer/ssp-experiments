@@ -64,12 +64,22 @@ class InvertibleBlock(nn.Module):
     def forward(self, input):
         u1, u2 = split(input)
 
+        # TEMP FIXME
+        # log_det_J = input.new_zeros(input.shape[0])
+
         v1 = u1 * torch.exp(self.s2(u2)) + self.t2(u2)
         v2 = u2 * torch.exp(self.s1(v1)) + self.t1(v1)
+        # s1 = self.s1(v1)
+        # v2 = u2 * torch.exp(s1) + self.t1(v1)
+
+        # log_det_J -= (v1.sum(dim=1) + v2.sum(dim=1))
+        # log_det_J -= v1.sum(dim=1)
+        # log_det_J -= s1.sum(dim=1)
 
         output = merge(v1, v2)
 
         return output
+        # return output, log_det_J
 
     def backward(self, output):
         v1, v2 = split(output)
@@ -84,7 +94,7 @@ class InvertibleBlock(nn.Module):
 
 class InvertibleNetwork(nn.Module):
 
-    def __init__(self, input_output_size, hidden_sizes=(512, 512)):
+    def __init__(self, input_output_size, hidden_sizes=(512, 512), z_dim=2):
         super(InvertibleNetwork, self).__init__()
 
         # self.blocks = []
@@ -95,14 +105,27 @@ class InvertibleNetwork(nn.Module):
         #     )
         # self.modules = nn.ModuleList(self.blocks)
 
-        self.blocks = nn.ModuleList(InvertibleBlock(input_output_size=input_output_size, hidden_size=hidden_size) for hidden_size in hidden_sizes)
+        self.blocks = nn.ModuleList(
+            InvertibleBlock(
+                input_output_size=input_output_size, hidden_size=hidden_size
+            ) for hidden_size in hidden_sizes
+        )
+
+        self.z_dim = z_dim
+        self.z_dist = distributions.MultivariateNormal(torch.zeros(self.z_dim), torch.eye(self.z_dim))
 
     def forward(self, input):
+
+        # TEMP FIXME
+        # log_det_J = input.new_zeros(input.shape[0])
 
         output = input
         for block in self.blocks:
             output = block.forward(output)
+            # output, logp = block.forward(output)
+            # log_det_J += logp
         return output
+        # return output, log_det_J
 
     def backward(self, output):
 
@@ -156,3 +179,10 @@ class RealNVP(nn.Module):
 def inverse_multiquadratic(x1, x2, h):
     # TODO: what is h?
     return 1 / (1 + np.linalg.norm((x1 - x2) / h)**2)
+
+
+def inverse_multiquadratic_v2(x1, x2, C=1):
+    # C is: 2 * d_z * sigma**2,
+    # which is the expected squared distance between two multivariate Gaussian vectors drawn from P_Z
+    # return C / (C + np.linalg.norm((x1 - x2))**2)
+    return C / (C + torch.norm((x1 - x2))**2)

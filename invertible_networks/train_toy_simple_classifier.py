@@ -96,7 +96,7 @@ def main():
         if args.logdir != '':
             if n_batches > 0:
                 avg_loss /= n_batches
-                writer.add_scalar('avg_cosine_loss', avg_loss, e + 1)
+                writer.add_scalar('avg_loss', avg_loss, e + 1)
 
             if args.weight_histogram and (e + 1) % 10 == 0:
                 for name, param in model.named_parameters():
@@ -118,7 +118,7 @@ def main():
 
         if args.logdir != '':
             # TODO: get a visualization of the performance
-            writer.add_scalar('test_cosine_loss', loss.data.item())
+            writer.add_scalar('test_loss', loss.data.item())
 
     # Close tensorboard writer
     if args.logdir != '':
