@@ -94,7 +94,7 @@ print(np.min(predictions))
 
 # grid_scores['btln_60'], grid_scores['btln_90'], \
 # grid_scores['btln_60_separation'], grid_scores['btln_90_separation'] = utils.get_scores_and_plot(
-grid_scores_60, grid_scores_90, grid_scores_60_separation, grid_scores_90_separation = utils.get_scores_and_plot(
+grid_scores_60_pred, grid_scores_90_pred, grid_scores_60_separation_pred, grid_scores_90_separation_pred = utils.get_scores_and_plot(
     scorer=latest_epoch_scorer,
     data_abs_xy=predictions, #res['pos_xy'],
     activations=activations, #res['bottleneck'],
@@ -102,7 +102,7 @@ grid_scores_60, grid_scores_90, grid_scores_60_separation, grid_scores_90_separa
     filename=fname_pred,
 )
 
-grid_scores_60, grid_scores_90, grid_scores_60_separation, grid_scores_90_separation = utils.get_scores_and_plot(
+grid_scores_60_truth, grid_scores_90_truth, grid_scores_60_separation_truth, grid_scores_90_separation_truth = utils.get_scores_and_plot(
     scorer=latest_epoch_scorer,
     data_abs_xy=coords, #res['pos_xy'],
     activations=activations, #res['bottleneck'],
@@ -111,4 +111,18 @@ grid_scores_60, grid_scores_90, grid_scores_60_separation, grid_scores_90_separa
 )
 
 
-print(grid_scores_60, grid_scores_90, grid_scores_60_separation, grid_scores_90_separation)
+print(grid_scores_60_truth, grid_scores_90_truth, grid_scores_60_separation_truth, grid_scores_90_separation_truth)
+
+# Saving to make grid score values easy to compare for different variations
+fname = '{}_{}samples.npz'.format(args.fname_prefix, args.n_samples)
+np.savez(
+    fname,
+    grid_scores_60_pred=grid_scores_60_pred,
+    grid_scores_90_pred=grid_scores_90_pred,
+    grid_scores_60_separation_pred=grid_scores_60_separation_pred,
+    grid_scores_90_separation_pred=grid_scores_90_separation_pred,
+    grid_scores_60_truth=grid_scores_60_truth,
+    grid_scores_90_truth=grid_scores_90_truth,
+    grid_scores_60_separation_truth=grid_scores_60_separation_truth,
+    grid_scores_90_separation_truth=grid_scores_90_separation_truth,
+)
