@@ -154,6 +154,25 @@ def make_periodic_axes(dim=128,
     return vx, vy
 
 
+def angle_spacing_axes(ang_x, ang_y, off_x=0, off_y=0, dim=32):
+    # X_test = ((np.arange(dim) * ang_x) + off_x) % (2 * np.pi)
+    # Y_test = ((np.arange(dim) * ang_y) + off_y) % (2 * np.pi)
+    X_test = ((np.arange(dim) * ang_x) + off_x) % 360
+    Y_test = ((np.arange(dim) * ang_y) + off_y) % 360
+    Xc = np.cos(X_test*np.pi/180) + 1j * np.sin(X_test*np.pi/180)
+    Yc = np.cos(Y_test*np.pi/180) + 1j * np.sin(Y_test*np.pi/180)
+
+    X = np.fft.ifft(Xc)
+    Y = np.fft.ifft(Yc)
+
+    X = spa.SemanticPointer(data=X)
+    Y = spa.SemanticPointer(data=Y)
+    X.make_unitary()
+    Y.make_unitary()
+
+    return X, Y
+
+
 class Visualizer(object):
 
     def __init__(self, cmap='plasma', vmin=None, vmax=None):
@@ -214,6 +233,105 @@ class Visualizer(object):
         limits = max(.1, x[4])
 
         config = (seed, dimensionality, resolution, spacing, limits)
+
+        # Only perform computation if something has changed since the last step
+        if config != self.config:
+            # Set the new config and update the visualization
+            self.config = config
+
+            self.apply_config()
+
+            # Generate heatmap values
+            self.vs = np.tensordot(self.origin, self.heatmap_vectors, axes=([0], [2]))
+
+            if self.vmin is None:
+                min_val = np.min(self.vs)
+            else:
+                min_val = self.vmin
+
+            if self.vmax is None:
+                max_val = np.max(self.vs)
+            else:
+                max_val = self.vmax
+
+            self.vs = np.clip(self.vs, a_min=min_val, a_max=max_val)
+
+            # xy = np.unravel_index(self.vs.argmax(), self.vs.shape)
+
+            values = (self.cm(self.vs)*255).astype(np.uint8)
+
+            self._nengo_html_ = image_svg(values)
+
+
+class AngleSpacingVisualizer(object):
+
+    def __init__(self, cmap='plasma', vmin=None, vmax=None):
+
+        self.cmap = cmap
+        self.vmin = vmin
+        self.vmax = vmax
+
+        self.cm = cm.get_cmap(cmap)
+
+        self._nengo_html_ = ""
+
+        # default starting config
+        self.config = (13, 64, 32, 5, 30, 60, 0, 0)
+
+        self.apply_config()
+
+    def apply_config(self):
+
+        self.seed = self.config[0]
+        self.dim = self.config[1]
+        self.res = self.config[2]
+        self.limits = self.config[3]
+        self.x_spacing = self.config[4]
+        self.y_spacing = self.config[5]
+        self.x_offset = self.config[6]
+        self.y_offset = self.config[7]
+        self.xs = np.linspace(-self.limits, self.limits, self.res)
+        self.ys = np.linspace(-self.limits, self.limits, self.res)
+        self.x_axis_vec, self.y_axis_vec = angle_spacing_axes(
+            #rng=np.random.RandomState(seed=self.seed),
+            ang_x=self.x_spacing,
+            ang_y=self.y_spacing,
+            off_x=self.x_offset,
+            off_y=self.y_offset,
+            dim=self.dim,
+        )
+        self.heatmap_vectors = get_heatmap_vectors(
+            xs=self.xs,
+            ys=self.ys,
+            x_axis_sp=self.x_axis_vec,
+            y_axis_sp=self.y_axis_vec
+        )
+
+        # Origin point for similarity measures
+        self.origin = np.zeros((self.dim,))
+        self.origin[0] = 1
+
+    def __call__(self, t, x):
+        """
+        seed
+        dimensionality
+        resolution
+        spacing
+        limits
+        """
+
+        seed = int(x[0])  # NOTE: this is currently unused
+        dimensionality = max(2, int(x[1]))
+        resolution = max(16, int(x[2]))
+        limits = max(.1, x[3])
+
+        # NOTE: these don't need to be int, just rounding to make things faster when scrolling through
+        x_spacing = max(1, int(x[4]))
+        y_spacing = max(1, int(x[5]))
+        x_offset = int(x[6])
+        y_offset = int(x[7])
+
+        config = (seed, dimensionality, resolution, limits, x_spacing, y_spacing, x_offset, y_offset)
 
         # Only perform computation if something has changed since the last step
         if config != self.config:
