@@ -47,7 +47,7 @@ for mi in range(n_maps):
             positions[mi, ti, :, 0],
             positions[mi, ti, :, 1],
             color='blue',
-            label='predictions',
+            label='ground truth',
         )
 
 plt.show()
