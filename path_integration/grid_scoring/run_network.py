@@ -40,7 +40,7 @@ def run_and_gather_activations(
     y_axis_vec = data['y_axis_vec']
 
     pc_centers = data['pc_centers']
-    pc_activations = data['pc_activations']
+    #pc_activations = data['pc_activations']
 
     if encoding == 'ssp':
         encoding_dim = 512
@@ -161,7 +161,11 @@ def run_and_gather_localization_activations(
     ssp_offset = data['ssp_offset']
 
     # shape of coarse maps is (n_maps, env_size, env_size)
-    coarse_maps = data['coarse_maps']
+    # some npz files had different naming, try both
+    try:
+        coarse_maps = data['coarse_maps']
+    except KeyError:
+        coarse_maps = data['coarse_mazes']
     n_maps = coarse_maps.shape[0]
     env_size = coarse_maps.shape[1]
 
