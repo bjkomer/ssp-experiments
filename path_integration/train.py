@@ -243,6 +243,16 @@ for epoch in range(n_epochs):
             writer.add_figure("predictions end", fig_pred_end, epoch)
             writer.add_figure("ground truth end", fig_truth_end, epoch)
 
+            if args.encoding == 'ssp':
+                torch.save(
+                    model.state_dict(),
+                    os.path.join(save_dir, 'ssp_path_integration_model_epoch_{}.pt'.format(epoch))
+                )
+            elif args.encoding == '2d':
+                torch.save(
+                    model.state_dict(),
+                    os.path.join(save_dir, '2d_path_integration_model_epoch_{}.pt'.format(epoch))
+                )
 
     avg_bce_loss = 0
     avg_cosine_loss = 0
@@ -308,11 +318,6 @@ for epoch in range(n_epochs):
 
         # avg_loss += loss.data.item()
         n_batches += 1
-
-    if args.encoding == 'ssp':
-        torch.save(model.state_dict(), os.path.join(save_dir, 'ssp_path_integration_model_epoch_{}.pt'.format(epoch)))
-    elif args.encoding == '2d':
-        torch.save(model.state_dict(), os.path.join(save_dir, '2d_path_integration_model_epoch_{}.pt'.format(epoch)))
 
     if args.encoding == 'pc':
         avg_bce_loss /= n_batches
