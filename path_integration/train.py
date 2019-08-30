@@ -309,6 +309,11 @@ for epoch in range(n_epochs):
         # avg_loss += loss.data.item()
         n_batches += 1
 
+    if args.encoding == 'ssp':
+        torch.save(model.state_dict(), os.path.join(save_dir, 'ssp_path_integration_model_epoch_{}.pt'.format(epoch)))
+    elif args.encoding == '2d':
+        torch.save(model.state_dict(), os.path.join(save_dir, '2d_path_integration_model_epoch_{}.pt'.format(epoch)))
+
     if args.encoding == 'pc':
         avg_bce_loss /= n_batches
         print("bce loss:", avg_bce_loss)
