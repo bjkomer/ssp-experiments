@@ -3,6 +3,7 @@ import numpy as np
 from spatial_semantic_pointers.utils import encode_point, make_good_unitary, ssp_to_loc, get_heatmap_vectors
 from spatial_semantic_pointers.plots import plot_heatmap
 import nengo.spa as spa
+# import nengo_spa as spa
 from graphs import Graph, Node
 from algorithms import EllipticExpansion
 import matplotlib.pyplot as plt

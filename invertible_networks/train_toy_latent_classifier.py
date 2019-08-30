@@ -130,9 +130,9 @@ def main():
 
             loss = loss_class + loss_latent
 
-            print("loss_class:", loss_class.data.item())
-            print("loss_latent:", loss_latent.data.item())
-            print("loss:", loss.data.item())
+            # print("loss_class:", loss_class.data.item())
+            # print("loss_latent:", loss_latent.data.item())
+            # print("loss:", loss.data.item())
 
             # print(loss_class.shape)
             # print(loss_latent.shape)

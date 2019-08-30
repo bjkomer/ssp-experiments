@@ -11,6 +11,9 @@ import numpy as np
 import json
 import os
 
+np.random.seed(13)
+torch.manual_seed(13)
+
 # should point to the model folder, so both model and params can be read
 fname = sys.argv[1]
 model_fname = os.path.join(fname, 'model.pt')
@@ -119,8 +122,8 @@ location_trimmed = location_generation.detach().numpy()[:, :2]
 
 plot_data(location_trimmed, lab, ax[2])
 
-# for i in range(3):
-#     ax[i].set_xlim([-4, 4])
-#     ax[i].set_ylim([-4, 4])
+for i in range(3):
+    ax[i].set_xlim([-4, 4])
+    ax[i].set_ylim([-4, 4])
 
 plt.show()
