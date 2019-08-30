@@ -14,6 +14,7 @@ parser.add_argument('--dataset', type=str, default='')
 parser.add_argument('--model', type=str, default='')
 parser.add_argument('--fname-prefix', type=str, default='sac')
 parser.add_argument('--ssp-scaling', type=float, default=5.0)
+parser.add_argument('--encoding', type=str, default='ssp', choices=['ssp', '2d', 'pc'])
 
 args = parser.parse_args()
 
@@ -69,7 +70,8 @@ if args.use_localization:
     activations, predictions, coords = run_and_gather_localization_activations(
         n_samples=args.n_samples,
         dataset=dataset,
-        model_path=model
+        model_path=model,
+        encoding=args.encoding,
     )
 else:
     # "../../lab/reproducing/data/path_integration_trajectories_logits_1000t_15s_seed13.npz"
@@ -82,6 +84,7 @@ else:
         n_samples=args.n_samples,
         dataset=dataset,
         model_path=model,
+        encoding=args.encoding,
     )
 
     predictions = predictions / ssp_scaling
