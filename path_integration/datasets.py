@@ -26,7 +26,8 @@ class SSPTrajectoryDataset(data.Dataset):
         return self.velocity_inputs.shape[0]
 
 
-def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_length=100, batch_size=10, encoding='ssp'):
+def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_length=100,
+                       batch_size=10, encoding='ssp', encoding_func=None):
 
     # Option to use SSPs or the 2D location directly
     assert encoding in ['ssp', '2d', 'pc']
@@ -34,7 +35,19 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
     positions = data['positions']
 
     cartesian_vels = data['cartesian_vels']
-    ssps = data['ssps']
+
+    if encoding == 'frozen-learned':  # maybe just make this custom-encoding instead?
+        assert encoding_func is not None
+        # FIXME: make this less hacky and hardcoded
+        ssps = np.zeros((positions.shape[0], positions.shape[1], 512))
+        for traj in range(ssps.shape[0]):
+            for step in range(ssps.shape[1]):
+                ssps[traj, step, :] = encoding_func(
+                    x=positions[traj, step, 0], y=positions[traj, step, 1]
+                )
+
+    else:
+        ssps = data['ssps']
     n_place_cells = data['pc_centers'].shape[0]
 
     pc_activations = data['pc_activations']
@@ -103,6 +116,12 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
                 velocity_inputs=velocity_inputs,
                 ssp_inputs=pc_inputs,
                 ssp_outputs=pc_outputs,
+            )
+        elif encoding == 'frozen-learned':
+            dataset = SSPTrajectoryDataset(
+                velocity_inputs=velocity_inputs,
+                ssp_inputs=ssp_inputs,
+                ssp_outputs=ssp_outputs,
             )
 
         if test_set == 0:

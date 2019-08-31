@@ -39,6 +39,7 @@ parser.add_argument('--dataset', type=str, default='../lab/reproducing/data/path
 parser.add_argument('--load-saved-model', type=str, default='', help='Saved model to load from')
 # parser.add_argument('--use-cosine-loss', action='store_true')
 parser.add_argument('--loss-function', type=str, default='mse', choices=['mse', 'cosine', 'combined', 'alternating', 'scaled'])
+parser.add_argument('--frozen-model', type=str, default='', help='model to use frozen encoding weights from')
 
 args = parser.parse_args()
 
@@ -58,6 +59,9 @@ ssp_scaling = data['ssp_scaling']
 pc_centers = data['pc_centers']
 pc_activations = data['pc_activations']
 
+# only used for frozen-learned and other custom encoding functions
+encoding_func = None
+
 if args.encoding == 'ssp':
     dim = 512
 elif args.encoding == '2d':
@@ -66,6 +70,10 @@ elif args.encoding == '2d':
 elif args.encoding == 'pc':
     dim = args.n_place_cells
     ssp_scaling = 1
+if args.encoding == 'frozen-learned':
+    dim = 512  # TODO: add options for different dim?
+    # Generate an encoding function from the model path
+    encoding_func = encoding_func_from_model(args.frozen_model)
 else:
     raise NotImplementedError
 
