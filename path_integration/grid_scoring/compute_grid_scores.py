@@ -3,6 +3,7 @@ import scores
 import utils
 from run_network import run_and_gather_activations, run_and_gather_localization_activations
 import numpy as np
+from ..path_integration_utils import encoding_func_from_model
 
 import argparse
 
@@ -14,11 +15,18 @@ parser.add_argument('--dataset', type=str, default='')
 parser.add_argument('--model', type=str, default='')
 parser.add_argument('--fname-prefix', type=str, default='sac')
 parser.add_argument('--ssp-scaling', type=float, default=5.0)
-parser.add_argument('--encoding', type=str, default='ssp', choices=['ssp', '2d', 'pc'])
+parser.add_argument('--encoding', type=str, default='ssp', choices=['ssp', '2d', 'pc', 'frozen-learned'])
+parser.add_argument('--frozen-model', type=str, default='', help='model to use frozen encoding weights from')
 
 args = parser.parse_args()
 
 ssp_scaling = args.ssp_scaling
+
+if args.encoding == 'frozen-learned':
+    encoding_func = encoding_func_from_model(args.frozen_model)
+else:
+    encoding_func = None
+
 
 if args.use_localization:
 
@@ -85,6 +93,7 @@ else:
         dataset=dataset,
         model_path=model,
         encoding=args.encoding,
+        encoding_func=encoding_func,
     )
 
     predictions = predictions / ssp_scaling

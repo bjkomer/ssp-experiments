@@ -28,6 +28,7 @@ def run_and_gather_activations(
         rollout_length=100,
         batch_size=10,
         n_place_cells=256,
+        encoding_func=None,  # added for frozen-learned encoding option
 
 ):
 
@@ -75,6 +76,7 @@ def run_and_gather_activations(
         rollout_length=rollout_length,
         batch_size=batch_size,
         encoding=encoding,
+        encoding_func=encoding_func,
     )
 
     print("Testing")
@@ -131,6 +133,22 @@ def run_and_gather_activations(
                     pc_activations=ssp_outputs.detach().numpy()[:, ri, :],
                     centers=pc_centers,
                     jitter=0.01,
+                )
+            elif encoding == 'frozen-learned':
+                # computing 'predicted' coordinates, where the agent thinks it is
+                pred = ssp_pred.detach().numpy()[ri, :, :]
+                pred = pred / pred.sum(axis=1)[:, np.newaxis]
+                predictions[ri * ssp_pred.shape[1]:(ri + 1) * ssp_pred.shape[1], :] = ssp_to_loc_v(
+                    pred,
+                    heatmap_vectors, xs, ys
+                )
+
+                # computing 'ground truth' coordinates, where the agent should be
+                coord = ssp_outputs.detach().numpy()[:, ri, :]
+                coord = coord / coord.sum(axis=1)[:, np.newaxis]
+                coords[ri * ssp_pred.shape[1]:(ri + 1) * ssp_pred.shape[1], :] = ssp_to_loc_v(
+                    coord,
+                    heatmap_vectors, xs, ys
                 )
 
             # reshaping activations and converting to numpy array
