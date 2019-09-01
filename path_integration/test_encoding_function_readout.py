@@ -10,8 +10,8 @@ ssp_scaling = 5
 
 dim = 512
 
-# encoding = 'frozen-learned'
-encoding = 'ssp'
+encoding = 'frozen-learned'
+# encoding = 'ssp'
 
 if encoding == 'frozen-learned':
     # Generate an encoding function from the model path
@@ -56,7 +56,10 @@ for i, x in enumerate(xs):
             )
         )
 
-        flat_heatmap_vectors[i*len(ys)+j, :] = heatmap_vectors[i, j, :]
+        flat_heatmap_vectors[i*len(ys)+j, :] = heatmap_vectors[i, j, :].copy()
+
+        # Normalize. This is required for frozen-learned to work
+        heatmap_vectors[i, j, :] /= np.linalg.norm(heatmap_vectors[i, j, :])
 
 
 predictions = ssp_to_loc_v(

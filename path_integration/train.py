@@ -21,7 +21,7 @@ import json
 from spatial_semantic_pointers.utils import get_heatmap_vectors, ssp_to_loc, ssp_to_loc_v
 from spatial_semantic_pointers.plots import plot_predictions, plot_predictions_v
 import matplotlib.pyplot as plt
-from path_integration_utils import pc_to_loc_v
+from path_integration_utils import pc_to_loc_v, encoding_func_from_model
 
 
 parser = argparse.ArgumentParser('Run 2D supervised path integration experiment using pytorch')
@@ -31,7 +31,7 @@ parser = add_parameters(parser)
 parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--n-epochs', type=int, default=20)
 parser.add_argument('--n-samples', type=int, default=1000)
-parser.add_argument('--encoding', type=str, default='ssp', choices=['ssp', '2d', 'pc'])
+parser.add_argument('--encoding', type=str, default='ssp', choices=['ssp', '2d', 'pc', 'frozen-learned'])
 parser.add_argument('--eval-period', type=int, default=50)
 parser.add_argument('--logdir', type=str, default='output/ssp_path_integration',
                     help='Directory for saved model and tensorboard log')
@@ -72,6 +72,7 @@ elif args.encoding == 'pc':
     ssp_scaling = 1
 if args.encoding == 'frozen-learned':
     dim = 512  # TODO: add options for different dim?
+    ssp_scaling = 1
     # Generate an encoding function from the model path
     encoding_func = encoding_func_from_model(args.frozen_model)
 else:
@@ -84,8 +85,31 @@ res = 128 #256
 xs = np.linspace(limit_low, limit_high, res)
 ys = np.linspace(limit_low, limit_high, res)
 
-# Used for visualization of test set performance using pos = ssp_to_loc(sp, heatmap_vectors, xs, ys)
-heatmap_vectors = get_heatmap_vectors(xs, ys, x_axis_vec, y_axis_vec)
+if args.encoding == 'frozen-learned':
+    # encoding for every point in a 2D linspace, for approximating a readout
+
+    # FIXME: inefficient but will work for now
+    heatmap_vectors = np.zeros((len(xs), len(ys), dim))
+
+    for i, x in enumerate(xs):
+        for j, y in enumerate(ys):
+            heatmap_vectors[i, j, :] = encoding_func(
+                # batch dim
+                # np.array(
+                #     [[x, y]]
+                # )
+                # no batch dim
+                np.array(
+                    [x, y]
+                )
+            )
+
+            heatmap_vectors[i, j, :] /= np.linalg.norm(heatmap_vectors[i, j, :])
+
+else:
+    # Used for visualization of test set performance using pos = ssp_to_loc(sp, heatmap_vectors, xs, ys)
+    heatmap_vectors = get_heatmap_vectors(xs, ys, x_axis_vec, y_axis_vec)
+
 
 # n_samples = 5000
 n_samples = args.n_samples#1000
@@ -118,6 +142,7 @@ trainloader, testloader = train_test_loaders(
     rollout_length=rollout_length,
     batch_size=batch_size,
     encoding=args.encoding,
+    encoding_func=encoding_func,
 )
 
 params = vars(args)
@@ -232,6 +257,34 @@ for epoch in range(n_epochs):
                     centers=pc_centers,
                     jitter=0.01
                 )
+            elif args.encoding == 'frozen-learned':
+                # normalizing is important here
+                print("computing prediction locations")
+                pred_start = ssp_pred.detach().numpy()[0, :, :]
+                pred_start = pred_start / pred_start.sum(axis=1)[:, np.newaxis]
+                predictions_start[:, :] = ssp_to_loc_v(
+                    pred_start,
+                    heatmap_vectors, xs, ys
+                )
+                pred_end = ssp_pred.detach().numpy()[-1, :, :]
+                pred_end = pred_end / pred_end.sum(axis=1)[:, np.newaxis]
+                predictions_end[:, :] = ssp_to_loc_v(
+                    pred_end,
+                    heatmap_vectors, xs, ys
+                )
+                print("computing ground truth locations")
+                coord_start = ssp_outputs.detach().numpy()[:, 0, :]
+                coord_start = coord_start / coord_start.sum(axis=1)[:, np.newaxis]
+                coords_start[:, :] = ssp_to_loc_v(
+                    coord_start,
+                    heatmap_vectors, xs, ys
+                )
+                coord_end = ssp_outputs.detach().numpy()[:, -1, :]
+                coord_end = coord_end / coord_end.sum(axis=1)[:, np.newaxis]
+                coords_end[:, :] = ssp_to_loc_v(
+                    coord_end,
+                    heatmap_vectors, xs, ys
+                )
 
             fig_pred_start, ax_pred_start = plt.subplots()
             fig_truth_start, ax_truth_start = plt.subplots()
@@ -251,16 +304,21 @@ for epoch in range(n_epochs):
             writer.add_figure("predictions end", fig_pred_end, epoch)
             writer.add_figure("ground truth end", fig_truth_end, epoch)
 
-            if args.encoding == 'ssp':
-                torch.save(
-                    model.state_dict(),
-                    os.path.join(save_dir, 'ssp_path_integration_model_epoch_{}.pt'.format(epoch))
-                )
-            elif args.encoding == '2d':
-                torch.save(
-                    model.state_dict(),
-                    os.path.join(save_dir, '2d_path_integration_model_epoch_{}.pt'.format(epoch))
-                )
+            # if args.encoding == 'ssp':
+            #     torch.save(
+            #         model.state_dict(),
+            #         os.path.join(save_dir, 'ssp_path_integration_model_epoch_{}.pt'.format(epoch))
+            #     )
+            # elif args.encoding == '2d':
+            #     torch.save(
+            #         model.state_dict(),
+            #         os.path.join(save_dir, '2d_path_integration_model_epoch_{}.pt'.format(epoch))
+            #     )
+
+            torch.save(
+                model.state_dict(),
+                os.path.join(save_dir, '{}_path_integration_model_epoch_{}.pt'.format(args.encoding, epoch))
+            )
 
     avg_bce_loss = 0
     avg_cosine_loss = 0
@@ -445,6 +503,34 @@ with torch.no_grad():
             centers=pc_centers,
             jitter=0.01
         )
+    elif args.encoding == 'frozen-learned':
+        # normalizing is important here
+        print("computing prediction locations")
+        pred_start = ssp_pred.detach().numpy()[0, :, :]
+        pred_start = pred_start / pred_start.sum(axis=1)[:, np.newaxis]
+        predictions_start[:, :] = ssp_to_loc_v(
+            pred_start,
+            heatmap_vectors, xs, ys
+        )
+        pred_end = ssp_pred.detach().numpy()[-1, :, :]
+        pred_end = pred_end / pred_end.sum(axis=1)[:, np.newaxis]
+        predictions_end[:, :] = ssp_to_loc_v(
+            pred_end,
+            heatmap_vectors, xs, ys
+        )
+        print("computing ground truth locations")
+        coord_start = ssp_outputs.detach().numpy()[:, 0, :]
+        coord_start = coord_start / coord_start.sum(axis=1)[:, np.newaxis]
+        coords_start[:, :] = ssp_to_loc_v(
+            coord_start,
+            heatmap_vectors, xs, ys
+        )
+        coord_end = ssp_outputs.detach().numpy()[:, -1, :]
+        coord_end = coord_end / coord_end.sum(axis=1)[:, np.newaxis]
+        coords_end[:, :] = ssp_to_loc_v(
+            coord_end,
+            heatmap_vectors, xs, ys
+        )
 
     fig_pred_start, ax_pred_start = plt.subplots()
     fig_truth_start, ax_truth_start = plt.subplots()
@@ -498,7 +584,9 @@ with torch.no_grad():
     # writer.add_figure("predictions", fig_pred)
     # writer.add_figure("ground truth", fig_truth)
 
-if args.encoding == 'ssp':
-    torch.save(model.state_dict(), os.path.join(save_dir, 'ssp_path_integration_model.pt'))
-elif args.encoding == '2d':
-    torch.save(model.state_dict(), os.path.join(save_dir, '2d_path_integration_model.pt'))
+# if args.encoding == 'ssp':
+#     torch.save(model.state_dict(), os.path.join(save_dir, 'ssp_path_integration_model.pt'))
+# elif args.encoding == '2d':
+#     torch.save(model.state_dict(), os.path.join(save_dir, '2d_path_integration_model.pt'))
+
+torch.save(model.state_dict(), os.path.join(save_dir, '{}_path_integration_model.pt'.format(args.encoding)))

@@ -30,7 +30,7 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
                        batch_size=10, encoding='ssp', encoding_func=None):
 
     # Option to use SSPs or the 2D location directly
-    assert encoding in ['ssp', '2d', 'pc']
+    assert encoding in ['ssp', '2d', 'pc', 'frozen-learned']
 
     positions = data['positions']
 
@@ -40,10 +40,15 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
         assert encoding_func is not None
         # FIXME: make this less hacky and hardcoded
         ssps = np.zeros((positions.shape[0], positions.shape[1], 512))
+        # for traj in range(ssps.shape[0]):
+        #     for step in range(ssps.shape[1]):
+        #         ssps[traj, step, :] = encoding_func(
+        #             x=positions[traj, step, 0], y=positions[traj, step, 1]
+        #         )
         for traj in range(ssps.shape[0]):
             for step in range(ssps.shape[1]):
-                ssps[traj, step, :] = encoding_func(
-                    x=positions[traj, step, 0], y=positions[traj, step, 1]
+                ssps[traj, :, :] = encoding_func(
+                    positions=positions[traj, :, :]
                 )
 
     else:
