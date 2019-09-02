@@ -1,4 +1,4 @@
-from path_integration_utils import encoding_func_from_model
+from path_integration_utils import encoding_func_from_model, pc_gauss_encoding_func
 import numpy as np
 from spatial_semantic_pointers.utils import ssp_to_loc_v, encode_point, make_good_unitary
 from spatial_semantic_pointers.plots import plot_predictions, plot_predictions_v
@@ -10,8 +10,13 @@ ssp_scaling = 5
 
 dim = 512
 
-encoding = 'frozen-learned'
+limit_low = 0 * ssp_scaling
+limit_high = 2.2 * ssp_scaling
+res = 64 #128
+
+# encoding = 'frozen-learned'
 # encoding = 'ssp'
+encoding = 'pc-gauss'
 
 if encoding == 'frozen-learned':
     # Generate an encoding function from the model path
@@ -26,12 +31,10 @@ elif encoding == 'ssp':
         return encode_point(
             x=coords[0], y=coords[1], x_axis_sp=x_axis_sp, y_axis_sp=y_axis_sp,
         ).v
+elif encoding == 'pc-gauss':
+    rng = np.random.RandomState(13)
+    encoding_func = pc_gauss_encoding_func(limit_low=limit_low, limit_high=limit_high, dim=dim, rng=rng)
 
-
-
-limit_low = 0 * ssp_scaling
-limit_high = 2.2 * ssp_scaling
-res = 64 #128
 
 xs = np.linspace(limit_low, limit_high, res)
 ys = np.linspace(limit_low, limit_high, res)

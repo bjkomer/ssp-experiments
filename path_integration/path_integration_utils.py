@@ -75,3 +75,21 @@ def encoding_func_from_model(path,
         return encoding_layer(torch.Tensor(positions)).detach().numpy()
 
     return encoding_func
+
+
+def pc_gauss_encoding_func(limit_low=0, limit_high=1, dim=512, rng=np.random):
+    # generate PC centers
+    pc_centers = rng.uniform(low=limit_low, high=limit_high, size=(dim, 2))
+
+    # TODO: pick a good sigma and/or allow it to be variable
+    sigma = 1
+
+    # TODO: make this more efficient
+    def encoding_func(positions):
+        activations = np.zeros((dim,))
+        for i in range(dim):
+            activations[i] = np.exp(-((pc_centers[i, 0] - positions[0]) ** 2 + (pc_centers[i, 1] - positions[1]) ** 2) / sigma / sigma)
+        return activations
+
+    return encoding_func
+
