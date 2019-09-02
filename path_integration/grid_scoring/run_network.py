@@ -65,8 +65,31 @@ def run_and_gather_activations(
     xs = np.linspace(limit_low, limit_high, res)
     ys = np.linspace(limit_low, limit_high, res)
 
-    # Used for visualization of test set performance using pos = ssp_to_loc(sp, heatmap_vectors, xs, ys)
-    heatmap_vectors = get_heatmap_vectors(xs, ys, x_axis_vec, y_axis_vec)
+    if encoding == 'frozen-learned':
+        # encoding for every point in a 2D linspace, for approximating a readout
+
+        # FIXME: inefficient but will work for now
+        heatmap_vectors = np.zeros((len(xs), len(ys), dim))
+
+        for i, x in enumerate(xs):
+            for j, y in enumerate(ys):
+                heatmap_vectors[i, j, :] = encoding_func(
+                    # batch dim
+                    # np.array(
+                    #     [[x, y]]
+                    # )
+                    # no batch dim
+                    np.array(
+                        [x, y]
+                    )
+                )
+
+                heatmap_vectors[i, j, :] /= np.linalg.norm(heatmap_vectors[i, j, :])
+
+    else:
+        # Used for visualization of test set performance using pos = ssp_to_loc(sp, heatmap_vectors, xs, ys)
+        heatmap_vectors = get_heatmap_vectors(xs, ys, x_axis_vec, y_axis_vec)
+
 
     model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=encoding_dim)
 
