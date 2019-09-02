@@ -52,6 +52,9 @@ def run_and_gather_activations(
     elif encoding == 'pc':
         dim = n_place_cells
         ssp_scaling = 1
+    elif encoding == 'frozen-learned':
+        encoding_dim = 512
+        ssp_scaling = 1
     else:
         raise NotImplementedError
 

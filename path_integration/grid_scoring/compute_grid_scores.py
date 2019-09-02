@@ -3,7 +3,8 @@ import scores
 import utils
 from run_network import run_and_gather_activations, run_and_gather_localization_activations
 import numpy as np
-from ..path_integration_utils import encoding_func_from_model
+# symlinked
+from path_integration_utils import encoding_func_from_model
 
 import argparse
 
