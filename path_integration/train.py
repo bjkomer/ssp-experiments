@@ -70,7 +70,7 @@ elif args.encoding == '2d':
 elif args.encoding == 'pc':
     dim = args.n_place_cells
     ssp_scaling = 1
-if args.encoding == 'frozen-learned':
+elif args.encoding == 'frozen-learned':
     dim = 512  # TODO: add options for different dim?
     ssp_scaling = 1
     # Generate an encoding function from the model path

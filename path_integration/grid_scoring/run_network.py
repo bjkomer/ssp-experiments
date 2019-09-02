@@ -69,7 +69,7 @@ def run_and_gather_activations(
         # encoding for every point in a 2D linspace, for approximating a readout
 
         # FIXME: inefficient but will work for now
-        heatmap_vectors = np.zeros((len(xs), len(ys), dim))
+        heatmap_vectors = np.zeros((len(xs), len(ys), 512))
 
         for i, x in enumerate(xs):
             for j, y in enumerate(ys):
