@@ -55,6 +55,9 @@ def run_and_gather_activations(
     elif encoding == 'frozen-learned':
         encoding_dim = 512
         ssp_scaling = 1
+    elif encoding == 'pc-gauss':
+        encoding_dim = 512
+        ssp_scaling = 1
     else:
         raise NotImplementedError
 
@@ -65,7 +68,7 @@ def run_and_gather_activations(
     xs = np.linspace(limit_low, limit_high, res)
     ys = np.linspace(limit_low, limit_high, res)
 
-    if encoding == 'frozen-learned':
+    if encoding == 'frozen-learned' or encoding == 'pc-gauss':
         # encoding for every point in a 2D linspace, for approximating a readout
 
         # FIXME: inefficient but will work for now
@@ -160,7 +163,7 @@ def run_and_gather_activations(
                     centers=pc_centers,
                     jitter=0.01,
                 )
-            elif encoding == 'frozen-learned':
+            elif encoding == 'frozen-learned' or encoding == 'pc-gauss':
                 # computing 'predicted' coordinates, where the agent thinks it is
                 pred = ssp_pred.detach().numpy()[ri, :, :]
                 pred = pred / pred.sum(axis=1)[:, np.newaxis]
