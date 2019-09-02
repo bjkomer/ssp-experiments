@@ -47,8 +47,8 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
         #         )
         for traj in range(ssps.shape[0]):
             for step in range(ssps.shape[1]):
-                ssps[traj, :, :] = encoding_func(
-                    positions=positions[traj, :, :]
+                ssps[traj, step, :] = encoding_func(
+                    positions=positions[traj, step, :]
                 )
 
     else:
