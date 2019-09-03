@@ -1,5 +1,8 @@
 *.swp
 *.sh
+*.npz
+*.old
+*.pyc
 .idea
 __pycache__
 
@@ -9,3 +12,25 @@ pytorch/maze_solve_function/
 pytorch/multi_maze_solve_function/
 pytorch/multi_path_function/
 pytorch/path_function/
+pytorch/figure_output/
+
+pytorch/data/
+pytorch/figure_output_50mazes/
+pytorch/figure_output_new_colours/
+pytorch/figure_output_new_colours_1maze/
+pytorch/log/
+pytorch/old_tf_log/
+pytorch/run_rl_finetune.sh.old
+pytorch/tf_log/
+
+path_integration/images/
+path_integration/output/
+
+localization/output/
+
+lab/rl/log/
+lab/rl/tf_log/
+learned_rep_exp/
+
+autoencoder/images/
+autoencoder/output/
