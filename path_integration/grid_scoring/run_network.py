@@ -55,7 +55,7 @@ def run_and_gather_activations(
     elif encoding == 'frozen-learned':
         encoding_dim = 512
         ssp_scaling = 1
-    elif encoding == 'pc-gauss':
+    elif encoding == 'pc-gauss' or encoding == 'pc-gauss-softmax':
         encoding_dim = 512
         ssp_scaling = 1
     else:
@@ -163,7 +163,7 @@ def run_and_gather_activations(
                     centers=pc_centers,
                     jitter=0.01,
                 )
-            elif encoding == 'frozen-learned' or encoding == 'pc-gauss':
+            elif encoding == 'frozen-learned' or encoding == 'pc-gauss' or encoding == 'pc-gauss-softmax':
                 # computing 'predicted' coordinates, where the agent thinks it is
                 pred = ssp_pred.detach().numpy()[ri, :, :]
                 pred = pred / pred.sum(axis=1)[:, np.newaxis]

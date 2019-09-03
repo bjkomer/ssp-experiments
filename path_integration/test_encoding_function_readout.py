@@ -16,7 +16,8 @@ res = 64 #128
 
 # encoding = 'frozen-learned'
 # encoding = 'ssp'
-encoding = 'pc-gauss'
+# encoding = 'pc-gauss'
+encoding = 'pc-gauss-softmax'
 
 if encoding == 'frozen-learned':
     # Generate an encoding function from the model path
@@ -31,9 +32,12 @@ elif encoding == 'ssp':
         return encode_point(
             x=coords[0], y=coords[1], x_axis_sp=x_axis_sp, y_axis_sp=y_axis_sp,
         ).v
-elif encoding == 'pc-gauss':
+elif encoding == 'pc-gauss' or encoding == 'pc-gauss-softmax':
+    use_softmax = encoding == 'pc-gauss-softmax'
     rng = np.random.RandomState(13)
-    encoding_func = pc_gauss_encoding_func(limit_low=limit_low, limit_high=limit_high, dim=dim, rng=rng)
+    encoding_func = pc_gauss_encoding_func(
+        limit_low=limit_low, limit_high=limit_high, dim=dim, rng=rng, use_softmax=use_softmax
+    )
 
 
 xs = np.linspace(limit_low, limit_high, res)

@@ -16,7 +16,8 @@ parser.add_argument('--dataset', type=str, default='')
 parser.add_argument('--model', type=str, default='')
 parser.add_argument('--fname-prefix', type=str, default='sac')
 parser.add_argument('--ssp-scaling', type=float, default=5.0)
-parser.add_argument('--encoding', type=str, default='ssp', choices=['ssp', '2d', 'pc', 'frozen-learned', 'pc-gauss'])
+parser.add_argument('--encoding', type=str, default='ssp',
+                    choices=['ssp', '2d', 'pc', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax'])
 parser.add_argument('--frozen-model', type=str, default='', help='model to use frozen encoding weights from')
 
 args = parser.parse_args()
@@ -25,11 +26,13 @@ ssp_scaling = args.ssp_scaling
 
 if args.encoding == 'frozen-learned':
     encoding_func = encoding_func_from_model(args.frozen_model)
-elif args.encoding == 'pc-gauss':
+elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
+    use_softmax = args.encoding == 'pc-gauss-softmax'
     # TODO: make this less hardcoded
     encoding_func = pc_gauss_encoding_func(
         limit_low=0, limit_high=2.2*args.ssp_scaling,
         dim=512, rng=np.random.RandomState(13),
+        use_softmax=use_softmax
     )
 else:
     encoding_func = None

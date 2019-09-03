@@ -77,7 +77,14 @@ def encoding_func_from_model(path,
     return encoding_func
 
 
-def pc_gauss_encoding_func(limit_low=0, limit_high=1, dim=512, rng=np.random):
+# https://stackoverflow.com/questions/34968722/how-to-implement-the-softmax-function-in-python
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum()
+
+
+def pc_gauss_encoding_func(limit_low=0, limit_high=1, dim=512, rng=np.random, use_softmax=False):
     # generate PC centers
     pc_centers = rng.uniform(low=limit_low, high=limit_high, size=(dim, 2))
 
@@ -89,7 +96,10 @@ def pc_gauss_encoding_func(limit_low=0, limit_high=1, dim=512, rng=np.random):
         activations = np.zeros((dim,))
         for i in range(dim):
             activations[i] = np.exp(-((pc_centers[i, 0] - positions[0]) ** 2 + (pc_centers[i, 1] - positions[1]) ** 2) / sigma / sigma)
-        return activations
+        if use_softmax:
+            return softmax(activations)
+        else:
+            return activations
 
     return encoding_func
 

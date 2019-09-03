@@ -31,7 +31,8 @@ parser = add_parameters(parser)
 parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--n-epochs', type=int, default=20)
 parser.add_argument('--n-samples', type=int, default=1000)
-parser.add_argument('--encoding', type=str, default='ssp', choices=['ssp', '2d', 'pc', 'frozen-learned', 'pc-gauss'])
+parser.add_argument('--encoding', type=str, default='ssp',
+                    choices=['ssp', '2d', 'pc', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax'])
 parser.add_argument('--eval-period', type=int, default=50)
 parser.add_argument('--logdir', type=str, default='output/ssp_path_integration',
                     help='Directory for saved model and tensorboard log')
@@ -75,12 +76,15 @@ elif args.encoding == 'frozen-learned':
     ssp_scaling = 1
     # Generate an encoding function from the model path
     encoding_func = encoding_func_from_model(args.frozen_model)
-elif args.encoding == 'pc-gauss':
+elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
     dim = 512  # TODO: add options for different dim?
     ssp_scaling = 1
+    use_softmax = args.encoding == 'pc-guass-softmax'
     # Generate an encoding function from the model path
     rng = np.random.RandomState(args.seed)
-    encoding_func = pc_gauss_encoding_func(limit_low=0 * ssp_scaling, limit_high=2.2 * ssp_scaling, dim=dim, rng=rng)
+    encoding_func = pc_gauss_encoding_func(
+        limit_low=0 * ssp_scaling, limit_high=2.2 * ssp_scaling, dim=dim, rng=rng, use_softmax=use_softmax
+    )
 else:
     raise NotImplementedError
 
@@ -91,7 +95,7 @@ res = 128 #256
 xs = np.linspace(limit_low, limit_high, res)
 ys = np.linspace(limit_low, limit_high, res)
 
-if args.encoding == 'frozen-learned' or args.encoding == 'pc-gauss':
+if args.encoding == 'frozen-learned' or args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
     # encoding for every point in a 2D linspace, for approximating a readout
 
     # FIXME: inefficient but will work for now
@@ -263,7 +267,7 @@ for epoch in range(n_epochs):
                     centers=pc_centers,
                     jitter=0.01
                 )
-            elif args.encoding == 'frozen-learned' or args.encoding == 'pc-gauss':
+            elif args.encoding == 'frozen-learned' or args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
                 # normalizing is important here
                 print("computing prediction locations")
                 pred_start = ssp_pred.detach().numpy()[0, :, :]
@@ -509,7 +513,7 @@ with torch.no_grad():
             centers=pc_centers,
             jitter=0.01
         )
-    elif args.encoding == 'frozen-learned' or args.encoding == 'pc-gauss':
+    elif args.encoding == 'frozen-learned' or args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
         # normalizing is important here
         print("computing prediction locations")
         pred_start = ssp_pred.detach().numpy()[0, :, :]
