@@ -6,7 +6,7 @@ import torch
 class SSPPathIntegrationModel(nn.Module):
 
     def __init__(self, input_size=2, lstm_hidden_size=128, linear_hidden_size=512,
-                 unroll_length=100, sp_dim=512,):
+                 unroll_length=100, sp_dim=512, dropout_p=.5):
 
         super(SSPPathIntegrationModel, self).__init__()
 
@@ -29,7 +29,7 @@ class SSPPathIntegrationModel(nn.Module):
             out_features=self.linear_hidden_size,
         )
 
-        self.dropout = nn.Dropout(p=.5)
+        self.dropout = nn.Dropout(p=dropout_p)
 
         self.ssp_output = nn.Linear(
             in_features=self.linear_hidden_size,

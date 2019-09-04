@@ -42,6 +42,7 @@ parser.add_argument('--load-saved-model', type=str, default='', help='Saved mode
 parser.add_argument('--loss-function', type=str, default='mse', choices=['mse', 'cosine', 'combined', 'alternating', 'scaled'])
 parser.add_argument('--frozen-model', type=str, default='', help='model to use frozen encoding weights from')
 parser.add_argument('--pc-gauss-sigma', type=float, default=0.01)
+parser.add_argument('--dropout-p', type=float, default=0.5)
 
 args = parser.parse_args()
 
@@ -131,7 +132,7 @@ batch_size = args.minibatch_size#10
 n_epochs = args.n_epochs#20
 # n_epochs = 5
 
-model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=dim)
+model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=dim, dropout_p=args.dropout_p)
 
 if args.load_saved_model:
     model.load_state_dict(torch.load(args.load_saved_model), strict=False)
