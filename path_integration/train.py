@@ -41,6 +41,7 @@ parser.add_argument('--load-saved-model', type=str, default='', help='Saved mode
 # parser.add_argument('--use-cosine-loss', action='store_true')
 parser.add_argument('--loss-function', type=str, default='mse', choices=['mse', 'cosine', 'combined', 'alternating', 'scaled'])
 parser.add_argument('--frozen-model', type=str, default='', help='model to use frozen encoding weights from')
+parser.add_argument('--pc-gauss-sigma', type=float, default=0.01)
 
 args = parser.parse_args()
 
@@ -83,7 +84,9 @@ elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
     # Generate an encoding function from the model path
     rng = np.random.RandomState(args.seed)
     encoding_func = pc_gauss_encoding_func(
-        limit_low=0 * ssp_scaling, limit_high=2.2 * ssp_scaling, dim=dim, rng=rng, use_softmax=use_softmax
+        limit_low=0 * ssp_scaling, limit_high=2.2 * ssp_scaling,
+        dim=dim, rng=rng, sigma=args.pc_gauss_sigma,
+        use_softmax=use_softmax
     )
 else:
     raise NotImplementedError

@@ -19,6 +19,7 @@ parser.add_argument('--ssp-scaling', type=float, default=5.0)
 parser.add_argument('--encoding', type=str, default='ssp',
                     choices=['ssp', '2d', 'pc', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax'])
 parser.add_argument('--frozen-model', type=str, default='', help='model to use frozen encoding weights from')
+parser.add_argument('--pc-gauss-sigma', type=float, default=0.01)
 
 args = parser.parse_args()
 
@@ -32,6 +33,7 @@ elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
     encoding_func = pc_gauss_encoding_func(
         limit_low=0, limit_high=2.2*args.ssp_scaling,
         dim=512, rng=np.random.RandomState(13),
+        sigma=args.pc_gauss_sigma,
         use_softmax=use_softmax
     )
 else:

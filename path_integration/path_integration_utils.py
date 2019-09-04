@@ -84,12 +84,9 @@ def softmax(x):
     return e_x / e_x.sum()
 
 
-def pc_gauss_encoding_func(limit_low=0, limit_high=1, dim=512, rng=np.random, use_softmax=False):
+def pc_gauss_encoding_func(limit_low=0, limit_high=1, dim=512, sigma=0.01, use_softmax=False, rng=np.random):
     # generate PC centers
     pc_centers = rng.uniform(low=limit_low, high=limit_high, size=(dim, 2))
-
-    # TODO: pick a good sigma and/or allow it to be variable
-    sigma = 1
 
     # TODO: make this more efficient
     def encoding_func(positions):
@@ -102,4 +99,3 @@ def pc_gauss_encoding_func(limit_low=0, limit_high=1, dim=512, rng=np.random, us
             return activations
 
     return encoding_func
-

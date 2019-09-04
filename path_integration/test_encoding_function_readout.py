@@ -19,6 +19,8 @@ res = 64 #128
 # encoding = 'pc-gauss'
 encoding = 'pc-gauss-softmax'
 
+pc_gauss_sigma = 0.01
+
 if encoding == 'frozen-learned':
     # Generate an encoding function from the model path
     encoding_func = encoding_func_from_model(frozen_model_path)
@@ -36,7 +38,7 @@ elif encoding == 'pc-gauss' or encoding == 'pc-gauss-softmax':
     use_softmax = encoding == 'pc-gauss-softmax'
     rng = np.random.RandomState(13)
     encoding_func = pc_gauss_encoding_func(
-        limit_low=limit_low, limit_high=limit_high, dim=dim, rng=rng, use_softmax=use_softmax
+        limit_low=limit_low, limit_high=limit_high, dim=dim, sigma=pc_gauss_sigma, rng=rng, use_softmax=use_softmax
     )
 
 
