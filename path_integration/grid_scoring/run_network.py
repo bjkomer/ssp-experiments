@@ -68,7 +68,7 @@ def run_and_gather_activations(
     xs = np.linspace(limit_low, limit_high, res)
     ys = np.linspace(limit_low, limit_high, res)
 
-    if encoding == 'frozen-learned' or encoding == 'pc-gauss':
+    if encoding == 'frozen-learned' or encoding == 'pc-gauss' or encoding == 'pc-gauss-softmax':
         # encoding for every point in a 2D linspace, for approximating a readout
 
         # FIXME: inefficient but will work for now
