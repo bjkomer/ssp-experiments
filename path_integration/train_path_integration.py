@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from datasets import train_test_loaders
+from datasets import train_test_loaders, load_from_cache
 from models import SSPPathIntegrationModel
 from datetime import datetime
 from tensorboardX import SummaryWriter
@@ -48,6 +48,8 @@ parser.add_argument('--dropout-p', type=float, default=0.5)
 parser.add_argument('--ssp-scaling', type=float, default=1.0)
 parser.add_argument('--encoding-dim', type=int, default=512)
 parser.add_argument('--train-split', type=float, default=0.8, help='Training fraction of the train/test split')
+parser.add_argument('--allow-cache', action='store_true',
+                    help='once the dataset has been generated, it will be saved to a file to be loaded faster')
 
 args = parser.parse_args()
 
@@ -139,19 +141,52 @@ mse_criterion = nn.MSELoss()
 
 optimizer = optim.RMSprop(model.parameters(), lr=args.learning_rate, momentum=args.momentum)
 
-print("Generating Train and Test Loaders")
+# encoding specific cache string
+encoding_specific = ''
+if args.encoding == 'ssp':
+    encoding_specific = args.ssp_scaling
+elif args.encoding == 'frozen-learned':
+    encoding_specific = args.frozen_model
+elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
+    encoding_specific = args.pc_gauss_sigma
 
-trainloader, testloader = train_test_loaders(
-    data,
-    n_train_samples=n_samples,
-    n_test_samples=n_samples,
-    rollout_length=rollout_length,
-    batch_size=batch_size,
-    encoding=args.encoding,
-    encoding_func=encoding_func,
-    encoding_dim=args.encoding_dim,
-    train_split=args.train_split,
+cache_fname = 'dataset_cache/{}_{}_{}_{}_{}.npz'.format(
+    args.encoding, args.encoding_dim, args.seed, args.n_samples, encoding_specific
 )
+
+# if the file exists, load it from cache
+if os.path.exists(cache_fname):
+    print("Generating Train and Test Loaders from Cache")
+    trainloader, testloader = load_from_cache(cache_fname, batch_size=batch_size, n_samples=n_samples)
+else:
+    print("Generating Train and Test Loaders")
+
+    trainloader, testloader = train_test_loaders(
+        data,
+        n_train_samples=n_samples,
+        n_test_samples=n_samples,
+        rollout_length=rollout_length,
+        batch_size=batch_size,
+        encoding=args.encoding,
+        encoding_func=encoding_func,
+        encoding_dim=args.encoding_dim,
+        train_split=args.train_split,
+    )
+
+    if args.allow_cache:
+
+        if not os.path.exists('dataset_cache'):
+            os.makedirs('dataset_cache')
+
+        np.savez(
+            cache_fname,
+            train_velocity_inputs=trainloader.dataset.velocity_inputs,
+            train_ssp_inputs=trainloader.dataset.ssp_inputs,
+            train_ssp_outputs=trainloader.dataset.ssp_outputs,
+            test_velocity_inputs=testloader.dataset.velocity_inputs,
+            test_ssp_inputs=testloader.dataset.ssp_inputs,
+            test_ssp_outputs=testloader.dataset.ssp_outputs,
+        )
 
 print("Train and Test Loaders Generation Complete")
 

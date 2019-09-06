@@ -120,6 +120,32 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
     return trainloader, testloader
 
 
+def load_from_cache(fname, batch_size=10, n_samples=1000):
+
+    data = np.load(fname)
+
+    dataset_train = SSPTrajectoryDataset(
+        velocity_inputs=data['train_velocity_inputs'],
+        ssp_inputs=data['train_ssp_inputs'],
+        ssp_outputs=data['train_ssp_outputs'],
+    )
+
+    dataset_test = SSPTrajectoryDataset(
+        velocity_inputs=data['test_velocity_inputs'],
+        ssp_inputs=data['test_ssp_inputs'],
+        ssp_outputs=data['test_ssp_outputs'],
+    )
+
+    trainloader = torch.utils.data.DataLoader(
+        dataset_train, batch_size=batch_size, shuffle=True, num_workers=0,
+    )
+
+    testloader = torch.utils.data.DataLoader(
+        dataset_test, batch_size=n_samples, shuffle=True, num_workers=0,
+    )
+
+    return trainloader, testloader
+
 # old version
 # def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_length=100,
 #                        batch_size=10, encoding='ssp', encoding_func=None, encoding_dim=512):
