@@ -110,6 +110,11 @@ def ssp_encoding_func(seed=13, dim=512, ssp_scaling=1):
     y_axis_sp = make_good_unitary(dim=dim, rng=rng)
 
     def encoding_func(positions):
-        return encode_point(positions[0]*ssp_scaling, positions[1]*ssp_scaling, x_axis_sp, y_axis_sp).v
+        return encode_point(
+            x=positions[0]*ssp_scaling,
+            y=positions[1]*ssp_scaling,
+            x_axis_sp=x_axis_sp,
+            y_axis_sp=y_axis_sp
+        ).v
 
     return encoding_func

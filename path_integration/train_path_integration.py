@@ -165,7 +165,8 @@ running_avg_mse_loss = 1.
 
 print("Training")
 for epoch in range(n_epochs):
-    print('\x1b[2K\r Epoch {} of {}'.format(epoch + 1, n_epochs), end="\r")
+    # print('\x1b[2K\r Epoch {} of {}'.format(epoch + 1, n_epochs), end="\r")
+    print('Epoch {} of {}'.format(epoch + 1, n_epochs))
 
     # TODO: modularize this and clean it up
     # Every 'eval_period' epochs, create a test loss and image
