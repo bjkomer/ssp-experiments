@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from spatial_semantic_pointers.utils import make_good_unitary, encode_point
+
 
 def pc_to_loc_v(pc_activations, centers, jitter=0.01):
     """
@@ -97,5 +99,17 @@ def pc_gauss_encoding_func(limit_low=0, limit_high=1, dim=512, sigma=0.01, use_s
             return softmax(activations)
         else:
             return activations
+
+    return encoding_func
+
+
+def ssp_encoding_func(seed=13, dim=512, ssp_scaling=1):
+    rng = np.random.RandomState(seed=seed)
+
+    x_axis_sp = make_good_unitary(dim=dim, rng=rng)
+    y_axis_sp = make_good_unitary(dim=dim, rng=rng)
+
+    def encoding_func(positions):
+        return encode_point(positions[0]*ssp_scaling, positions[1]*ssp_scaling, x_axis_sp, y_axis_sp).v
 
     return encoding_func
