@@ -26,6 +26,7 @@ cartesian_vels = np.zeros((args.n_trajectories, trajectory_steps, 2))
 
 rng = np.random.RandomState(seed=args.seed)
 
+turn_vel = 2*args.rot_vel_std * np.pi/180
 
 for n in range(args.n_trajectories):
     print('\x1b[2K\r Generating Trajectory {} of {}'.format(n + 1, args.n_trajectories), end="\r")
@@ -39,26 +40,6 @@ for n in range(args.n_trajectories):
 
 
     for s in range(1, trajectory_steps):
-        # # TODO: make sure this can handle the case of moving into a corner
-        # dist_wall = min(positions[n, s-1, 0], positions[n, s-1, 1], args.env_size - positions[n, s-1, 0], args.env_size - positions[n, s-1, 1])
-        # # Find which of the four walls is closest, and calculate the angle based on that wall
-        #
-        # if dist_wall == positions[n, s-1, 0]:
-        #     angle_wall = angles[n, s-1] - np.pi
-        # elif dist_wall == positions[n, s-1, 1]:
-        #     angle_wall = angles[n, s-1] + np.pi/2
-        # elif dist_wall == args.env_size - positions[n, s-1, 0]:
-        #     angle_wall = angles[n, s-1]
-        # elif dist_wall == args.env_size - positions[n, s-1, 1]:
-        #     angle_wall = angles[n, s-1] - np.pi/2
-        #
-        # if dist_wall < args.perimeter_distance and abs(angle_wall) < np.pi/2:
-        #     # modify angular velocity to turn away from the wall
-        #     # ang_vels[n, s] = ang_vels[n, s] + angle_wall / abs(angle_wall) * (np.pi/2-abs(angle_wall))
-        #     ang_vels[n, s] = ang_vels[n, s] + angle_wall / abs(angle_wall) * (np.pi / 2)
-        #     # slow down linear velocity
-        #     lin_vels[n, s] = lin_vels[n, s] * args.perimeter_vel_reduction
-        #     # lin_vels[n, s] = 0
 
         # TODO: make sure this can handle the case of moving into a corner
         dist_wall_x = min(positions[n, s - 1, 0], args.env_size - positions[n, s - 1, 0])
@@ -90,7 +71,8 @@ for n in range(args.n_trajectories):
         if dist_wall_x < args.perimeter_distance and abs(angle_wall_x) < np.pi/2:
             # modify angular velocity to turn away from the wall
             # ang_vels[n, s] = ang_vels[n, s] + angle_wall / abs(angle_wall) * (np.pi/2-abs(angle_wall))
-            ang_vels[n, s] = ang_vels[n, s] + angle_wall_x / abs(angle_wall_x) * (np.pi / 2)
+            # ang_vels[n, s] = ang_vels[n, s] + angle_wall_x / abs(angle_wall_x) * (np.pi / 2) / args.dt
+            ang_vels[n, s] = ang_vels[n, s] + angle_wall_x / abs(angle_wall_x) * turn_vel
             # slow down linear velocity
             lin_vels[n, s] = lin_vels[n, s] * args.perimeter_vel_reduction
             # lin_vels[n, s] = 0
@@ -98,7 +80,8 @@ for n in range(args.n_trajectories):
         if dist_wall_y < args.perimeter_distance and abs(angle_wall_y) < np.pi/2:
             # modify angular velocity to turn away from the wall
             # ang_vels[n, s] = ang_vels[n, s] + angle_wall / abs(angle_wall) * (np.pi/2-abs(angle_wall))
-            ang_vels[n, s] = ang_vels[n, s] + angle_wall_y / abs(angle_wall_y) * (np.pi / 2)
+            # ang_vels[n, s] = ang_vels[n, s] + angle_wall_y / abs(angle_wall_y) * (np.pi / 2) / args.dt
+            ang_vels[n, s] = ang_vels[n, s] + angle_wall_y / abs(angle_wall_y) * turn_vel
             # slow down linear velocity
             lin_vels[n, s] = lin_vels[n, s] * args.perimeter_vel_reduction
             # lin_vels[n, s] = 0

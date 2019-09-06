@@ -30,8 +30,6 @@ plt.figure()
 plt.scatter(positions[:, :, 0], positions[:, :, 1])
 
 # place coverage heatmap
-# coverage = np.zeros((args.bin_res, args.bin_res))
-
 coverage, x, y = np.histogram2d(positions[:, :, 0].flatten(), positions[:, :, 1].flatten(), [args.bin_res, args.bin_res])
 
 plt.figure()
@@ -66,8 +64,8 @@ for i in range(args.n_samples):
     pos_inputs[i, :] = positions[traj_ind, step_ind]
 
 
-plt.figure()
-plt.scatter(pos_outputs[:, :, 0], pos_outputs[:, :, 1])
+# plt.figure()
+# plt.scatter(pos_outputs[:, :, 0], pos_outputs[:, :, 1])
 
 coverage, x, y = np.histogram2d(pos_outputs[:, :, 0].flatten(), pos_outputs[:, :, 1].flatten(), [args.bin_res, args.bin_res])
 
