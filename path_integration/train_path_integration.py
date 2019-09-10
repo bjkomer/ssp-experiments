@@ -93,8 +93,8 @@ elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
 else:
     raise NotImplementedError
 
-limit_low = 0 * args.ssp_scaling
-limit_high = 2.2 * args.ssp_scaling
+limit_low = 0 #* args.ssp_scaling
+limit_high = 2.2 #* args.ssp_scaling
 res = 128 #256
 
 xs = np.linspace(limit_low, limit_high, res)
@@ -307,12 +307,19 @@ for epoch in range(n_epochs):
             fig_pred_end, ax_pred_end = plt.subplots()
             fig_truth_end, ax_truth_end = plt.subplots()
 
+            # print("plotting predicted locations")
+            # plot_predictions_v(predictions_start / args.ssp_scaling, coords_start / args.ssp_scaling, ax_pred_start, min_val=0, max_val=2.2, fixed_axes=True)
+            # plot_predictions_v(predictions_end / args.ssp_scaling, coords_end / args.ssp_scaling, ax_pred_end, min_val=0, max_val=2.2, fixed_axes=True)
+            # print("plotting ground truth locations")
+            # plot_predictions_v(coords_start / args.ssp_scaling, coords_start / args.ssp_scaling, ax_truth_start, min_val=0, max_val=2.2, fixed_axes=True)
+            # plot_predictions_v(coords_end / args.ssp_scaling, coords_end / args.ssp_scaling, ax_truth_end, min_val=0, max_val=2.2, fixed_axes=True)
+
             print("plotting predicted locations")
-            plot_predictions_v(predictions_start / args.ssp_scaling, coords_start / args.ssp_scaling, ax_pred_start, min_val=0, max_val=2.2, fixed_axes=True)
-            plot_predictions_v(predictions_end / args.ssp_scaling, coords_end / args.ssp_scaling, ax_pred_end, min_val=0, max_val=2.2, fixed_axes=True)
+            plot_predictions_v(predictions_start, coords_start, ax_pred_start, min_val=0, max_val=2.2, fixed_axes=True)
+            plot_predictions_v(predictions_end, coords_end, ax_pred_end, min_val=0, max_val=2.2, fixed_axes=True)
             print("plotting ground truth locations")
-            plot_predictions_v(coords_start / args.ssp_scaling, coords_start / args.ssp_scaling, ax_truth_start, min_val=0, max_val=2.2, fixed_axes=True)
-            plot_predictions_v(coords_end / args.ssp_scaling, coords_end / args.ssp_scaling, ax_truth_end, min_val=0, max_val=2.2, fixed_axes=True)
+            plot_predictions_v(coords_start, coords_start, ax_truth_start, min_val=0, max_val=2.2, fixed_axes=True)
+            plot_predictions_v(coords_end, coords_end, ax_truth_end, min_val=0, max_val=2.2, fixed_axes=True)
 
             writer.add_figure("predictions start", fig_pred_start, epoch)
             writer.add_figure("ground truth start", fig_truth_start, epoch)
@@ -502,12 +509,19 @@ with torch.no_grad():
     fig_pred_end, ax_pred_end = plt.subplots()
     fig_truth_end, ax_truth_end = plt.subplots()
 
+    # print("plotting predicted locations")
+    # plot_predictions_v(predictions_start / args.ssp_scaling, coords_start / args.ssp_scaling, ax_pred_start, min_val=0, max_val=2.2, fixed_axes=True)
+    # plot_predictions_v(predictions_end / args.ssp_scaling, coords_end / args.ssp_scaling, ax_pred_end, min_val=0, max_val=2.2, fixed_axes=True)
+    # print("plotting ground truth locations")
+    # plot_predictions_v(coords_start / args.ssp_scaling, coords_start / args.ssp_scaling, ax_truth_start, min_val=0, max_val=2.2, fixed_axes=True)
+    # plot_predictions_v(coords_end / args.ssp_scaling, coords_end / args.ssp_scaling, ax_truth_end, min_val=0, max_val=2.2, fixed_axes=True)
+
     print("plotting predicted locations")
-    plot_predictions_v(predictions_start / args.ssp_scaling, coords_start / args.ssp_scaling, ax_pred_start, min_val=0, max_val=2.2, fixed_axes=True)
-    plot_predictions_v(predictions_end / args.ssp_scaling, coords_end / args.ssp_scaling, ax_pred_end, min_val=0, max_val=2.2, fixed_axes=True)
+    plot_predictions_v(predictions_start, coords_start, ax_pred_start, min_val=0, max_val=2.2, fixed_axes=True)
+    plot_predictions_v(predictions_end, coords_end, ax_pred_end, min_val=0, max_val=2.2, fixed_axes=True)
     print("plotting ground truth locations")
-    plot_predictions_v(coords_start / args.ssp_scaling, coords_start / args.ssp_scaling, ax_truth_start, min_val=0, max_val=2.2, fixed_axes=True)
-    plot_predictions_v(coords_end / args.ssp_scaling, coords_end / args.ssp_scaling, ax_truth_end, min_val=0, max_val=2.2, fixed_axes=True)
+    plot_predictions_v(coords_start, coords_start, ax_truth_start, min_val=0, max_val=2.2, fixed_axes=True)
+    plot_predictions_v(coords_end, coords_end, ax_truth_end, min_val=0, max_val=2.2, fixed_axes=True)
 
     writer.add_figure("final predictions start", fig_pred_start)
     writer.add_figure("final ground truth start", fig_truth_start)
