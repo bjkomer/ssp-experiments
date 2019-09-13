@@ -3,12 +3,12 @@ import matplotlib.pyplot as plt
 
 seed = 13
 ssp_scaling = 1
-dim = 512
+dim = 16#512
 use_softmax = False
 res = 64
 limit_low = 0 * ssp_scaling
 limit_high = 2.2 * ssp_scaling
-pc_gauss_sigma = .25
+pc_gauss_sigma = .1#.25
 
 xs = np.linspace(limit_low, limit_high, res)
 ys = np.linspace(limit_low, limit_high, res)
@@ -67,6 +67,10 @@ summation = heatmap_vectors.sum(axis=2)
 plt.figure()
 plt.imshow(summation)
 plt.figure()
-plt.imshow(heatmap_vectors[:,:,0])
+plt.imshow(heatmap_vectors[:, :, 0])
+plt.figure()
+plt.imshow(heatmap_vectors[:, :, 1])
+plt.figure()
+plt.imshow(heatmap_vectors[:, :, 2])
 plt.show()
 

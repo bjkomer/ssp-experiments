@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 
 frozen_model_path = 'frozen_models/blocks_10_100_model.pt'
 
-ssp_scaling = 5
+ssp_scaling = 1
 
-dim = 512
+dim = 512#256#512
 
 limit_low = 0 * ssp_scaling
 limit_high = 2.2 * ssp_scaling
@@ -16,10 +16,10 @@ res = 64 #128
 
 # encoding = 'frozen-learned'
 # encoding = 'ssp'
-# encoding = 'pc-gauss'
-encoding = 'pc-gauss-softmax'
+encoding = 'pc-gauss'
+# encoding = 'pc-gauss-softmax'
 
-pc_gauss_sigma = 0.01
+pc_gauss_sigma = 0.25#0.01
 
 if encoding == 'frozen-learned':
     # Generate an encoding function from the model path

@@ -138,7 +138,7 @@ grid_scores_60_truth, grid_scores_90_truth, grid_scores_60_separation_truth, gri
 print(grid_scores_60_truth, grid_scores_90_truth, grid_scores_60_separation_truth, grid_scores_90_separation_truth)
 
 # Saving to make grid score values easy to compare for different variations
-fname = '{}_{}samples.npz'.format(args.fname_prefix, args.n_samples)
+fname = 'output_scores/{}_{}samples.npz'.format(args.fname_prefix, args.n_samples)
 np.savez(
     fname,
     grid_scores_60_pred=grid_scores_60_pred,
