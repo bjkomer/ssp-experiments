@@ -27,7 +27,10 @@ class SSPTrajectoryDataset(data.Dataset):
 
 
 def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_length=100,
-                       batch_size=10, encoding='ssp', encoding_func=None, encoding_dim=512, train_split=0.8):
+                       batch_size=10, encoding='ssp', encoding_func=None, encoding_dim=512,
+                       hd_encoding_func=None, hd_dim=0,
+                       train_split=0.8,
+                       ):
     # Option to use SSPs or the 2D location directly
     assert encoding in ['ssp', '2d', 'pc', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax']
 

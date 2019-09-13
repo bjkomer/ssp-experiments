@@ -21,7 +21,7 @@ import json
 from spatial_semantic_pointers.utils import get_heatmap_vectors, ssp_to_loc, ssp_to_loc_v
 from spatial_semantic_pointers.plots import plot_predictions, plot_predictions_v
 import matplotlib.pyplot as plt
-from path_integration_utils import pc_to_loc_v, encoding_func_from_model, pc_gauss_encoding_func, ssp_encoding_func
+from path_integration_utils import pc_to_loc_v, encoding_func_from_model, pc_gauss_encoding_func, ssp_encoding_func, hd_gauss_encoding_func
 
 
 parser = argparse.ArgumentParser(
@@ -50,6 +50,8 @@ parser.add_argument('--encoding-dim', type=int, default=512)
 parser.add_argument('--train-split', type=float, default=0.8, help='Training fraction of the train/test split')
 parser.add_argument('--allow-cache', action='store_true',
                     help='once the dataset has been generated, it will be saved to a file to be loaded faster')
+# TODO: add option for random vs evenly spaced HD cells
+parser.add_argument('--n-hd-cells', type=int, default=0, help='If non-zero, use linear and angular velocity as well as HD cell output')
 
 args = parser.parse_args()
 
@@ -129,7 +131,12 @@ batch_size = args.minibatch_size#10
 n_epochs = args.n_epochs#20
 # n_epochs = 5
 
-model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=dim, dropout_p=args.dropout_p)
+if args.n_hd_cells > 0:
+    hd_encoding_func = hd_gauss_encoding_func(dim=args.n_hd_cells, sigma=0.25, use_softmax=False, rng=np.random.RandomState(args.seed))
+    model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=dim + args.n_hd_cells , dropout_p=args.dropout_p)
+else:
+    hd_encoding_func = None
+    model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=dim, dropout_p=args.dropout_p)
 
 if args.load_saved_model:
     model.load_state_dict(torch.load(args.load_saved_model), strict=False)
@@ -150,8 +157,8 @@ elif args.encoding == 'frozen-learned':
 elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
     encoding_specific = args.pc_gauss_sigma
 
-cache_fname = 'dataset_cache/{}_{}_{}_{}_{}.npz'.format(
-    args.encoding, args.encoding_dim, args.seed, args.n_samples, encoding_specific
+cache_fname = 'dataset_cache/{}_{}_{}_{}_{}_{}.npz'.format(
+    args.encoding, args.encoding_dim, args.seed, args.n_samples, args.n_hd_cells, encoding_specific
 )
 
 # if the file exists, load it from cache
@@ -171,6 +178,7 @@ else:
         encoding_func=encoding_func,
         encoding_dim=args.encoding_dim,
         train_split=args.train_split,
+        hd_dim=args.n_hd_cells,
     )
 
     if args.allow_cache:
