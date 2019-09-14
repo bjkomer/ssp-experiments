@@ -52,6 +52,7 @@ parser.add_argument('--allow-cache', action='store_true',
                     help='once the dataset has been generated, it will be saved to a file to be loaded faster')
 # TODO: add option for random vs evenly spaced HD cells
 parser.add_argument('--n-hd-cells', type=int, default=0, help='If non-zero, use linear and angular velocity as well as HD cell output')
+parser.add_argument('--grad-clip-thresh', type=float, default=1e-5, help='Gradient clipping threshold')
 parser.add_argument('--minibatch-size', type=int, default=10,
                     help='Number of trajectories used in the calculation of a stochastic gradient')
 parser.add_argument('--trajectory-length', type=int, default=100,
