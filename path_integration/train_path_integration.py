@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from datasets import train_test_loaders, load_from_cache
+from datasets import train_test_loaders, angular_train_test_loaders, load_from_cache
 from models import SSPPathIntegrationModel
 from datetime import datetime
 from tensorboardX import SummaryWriter
@@ -176,18 +176,32 @@ if os.path.exists(cache_fname):
 else:
     print("Generating Train and Test Loaders")
 
-    trainloader, testloader = train_test_loaders(
-        data,
-        n_train_samples=n_samples,
-        n_test_samples=n_samples,
-        rollout_length=rollout_length,
-        batch_size=batch_size,
-        encoding=args.encoding,
-        encoding_func=encoding_func,
-        encoding_dim=args.encoding_dim,
-        train_split=args.train_split,
-        hd_dim=args.n_hd_cells,
-    )
+    if args.n_hd_cells > 0:
+        trainloader, testloader = angular_train_test_loaders(
+            data,
+            n_train_samples=n_samples,
+            n_test_samples=n_samples,
+            rollout_length=rollout_length,
+            batch_size=batch_size,
+            encoding=args.encoding,
+            encoding_func=encoding_func,
+            encoding_dim=args.encoding_dim,
+            train_split=args.train_split,
+            hd_dim=args.n_hd_cells,
+            hd_encoding_func=hd_encoding_func,
+        )
+    else:
+        trainloader, testloader = train_test_loaders(
+            data,
+            n_train_samples=n_samples,
+            n_test_samples=n_samples,
+            rollout_length=rollout_length,
+            batch_size=batch_size,
+            encoding=args.encoding,
+            encoding_func=encoding_func,
+            encoding_dim=args.encoding_dim,
+            train_split=args.train_split,
+        )
 
     if args.allow_cache:
 
@@ -239,6 +253,8 @@ for epoch in range(n_epochs):
                     torch.ones(ssp_pred.shape[0] * ssp_pred.shape[1])
                 )
                 mse_loss = mse_criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
+
+                # TODO: handle loss differently for HD version
 
                 print("test cosine loss", cosine_loss.data.item())
                 print("test mse loss", mse_loss.data.item())
