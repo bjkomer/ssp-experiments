@@ -28,7 +28,7 @@ parser = argparse.ArgumentParser(
     'Run 2D supervised path integration experiment using pytorch. Allows various encoding methods'
 )
 
-parser = add_parameters(parser)
+# parser = add_parameters(parser)
 
 parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--n-epochs', type=int, default=20)
@@ -52,6 +52,13 @@ parser.add_argument('--allow-cache', action='store_true',
                     help='once the dataset has been generated, it will be saved to a file to be loaded faster')
 # TODO: add option for random vs evenly spaced HD cells
 parser.add_argument('--n-hd-cells', type=int, default=0, help='If non-zero, use linear and angular velocity as well as HD cell output')
+parser.add_argument('--minibatch-size', type=int, default=10,
+                    help='Number of trajectories used in the calculation of a stochastic gradient')
+parser.add_argument('--trajectory-length', type=int, default=100,
+                    help='Number of time steps in the trajectories used for the supervised learning task')
+parser.add_argument('--learning-rate', type=float, default=1e-5, help='Step size multiplier in the RMSProp algorithm')
+parser.add_argument('--momentum', type=float, default=0.9, help='Momentum parameter of the RMSProp algorithm')
+parser.add_argument('--regularization-param', type=float, default=1e-5, help='Regularisation parameter for linear layer')
 
 args = parser.parse_args()
 
