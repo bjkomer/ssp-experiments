@@ -19,6 +19,7 @@ parser.add_argument('--frozen-model-path', type=str, default='frozen_models/bloc
 parser.add_argument('--seed', type=int, default=13)
 
 parser.add_argument('--n-show-activations', type=int, default=3, help='number of activations to show')
+parser.add_argument('--noise', type=float, default=0, help='amount of noise to add to the encoding')
 
 args = parser.parse_args()
 
@@ -78,8 +79,25 @@ for i, x in enumerate(xs):
         heatmap_vectors[i, j, :] /= np.linalg.norm(heatmap_vectors[i, j, :])
 
 
+n_samples = 5000
+# random positions not aligning with the heatmap
+rand_pos = np.random.uniform(low=args.limit_low, high=args.limit_high, size=(n_samples, 2))
+
+encodings = np.zeros((n_samples, args.dim))
+
+for i in range(n_samples):
+    encodings[i, :] = encoding_func(
+        np.array(
+            [rand_pos[i, 0], rand_pos[i, 1]]
+        )
+    )
+
+encodings += np.random.normal(loc=0, scale=args.noise, size=(n_samples, args.dim))
+
+
 predictions = ssp_to_loc_v(
-    flat_heatmap_vectors,
+    # flat_heatmap_vectors,
+    encodings,
     heatmap_vectors, xs, ys
 )
 
