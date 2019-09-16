@@ -105,7 +105,8 @@ elif args.encoding == 'hex-trig':
     dim = args.encoding_dim
     ssp_scaling = 1
     encoding_func = hex_trig_encoding_func(
-        dim=dim, seed=args.seed
+        dim=dim, seed=args.seed,
+        frequencies=(2.5, 2.5*1.4, 2.5*1.4 * 1.4)
     )
 else:
     raise NotImplementedError

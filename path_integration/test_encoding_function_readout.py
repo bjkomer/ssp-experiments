@@ -43,7 +43,10 @@ elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
         limit_low=args.limit_low, limit_high=args.limit_high, dim=args.dim, sigma=args.pc_gauss_sigma, rng=rng, use_softmax=use_softmax
     )
 elif args.encoding == 'hex-trig':
-    encoding_func = hex_trig_encoding_func(dim=args.dim, seed=args.seed)
+    encoding_func = hex_trig_encoding_func(
+        dim=args.dim, seed=args.seed,
+        frequencies=(2.5, 2.5 * 1.4, 2.5 * 1.4 * 1.4)
+    )
 
 
 xs = np.linspace(args.limit_low, args.limit_high, args.res)
