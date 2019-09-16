@@ -183,6 +183,9 @@ def angular_train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, 
         ang_outputs = np.zeros((n_samples, rollout_length))
         ang_inputs = np.zeros((n_samples))
 
+        hd_rep_outputs = np.zeros((n_samples, rollout_length, hd_dim))
+        hd_rep_inputs = np.zeros((n_samples, hd_dim))
+
         for i in range(n_samples):
             # choose random trajectory
             if test_set == 0:
@@ -200,27 +203,29 @@ def angular_train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, 
 
             # ssp output is shifted by one timestep (since it is a prediction of the future by one step)
             ssp_outputs[i, :, :] = ssps[traj_ind, step_ind + 1:step_ind_final + 1, :]
+            hd_rep_outputs[i, :, :] = hd_rep[traj_ind, step_ind + 1:step_ind_final + 1, :]
             # initial state of the LSTM is a linear transform of the ground truth ssp
             ssp_inputs[i, :] = ssps[traj_ind, step_ind]
+            hd_rep_inputs[i, :] = hd_rep[traj_ind, step_ind]
 
             # for the 2D encoding method
             pos_outputs[i, :, :] = positions[traj_ind, step_ind + 1:step_ind_final + 1, :]
             pos_inputs[i, :] = positions[traj_ind, step_ind]
 
-            ang_outputs[i, :, :] = angles[traj_ind, step_ind + 1:step_ind_final + 1, :]
-            ang_inputs[i, :] = angles[traj_ind, step_ind]
+            ang_outputs[i, :] = angles[traj_ind, step_ind + 1:step_ind_final + 1]
+            ang_inputs[i] = angles[traj_ind, step_ind]
 
         if encoding == '2d':
             dataset = SSPTrajectoryDataset(
                 velocity_inputs=velocity_inputs,
-                ssp_inputs=np.concatenate(pos_inputs, hd_rep),
-                ssp_outputs=np.concatenate(pos_outputs, hd_rep),
+                ssp_inputs=np.concatenate([pos_inputs, hd_rep_inputs], axis=1),
+                ssp_outputs=np.concatenate([pos_outputs, hd_rep_outputs], axis=2),
             )
         else:
             dataset = SSPTrajectoryDataset(
                 velocity_inputs=velocity_inputs,
-                ssp_inputs=np.concatenate(ssp_inputs, hd_rep),
-                ssp_outputs=np.concatenate(ssp_outputs, hd_rep),
+                ssp_inputs=np.concatenate([ssp_inputs, hd_rep_inputs], axis=1),
+                ssp_outputs=np.concatenate([ssp_outputs, hd_rep_outputs], axis=2),
             )
 
         if test_set == 0:
