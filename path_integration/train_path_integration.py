@@ -21,7 +21,8 @@ import json
 from spatial_semantic_pointers.utils import get_heatmap_vectors, ssp_to_loc, ssp_to_loc_v
 from spatial_semantic_pointers.plots import plot_predictions, plot_predictions_v
 import matplotlib.pyplot as plt
-from path_integration_utils import pc_to_loc_v, encoding_func_from_model, pc_gauss_encoding_func, ssp_encoding_func, hd_gauss_encoding_func
+from path_integration_utils import pc_to_loc_v, encoding_func_from_model, pc_gauss_encoding_func, ssp_encoding_func, \
+    hd_gauss_encoding_func, hex_trig_encoding_func
 
 
 parser = argparse.ArgumentParser(
@@ -34,7 +35,7 @@ parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--n-epochs', type=int, default=20)
 parser.add_argument('--n-samples', type=int, default=1000)
 parser.add_argument('--encoding', type=str, default='ssp',
-                    choices=['ssp', '2d', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax'])
+                    choices=['ssp', '2d', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig'])
 parser.add_argument('--eval-period', type=int, default=50)
 parser.add_argument('--logdir', type=str, default='output/ssp_path_integration',
                     help='Directory for saved model and tensorboard log')
@@ -99,6 +100,12 @@ elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
         limit_low=0 * ssp_scaling, limit_high=2.2 * ssp_scaling,
         dim=dim, rng=rng, sigma=args.pc_gauss_sigma,
         use_softmax=use_softmax
+    )
+elif args.encoding == 'hex-trig':
+    dim = args.encoding_dim
+    ssp_scaling = 1
+    encoding_func = hex_trig_encoding_func(
+        dim=dim, seed=args.seed
     )
 else:
     raise NotImplementedError

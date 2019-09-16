@@ -6,6 +6,8 @@ import torch.nn.functional as F
 
 from spatial_semantic_pointers.utils import make_good_unitary, encode_point
 
+from ssp_navigation.utils.encodings import encode_trig, encode_hex_trig, encode_random_trig, encode_projection
+
 
 def pc_to_loc_v(pc_activations, centers, jitter=0.01):
     """
@@ -136,5 +138,13 @@ def hd_gauss_encoding_func(limit_low=-np.pi, limit_high=np.pi, dim=12, sigma=0.2
             return softmax(activations)  # NOTE: there may be some issues with softmax and wrapping
         else:
             return activations
+
+    return encoding_func
+
+
+def hex_trig_encoding_func(dim=512, frequencies=(1, 1.4, 1.4*1.4), seed=13):
+
+    def encoding_func(positions):
+        return encode_hex_trig(x=positions[0], y=positions[1], dim=dim, frequencies=frequencies, seed=seed)
 
     return encoding_func

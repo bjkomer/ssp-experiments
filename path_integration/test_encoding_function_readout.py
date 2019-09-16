@@ -1,56 +1,60 @@
-from path_integration_utils import encoding_func_from_model, pc_gauss_encoding_func
+from path_integration_utils import encoding_func_from_model, pc_gauss_encoding_func, hex_trig_encoding_func
 import numpy as np
 from spatial_semantic_pointers.utils import ssp_to_loc_v, encode_point, make_good_unitary
 from spatial_semantic_pointers.plots import plot_predictions, plot_predictions_v
 import matplotlib.pyplot as plt
+import argparse
 
-frozen_model_path = 'frozen_models/blocks_10_100_model.pt'
+parser = argparse.ArgumentParser('View the effectiveness of an encoding function readout')
 
-ssp_scaling = 1
+parser.add_argument('--dim', type=int, default=512)
+parser.add_argument('--res', type=int, default=64)
+parser.add_argument('--ssp-scaling', type=float, default=1.0)
+parser.add_argument('--limit-low', type=float, default=0.0)
+parser.add_argument('--limit-high', type=float, default=2.2)
+parser.add_argument('--encoding', type=str, default='ssp',
+                    choices=['ssp', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig'])
+parser.add_argument('--pc-gauss-sigma', type=float, default=0.25)
+parser.add_argument('--frozen-model-path', type=str, default='frozen_models/blocks_10_100_model.pt')
+parser.add_argument('--seed', type=int, default=13)
 
-dim = 512#256#512
+parser.add_argument('--n-show-activations', type=int, default=3, help='number of activations to show')
 
-limit_low = 0 * ssp_scaling
-limit_high = 2.2 * ssp_scaling
-res = 64 #128
+args = parser.parse_args()
 
-# encoding = 'frozen-learned'
-# encoding = 'ssp'
-encoding = 'pc-gauss'
-# encoding = 'pc-gauss-softmax'
 
-pc_gauss_sigma = 0.25#0.01
-
-if encoding == 'frozen-learned':
+if args.encoding == 'frozen-learned':
     # Generate an encoding function from the model path
-    encoding_func = encoding_func_from_model(frozen_model_path)
-elif encoding == 'ssp':
+    encoding_func = encoding_func_from_model(args.frozen_model_path)
+elif args.encoding == 'ssp':
 
-    rng = np.random.RandomState(13)
-    x_axis_sp = make_good_unitary(dim, rng=rng)
-    y_axis_sp = make_good_unitary(dim, rng=rng)
+    rng = np.random.RandomState(args.seed)
+    x_axis_sp = make_good_unitary(args.dim, rng=rng)
+    y_axis_sp = make_good_unitary(args.dim, rng=rng)
 
     def encoding_func(coords):
         return encode_point(
             x=coords[0], y=coords[1], x_axis_sp=x_axis_sp, y_axis_sp=y_axis_sp,
         ).v
-elif encoding == 'pc-gauss' or encoding == 'pc-gauss-softmax':
-    use_softmax = encoding == 'pc-gauss-softmax'
-    rng = np.random.RandomState(13)
+elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
+    use_softmax = args.encoding == 'pc-gauss-softmax'
+    rng = np.random.RandomState(args.seed)
     encoding_func = pc_gauss_encoding_func(
-        limit_low=limit_low, limit_high=limit_high, dim=dim, sigma=pc_gauss_sigma, rng=rng, use_softmax=use_softmax
+        limit_low=args.limit_low, limit_high=args.limit_high, dim=args.dim, sigma=args.pc_gauss_sigma, rng=rng, use_softmax=use_softmax
     )
+elif args.encoding == 'hex-trig':
+    encoding_func = hex_trig_encoding_func(dim=args.dim, seed=args.seed)
 
 
-xs = np.linspace(limit_low, limit_high, res)
-ys = np.linspace(limit_low, limit_high, res)
+xs = np.linspace(args.limit_low, args.limit_high, args.res)
+ys = np.linspace(args.limit_low, args.limit_high, args.res)
 
 # encoding for every point in a 2D linspace, for approximating a readout
 
 # FIXME: inefficient but will work for now
-heatmap_vectors = np.zeros((len(xs), len(ys), dim))
+heatmap_vectors = np.zeros((len(xs), len(ys), args.dim))
 
-flat_heatmap_vectors = np.zeros((len(xs) * len(ys), dim))
+flat_heatmap_vectors = np.zeros((len(xs) * len(ys), args.dim))
 
 for i, x in enumerate(xs):
     for j, y in enumerate(ys):
@@ -84,6 +88,12 @@ fig_pred, ax_pred = plt.subplots()
 
 
 print("plotting predicted locations")
-plot_predictions_v(predictions / ssp_scaling, coords / ssp_scaling, ax_pred, min_val=0, max_val=2.2)
+plot_predictions_v(predictions / args.ssp_scaling, coords / args.ssp_scaling, ax_pred, min_val=args.limit_low, max_val=args.limit_high)
+
+if args.n_show_activations > 0:
+    for i in range(min(args.dim, args.n_show_activations)):
+        plt.figure()
+        plt.imshow(heatmap_vectors[:, :, i])
+
 
 plt.show()
