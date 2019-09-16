@@ -86,7 +86,7 @@ def softmax(x):
     return e_x / e_x.sum()
 
 
-def pc_gauss_encoding_func(limit_low=0, limit_high=1, dim=512, sigma=0.01, use_softmax=False, rng=np.random):
+def pc_gauss_encoding_func(limit_low=0, limit_high=1, dim=512, sigma=0.25, use_softmax=False, rng=np.random):
     # generate PC centers
     pc_centers = rng.uniform(low=limit_low, high=limit_high, size=(dim, 2))
 
@@ -116,5 +116,25 @@ def ssp_encoding_func(seed=13, dim=512, ssp_scaling=1):
             x_axis_sp=x_axis_sp,
             y_axis_sp=y_axis_sp
         ).v
+
+    return encoding_func
+
+
+def hd_gauss_encoding_func(limit_low=-np.pi, limit_high=np.pi, dim=12, sigma=0.25, use_softmax=False, rng=np.random):
+    # generate PC centers
+    hd_centers = rng.uniform(low=limit_low, high=limit_high, size=(dim, 1))
+
+    # TODO: make this more efficient
+    def encoding_func(angle):
+        activations = np.zeros((dim,))
+        for i in range(dim):
+            # include shifts of 2pi and -2pi to handle the cyclic nature correctly
+            activations[i] = np.exp(-((hd_centers[i] - angle) ** 2) / sigma / sigma) +\
+                             np.exp(-((hd_centers[i] - angle + 2 * np.pi) ** 2) / sigma / sigma) + \
+                             np.exp(-((hd_centers[i] - angle - 2 * np.pi) ** 2) / sigma / sigma)
+        if use_softmax:
+            return softmax(activations)  # NOTE: there may be some issues with softmax and wrapping
+        else:
+            return activations
 
     return encoding_func
