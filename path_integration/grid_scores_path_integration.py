@@ -55,6 +55,8 @@ parser.add_argument('--allow-cache', action='store_true',
 parser.add_argument('--trajectory-length', type=int, default=100)
 parser.add_argument('--minibatch-size', type=int, default=10)
 
+parser.add_argument('--n-bins', type=int, default=20)
+
 args = parser.parse_args()
 
 ssp_scaling = args.ssp_scaling
@@ -95,8 +97,8 @@ elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
 else:
     raise NotImplementedError
 
-limit_low = 0 * args.ssp_scaling
-limit_high = 2.2 * args.ssp_scaling
+limit_low = 0 #* args.ssp_scaling
+limit_high = 2.2 #* args.ssp_scaling
 res = 128 #256
 
 xs = np.linspace(limit_low, limit_high, res)
@@ -188,7 +190,7 @@ starts = [0.2] * 10
 ends = np.linspace(0.4, 1.0, num=10)
 masks_parameters = zip(starts, ends.tolist())
 latest_epoch_scorer = scores.GridScorer(
-    nbins=20,
+    nbins=args.n_bins,
     coords_range=((0, 2.2), (0, 2.2)),  # data_reader.get_coord_range(),
     mask_parameters=masks_parameters,
 )
