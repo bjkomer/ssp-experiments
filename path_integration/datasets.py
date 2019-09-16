@@ -32,7 +32,7 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
                        train_split=0.8,
                        ):
     # Option to use SSPs or the 2D location directly
-    assert encoding in ['ssp', '2d', 'pc', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax']
+    assert encoding in ['ssp', '2d', 'pc', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig']
 
     positions = data['positions']
 
@@ -129,7 +129,7 @@ def angular_train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, 
                        train_split=0.8,
                        ):
     # Option to use SSPs or the 2D location directly
-    assert encoding in ['ssp', '2d', 'pc', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax']
+    assert encoding in ['ssp', '2d', 'pc', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig']
 
     # This function should only be called when hd_dim is used
     assert hd_dim > 0
