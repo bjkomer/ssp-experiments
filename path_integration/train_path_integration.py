@@ -45,6 +45,7 @@ parser.add_argument('--loss-function', type=str, default='mse',
                     choices=['mse', 'cosine', 'combined', 'alternating', 'scaled'])
 parser.add_argument('--frozen-model', type=str, default='', help='model to use frozen encoding weights from')
 parser.add_argument('--pc-gauss-sigma', type=float, default=0.01)
+parser.add_argument('--hex-freq-coef', type=float, default=2.5, help='constant to scale frequencies by')
 parser.add_argument('--dropout-p', type=float, default=0.5)
 parser.add_argument('--ssp-scaling', type=float, default=1.0)
 parser.add_argument('--encoding-dim', type=int, default=512)
@@ -106,7 +107,7 @@ elif args.encoding == 'hex-trig':
     ssp_scaling = 1
     encoding_func = hex_trig_encoding_func(
         dim=dim, seed=args.seed,
-        frequencies=(2.5, 2.5*1.4, 2.5*1.4 * 1.4)
+        frequencies=(args.hex_freq_coef, args.hex_freq_coef*1.4, args.hex_freq_coef*1.4 * 1.4)
     )
 else:
     raise NotImplementedError
@@ -149,7 +150,7 @@ n_epochs = args.n_epochs#20
 
 if args.n_hd_cells > 0:
     hd_encoding_func = hd_gauss_encoding_func(dim=args.n_hd_cells, sigma=0.25, use_softmax=False, rng=np.random.RandomState(args.seed))
-    model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=dim + args.n_hd_cells , dropout_p=args.dropout_p)
+    model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=dim + args.n_hd_cells, dropout_p=args.dropout_p)
 else:
     hd_encoding_func = None
     model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=dim, dropout_p=args.dropout_p)
@@ -172,6 +173,8 @@ elif args.encoding == 'frozen-learned':
     encoding_specific = args.frozen_model
 elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
     encoding_specific = args.pc_gauss_sigma
+elif args.encoding == 'hex-trig':
+    encoding_specific = args.hex_freq_coef
 
 cache_fname = 'dataset_cache/{}_{}_{}_{}_{}_{}.npz'.format(
     args.encoding, args.encoding_dim, args.seed, args.n_samples, args.n_hd_cells, encoding_specific
@@ -317,26 +320,26 @@ for epoch in range(n_epochs):
                 # normalizing is important here
                 print("computing prediction locations")
                 pred_start = ssp_pred.detach().numpy()[0, :, :args.encoding_dim]
-                pred_start = pred_start / pred_start.sum(axis=1)[:, np.newaxis]
+                # pred_start = pred_start / pred_start.sum(axis=1)[:, np.newaxis]
                 predictions_start[:, :] = ssp_to_loc_v(
                     pred_start,
                     heatmap_vectors, xs, ys
                 )
                 pred_end = ssp_pred.detach().numpy()[-1, :, :args.encoding_dim]
-                pred_end = pred_end / pred_end.sum(axis=1)[:, np.newaxis]
+                # pred_end = pred_end / pred_end.sum(axis=1)[:, np.newaxis]
                 predictions_end[:, :] = ssp_to_loc_v(
                     pred_end,
                     heatmap_vectors, xs, ys
                 )
                 print("computing ground truth locations")
                 coord_start = ssp_outputs.detach().numpy()[:, 0, :args.encoding_dim]
-                coord_start = coord_start / coord_start.sum(axis=1)[:, np.newaxis]
+                # coord_start = coord_start / coord_start.sum(axis=1)[:, np.newaxis]
                 coords_start[:, :] = ssp_to_loc_v(
                     coord_start,
                     heatmap_vectors, xs, ys
                 )
                 coord_end = ssp_outputs.detach().numpy()[:, -1, :args.encoding_dim]
-                coord_end = coord_end / coord_end.sum(axis=1)[:, np.newaxis]
+                # coord_end = coord_end / coord_end.sum(axis=1)[:, np.newaxis]
                 coords_end[:, :] = ssp_to_loc_v(
                     coord_end,
                     heatmap_vectors, xs, ys
@@ -519,26 +522,26 @@ with torch.no_grad():
         # normalizing is important here
         print("computing prediction locations")
         pred_start = ssp_pred.detach().numpy()[0, :, :args.encoding_dim]
-        pred_start = pred_start / pred_start.sum(axis=1)[:, np.newaxis]
+        # pred_start = pred_start / pred_start.sum(axis=1)[:, np.newaxis]
         predictions_start[:, :] = ssp_to_loc_v(
             pred_start,
             heatmap_vectors, xs, ys
         )
         pred_end = ssp_pred.detach().numpy()[-1, :, :args.encoding_dim]
-        pred_end = pred_end / pred_end.sum(axis=1)[:, np.newaxis]
+        # pred_end = pred_end / pred_end.sum(axis=1)[:, np.newaxis]
         predictions_end[:, :] = ssp_to_loc_v(
             pred_end,
             heatmap_vectors, xs, ys
         )
         print("computing ground truth locations")
         coord_start = ssp_outputs.detach().numpy()[:, 0, :args.encoding_dim]
-        coord_start = coord_start / coord_start.sum(axis=1)[:, np.newaxis]
+        # coord_start = coord_start / coord_start.sum(axis=1)[:, np.newaxis]
         coords_start[:, :] = ssp_to_loc_v(
             coord_start,
             heatmap_vectors, xs, ys
         )
         coord_end = ssp_outputs.detach().numpy()[:, -1, :args.encoding_dim]
-        coord_end = coord_end / coord_end.sum(axis=1)[:, np.newaxis]
+        # coord_end = coord_end / coord_end.sum(axis=1)[:, np.newaxis]
         coords_end[:, :] = ssp_to_loc_v(
             coord_end,
             heatmap_vectors, xs, ys

@@ -92,7 +92,11 @@ for i in range(n_samples):
         )
     )
 
+    # encodings[i, :] /= np.linalg.norm(encodings[i, :])
+
 encodings += np.random.normal(loc=0, scale=args.noise, size=(n_samples, args.dim))
+
+# encodings /= encodings.sum(axis=1)[:, np.newaxis]
 
 
 predictions = ssp_to_loc_v(
