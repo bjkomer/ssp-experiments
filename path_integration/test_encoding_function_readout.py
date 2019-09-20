@@ -1,4 +1,5 @@
-from path_integration_utils import encoding_func_from_model, pc_gauss_encoding_func, hex_trig_encoding_func
+from path_integration_utils import encoding_func_from_model, pc_gauss_encoding_func, hex_trig_encoding_func, \
+    one_hot_encoding
 import numpy as np
 from spatial_semantic_pointers.utils import ssp_to_loc_v, encode_point, make_good_unitary
 from spatial_semantic_pointers.plots import plot_predictions, plot_predictions_v
@@ -13,7 +14,7 @@ parser.add_argument('--ssp-scaling', type=float, default=1.0)
 parser.add_argument('--limit-low', type=float, default=0.0)
 parser.add_argument('--limit-high', type=float, default=2.2)
 parser.add_argument('--encoding', type=str, default='ssp',
-                    choices=['ssp', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig'])
+                    choices=['ssp', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig', 'one-hot'])
 parser.add_argument('--pc-gauss-sigma', type=float, default=0.25)
 parser.add_argument('--frozen-model-path', type=str, default='frozen_models/blocks_10_100_model.pt')
 parser.add_argument('--seed', type=int, default=13)
@@ -47,6 +48,12 @@ elif args.encoding == 'hex-trig':
     encoding_func = hex_trig_encoding_func(
         dim=args.dim, seed=args.seed,
         frequencies=(2.5, 2.5 * 1.4, 2.5 * 1.4 * 1.4)
+    )
+elif args.encoding == 'one-hot':
+    encoding_func = one_hot_encoding(
+        dim=args.dim,
+        limit_low=args.limit_low,
+        limit_high=args.limit_high,
     )
 
 

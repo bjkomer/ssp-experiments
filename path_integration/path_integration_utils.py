@@ -148,3 +148,26 @@ def hex_trig_encoding_func(dim=512, frequencies=(1, 1.4, 1.4*1.4), seed=13):
         return encode_hex_trig(x=positions[0], y=positions[1], dim=dim, frequencies=frequencies, seed=seed)
 
     return encoding_func
+
+
+def one_hot_encoding(dim=512, limit_low=0, limit_high=2.2):
+
+    optimal_side = int(np.floor(np.sqrt(dim)))
+
+    if optimal_side != np.sqrt(dim):
+        print("Warning, could not evenly square {}D for one hot encoding, total dimension is now {}D".format(
+            dim, optimal_side*optimal_side)
+        )
+
+    xs = np.linspace(limit_low, limit_high, optimal_side)
+    ys = np.linspace(limit_low, limit_high, optimal_side)
+
+    def encoding_func(positions):
+        arr = np.zeros((len(xs), len(ys)))
+        indx = (np.abs(xs - positions[0])).argmin()
+        indy = (np.abs(ys - positions[1])).argmin()
+        arr[indx, indy] = 1
+
+        return arr.flatten()
+
+    return encoding_func
