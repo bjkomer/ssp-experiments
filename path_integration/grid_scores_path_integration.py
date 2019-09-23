@@ -154,6 +154,8 @@ elif args.encoding == 'frozen-learned':
     encoding_specific = args.frozen_model
 elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
     encoding_specific = args.pc_gauss_sigma
+elif args.encoding == 'hex-trig':
+    encoding_specific = args.hex_freq_coef
 
 cache_fname = 'dataset_cache/{}_{}_{}_{}_{}.npz'.format(
     args.encoding, args.encoding_dim, args.seed, args.n_samples, encoding_specific
