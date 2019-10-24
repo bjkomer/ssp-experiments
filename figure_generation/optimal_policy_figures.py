@@ -172,6 +172,13 @@ fig_truth, rmse = plot_path_predictions_image(
     wall_overlay=wall_overlay
 )
 
+fig_truth, rmse = plot_path_predictions_image(
+    directions_pred=wall_gradient.reshape(args.res*args.res, 2),
+    directions_true=wall_gradient.reshape(args.res*args.res, 2),
+    wall_overlay=wall_overlay
+)
+
+
 fig_truth_quiver = plot_path_predictions(
     directions=solved_mazes.reshape(args.res*args.res, 2), coords=locs.reshape(args.res*args.res, 2), dcell=xs[1] - xs[0]
 )
@@ -179,5 +186,10 @@ fig_truth_quiver = plot_path_predictions(
 fig_truth_quiver = plot_path_predictions(
     directions=combined_solved_mazes.reshape(args.res*args.res, 2), coords=locs.reshape(args.res*args.res, 2), dcell=xs[1] - xs[0]
 )
+
+fig_truth_quiver = plot_path_predictions(
+    directions=wall_gradient.reshape(args.res*args.res, 2), coords=locs.reshape(args.res*args.res, 2), dcell=xs[1] - xs[0]
+)
+
 
 plt.show()

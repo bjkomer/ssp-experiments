@@ -27,22 +27,26 @@ parser.add_argument('--train-limit-high', type=float, default=5)
 
 parser.add_argument('--n-samples', type=int, default=5000)
 
+parser.add_argument('--fname', type=str, default='evaluate_encodings_noise_multiseed.csv')
+
 
 args = parser.parse_args()
 
-fname_csv = 'output/evaluate_encodings_noise_multiseed.csv'
+fname_csv = 'output/' + args.fname
 
 seeds = np.arange(5)
 
 ssp_configs = [
     argparse.Namespace(
-        spatial_encoding='ssp', dim=512, seed=seed, limit_low=-5, limit_high=5
+        spatial_encoding='ssp', dim=args.dim, seed=seed,
+        limit_low=args.train_limit_low, limit_high=args.train_limit_high
     ) for seed in seeds
 ]
 
 pcgauss_configs = [
     argparse.Namespace(
-        spatial_encoding='pc-gauss', dim=512, seed=seed, limit_low=-5, limit_high=5,
+        spatial_encoding='pc-gauss', dim=args.dim, seed=seed,
+        limit_low=args.train_limit_low, limit_high=args.train_limit_high,
         pc_gauss_sigma=0.75,
     ) for seed in seeds
 ]
@@ -50,13 +54,15 @@ pcgauss_configs = [
 # Seed has no effect on one-hot encoding
 onehot_configs = [
     argparse.Namespace(
-        spatial_encoding='one-hot', dim=4096, seed=0, limit_low=-5, limit_high=5,
+        spatial_encoding='one-hot', dim=4096, seed=0,
+        limit_low=args.train_limit_low, limit_high=args.train_limit_high,
     )
 ]
 
 tilecoding_configs = [
     argparse.Namespace(
-        spatial_encoding='tile-coding', dim=4096, seed=seed, limit_low=-5, limit_high=5,
+        spatial_encoding='tile-coding', dim=4096, seed=seed,
+        limit_low=args.train_limit_low, limit_high=args.train_limit_high,
         n_bins=16, n_tiles=16,
     ) for seed in seeds
 ]
@@ -173,6 +179,8 @@ else:
     df = pd.read_csv(fname_csv)
 
 # df = df[df['Dimensions'] == 16]
+
+df = df[df['Noise Level'] < 1]
 
 ax = sns.lineplot(data=df, x='Noise Level', y='RMSE', hue='Encoding')
 ax.set_xscale('log')
