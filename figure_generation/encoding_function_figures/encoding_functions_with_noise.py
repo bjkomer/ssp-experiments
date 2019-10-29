@@ -32,7 +32,12 @@ parser.add_argument('--fname', type=str, default='evaluate_encodings_noise_multi
 
 args = parser.parse_args()
 
-fname_csv = 'output/' + args.fname
+out_folder = 'output'
+
+if not os.path.exists(out_folder):
+    os.makedirs(out_folder)
+
+fname_csv = os.path.join('output', args.fname)
 
 seeds = np.arange(5)
 
