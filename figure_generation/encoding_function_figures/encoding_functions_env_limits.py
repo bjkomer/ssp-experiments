@@ -61,7 +61,7 @@ for limit in limits:
         argparse.Namespace(
             spatial_encoding='pc-gauss', dim=args.dim, seed=seed,
             limit_low=-limit, limit_high=limit,
-            pc_gauss_sigma=0.75,
+            pc_gauss_sigma=0.75*(limit/5),
         ) for seed in seeds
     ]
 
