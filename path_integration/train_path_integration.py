@@ -35,7 +35,7 @@ parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--n-epochs', type=int, default=20)
 parser.add_argument('--n-samples', type=int, default=1000)
 parser.add_argument('--encoding', type=str, default='ssp',
-                    choices=['ssp', '2d', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig'])
+                    choices=['ssp', '2d', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig', 'hex-trig-all-freq'])
 parser.add_argument('--eval-period', type=int, default=50)
 parser.add_argument('--logdir', type=str, default='output/ssp_path_integration',
                     help='Directory for saved model and tensorboard log')
@@ -62,6 +62,9 @@ parser.add_argument('--trajectory-length', type=int, default=100,
 parser.add_argument('--learning-rate', type=float, default=1e-5, help='Step size multiplier in the RMSProp algorithm')
 parser.add_argument('--momentum', type=float, default=0.9, help='Momentum parameter of the RMSProp algorithm')
 parser.add_argument('--regularization-param', type=float, default=1e-5, help='Regularisation parameter for linear layer')
+
+parser.add_argument('--sin-cos-ang', type=int, default=1, choices=[0, 1],
+                    help='Use the sin and cos of the angular velocity if angular velocities are used')
 
 args = parser.parse_args()
 
@@ -108,6 +111,13 @@ elif args.encoding == 'hex-trig':
     encoding_func = hex_trig_encoding_func(
         dim=dim, seed=args.seed,
         frequencies=(args.hex_freq_coef, args.hex_freq_coef*1.4, args.hex_freq_coef*1.4 * 1.4)
+    )
+elif args.encoding == 'hex-trig-all-freq':
+    dim = args.encoding_dim
+    ssp_scaling = 1
+    encoding_func = hex_trig_encoding_func(
+        dim=dim, seed=args.seed,
+        frequencies=np.linspace(1, 10, 100),
     )
 else:
     raise NotImplementedError
@@ -200,6 +210,7 @@ else:
             train_split=args.train_split,
             hd_dim=args.n_hd_cells,
             hd_encoding_func=hd_encoding_func,
+            sin_cos_ang=args.sin_cos_ang,
         )
     else:
         trainloader, testloader = train_test_loaders(
