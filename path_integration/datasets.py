@@ -32,7 +32,7 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
                        train_split=0.8,
                        ):
     # Option to use SSPs or the 2D location directly
-    assert encoding in ['ssp', '2d', 'pc', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig']
+    assert encoding in ['ssp', '2d', 'pc', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig', 'hex-trig-all-freq']
 
     positions = data['positions']
 
@@ -127,9 +127,10 @@ def angular_train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, 
                        batch_size=10, encoding='ssp', encoding_func=None, encoding_dim=512,
                        hd_encoding_func=None, hd_dim=0,
                        train_split=0.8,
+                       sin_cos_ang=True,
                        ):
     # Option to use SSPs or the 2D location directly
-    assert encoding in ['ssp', '2d', 'pc', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig']
+    assert encoding in ['ssp', '2d', 'pc', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig', 'hex-trig-all-freq']
 
     # This function should only be called when hd_dim is used
     assert hd_dim > 0
@@ -168,7 +169,11 @@ def angular_train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, 
 
     for test_set, n_samples in enumerate([n_train_samples, n_test_samples]):
 
-        velocity_inputs = np.zeros((n_samples, rollout_length, 2))
+        if sin_cos_ang:
+            # uses the sin and cos of the angular velocity, to match the deepmind paper
+            velocity_inputs = np.zeros((n_samples, rollout_length, 3))
+        else:
+            velocity_inputs = np.zeros((n_samples, rollout_length, 2))
 
         # these include outputs for every time-step
         ssp_outputs = np.zeros((n_samples, rollout_length, encoding_dim))
@@ -199,7 +204,11 @@ def angular_train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, 
             step_ind_final = step_ind + rollout_length
 
             velocity_inputs[i, :, 0] = lin_vels[traj_ind, step_ind:step_ind_final]
-            velocity_inputs[i, :, 1] = ang_vels[traj_ind, step_ind:step_ind_final]
+            if sin_cos_ang:
+                velocity_inputs[i, :, 1] = np.sin(ang_vels[traj_ind, step_ind:step_ind_final])
+                velocity_inputs[i, :, 2] = np.cos(ang_vels[traj_ind, step_ind:step_ind_final])
+            else:
+                velocity_inputs[i, :, 1] = ang_vels[traj_ind, step_ind:step_ind_final]
 
             # ssp output is shifted by one timestep (since it is a prediction of the future by one step)
             ssp_outputs[i, :, :] = ssps[traj_ind, step_ind + 1:step_ind_final + 1, :]
