@@ -160,7 +160,11 @@ n_epochs = args.n_epochs#20
 
 if args.n_hd_cells > 0:
     hd_encoding_func = hd_gauss_encoding_func(dim=args.n_hd_cells, sigma=0.25, use_softmax=False, rng=np.random.RandomState(args.seed))
-    model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=dim + args.n_hd_cells, dropout_p=args.dropout_p)
+    if args.sin_cos_ang:
+        input_size = 3
+    else:
+        input_size = 2
+    model = SSPPathIntegrationModel(input_size=input_size, unroll_length=rollout_length, sp_dim=dim + args.n_hd_cells, dropout_p=args.dropout_p)
 else:
     hd_encoding_func = None
     model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=dim, dropout_p=args.dropout_p)
