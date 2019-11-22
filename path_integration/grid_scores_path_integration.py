@@ -262,7 +262,6 @@ with torch.no_grad():
 
         ssp_pred, lstm_outputs = model.forward_activations(velocity_inputs, ssp_inputs)
 
-
     predictions = np.zeros((ssp_pred.shape[0]*ssp_pred.shape[1], 2))
     coords = np.zeros((ssp_pred.shape[0]*ssp_pred.shape[1], 2))
     activations = np.zeros((ssp_pred.shape[0]*ssp_pred.shape[1], model.lstm_hidden_size))
@@ -278,8 +277,10 @@ with torch.no_grad():
     # Using all data, one chunk at a time
     for ri in range(rollout_length):
 
+        # trim out head direction info if that was included by only looking up to args.encoding_dim
+
         # computing 'predicted' coordinates, where the agent thinks it is
-        pred = ssp_pred.detach().numpy()[ri, :, :]
+        pred = ssp_pred.detach().numpy()[ri, :, :args.encoding_dim]
         # pred = pred / pred.sum(axis=1)[:, np.newaxis]
         predictions[ri * ssp_pred.shape[1]:(ri + 1) * ssp_pred.shape[1], :] = ssp_to_loc_v(
             pred,
@@ -287,7 +288,7 @@ with torch.no_grad():
         )
 
         # computing 'ground truth' coordinates, where the agent should be
-        coord = ssp_outputs.detach().numpy()[:, ri, :]
+        coord = ssp_outputs.detach().numpy()[:, ri, :args.encoding_dim]
         # coord = coord / coord.sum(axis=1)[:, np.newaxis]
         coords[ri * ssp_pred.shape[1]:(ri + 1) * ssp_pred.shape[1], :] = ssp_to_loc_v(
             coord,
