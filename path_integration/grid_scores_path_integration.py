@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from datasets import train_test_loaders, load_from_cache
+from datasets import train_test_loaders, angular_train_test_loaders, load_from_cache
 from models import SSPPathIntegrationModel
 from datetime import datetime
 from tensorboardX import SummaryWriter
@@ -41,7 +41,7 @@ parser.add_argument('--model', type=str, default='')
 parser.add_argument('--fname-prefix', type=str, default='sac')
 parser.add_argument('--ssp-scaling', type=float, default=1.0)
 parser.add_argument('--encoding', type=str, default='ssp',
-                    choices=['ssp', '2d', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig'])
+                    choices=['ssp', '2d', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig', 'hex-trig-all-freq'])
 parser.add_argument('--frozen-model', type=str, default='', help='model to use frozen encoding weights from')
 parser.add_argument('--pc-gauss-sigma', type=float, default=0.25)
 parser.add_argument('--hex-freq-coef', type=float, default=2.5, help='constant to scale frequencies by')
@@ -58,6 +58,10 @@ parser.add_argument('--trajectory-length', type=int, default=100)
 parser.add_argument('--minibatch-size', type=int, default=10)
 
 parser.add_argument('--n-bins', type=int, default=20)
+
+parser.add_argument('--n-hd-cells', type=int, default=0, help='If non-zero, use linear and angular velocity as well as HD cell output')
+parser.add_argument('--sin-cos-ang', type=int, default=1, choices=[0, 1],
+                    help='Use the sin and cos of the angular velocity if angular velocities are used')
 
 args = parser.parse_args()
 
@@ -103,6 +107,13 @@ elif args.encoding == 'hex-trig':
         dim=dim, seed=args.seed,
         frequencies=(args.hex_freq_coef, args.hex_freq_coef*1.4, args.hex_freq_coef*1.4 * 1.4)
     )
+elif args.encoding == 'hex-trig-all-freq':
+    dim = args.encoding_dim
+    ssp_scaling = 1
+    encoding_func = hex_trig_encoding_func(
+        dim=dim, seed=args.seed,
+        frequencies=np.linspace(1, 10, 100),
+    )
 else:
     raise NotImplementedError
 
@@ -140,7 +151,19 @@ rollout_length = args.trajectory_length
 batch_size = args.minibatch_size
 
 
-model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=dim, dropout_p=args.dropout_p)
+if args.n_hd_cells > 0:
+    hd_encoding_func = hd_gauss_encoding_func(dim=args.n_hd_cells, sigma=0.25, use_softmax=False, rng=np.random.RandomState(args.seed))
+    if args.sin_cos_ang:
+        input_size = 3
+    else:
+        input_size = 2
+    model = SSPPathIntegrationModel(input_size=input_size, unroll_length=rollout_length, sp_dim=dim + args.n_hd_cells, dropout_p=args.dropout_p)
+else:
+    hd_encoding_func = None
+    model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=dim, dropout_p=args.dropout_p)
+
+
+# model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=dim, dropout_p=args.dropout_p)
 
 model.load_state_dict(torch.load(args.model), strict=False)
 
@@ -157,8 +180,11 @@ elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
 elif args.encoding == 'hex-trig':
     encoding_specific = args.hex_freq_coef
 
-cache_fname = 'dataset_cache/{}_{}_{}_{}_{}.npz'.format(
-    args.encoding, args.encoding_dim, args.seed, args.n_samples, encoding_specific
+# cache_fname = 'dataset_cache/{}_{}_{}_{}_{}.npz'.format(
+#     args.encoding, args.encoding_dim, args.seed, args.n_samples, encoding_specific
+# )
+cache_fname = 'dataset_cache/{}_{}_{}_{}_{}_{}.npz'.format(
+    args.encoding, args.encoding_dim, args.seed, args.n_samples, args.n_hd_cells, encoding_specific
 )
 
 # if the file exists, load it from cache
@@ -168,17 +194,33 @@ if os.path.exists(cache_fname):
 else:
     print("Generating Train and Test Loaders")
 
-    trainloader, testloader = train_test_loaders(
-        data,
-        n_train_samples=n_samples,
-        n_test_samples=n_samples,
-        rollout_length=rollout_length,
-        batch_size=batch_size,
-        encoding=args.encoding,
-        encoding_func=encoding_func,
-        encoding_dim=args.encoding_dim,
-        train_split=args.train_split,
-    )
+    if args.n_hd_cells > 0:
+        trainloader, testloader = angular_train_test_loaders(
+            data,
+            n_train_samples=n_samples,
+            n_test_samples=n_samples,
+            rollout_length=rollout_length,
+            batch_size=batch_size,
+            encoding=args.encoding,
+            encoding_func=encoding_func,
+            encoding_dim=args.encoding_dim,
+            train_split=args.train_split,
+            hd_dim=args.n_hd_cells,
+            hd_encoding_func=hd_encoding_func,
+            sin_cos_ang=args.sin_cos_ang,
+        )
+    else:
+        trainloader, testloader = train_test_loaders(
+            data,
+            n_train_samples=n_samples,
+            n_test_samples=n_samples,
+            rollout_length=rollout_length,
+            batch_size=batch_size,
+            encoding=args.encoding,
+            encoding_func=encoding_func,
+            encoding_dim=args.encoding_dim,
+            train_split=args.train_split,
+        )
 
     if args.allow_cache:
 
