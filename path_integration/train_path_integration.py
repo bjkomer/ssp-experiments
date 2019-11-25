@@ -203,7 +203,7 @@ if args.spatial_encoding == 'ssp':
     encoding_specific = args.ssp_scaling
 elif args.spatial_encoding == 'frozen-learned':
     encoding_specific = args.frozen_model
-elif args.spatial_encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
+elif args.spatial_encoding == 'pc-gauss' or args.spatial_encoding == 'pc-gauss-softmax':
     encoding_specific = args.pc_gauss_sigma
 elif args.spatial_encoding == 'hex-trig':
     encoding_specific = args.hex_freq_coef
@@ -405,7 +405,7 @@ for epoch in range(n_epochs):
 
             torch.save(
                 model.state_dict(),
-                os.path.join(save_dir, '{}_path_integration_model_epoch_{}.pt'.format(args.encoding, epoch))
+                os.path.join(save_dir, '{}_path_integration_model_epoch_{}.pt'.format(args.spatial_encoding, epoch))
             )
 
     avg_bce_loss = 0
@@ -605,4 +605,4 @@ with torch.no_grad():
     writer.add_figure("final predictions end", fig_pred_end)
     writer.add_figure("final ground truth end", fig_truth_end)
 
-torch.save(model.state_dict(), os.path.join(save_dir, '{}_path_integration_model.pt'.format(args.encoding)))
+torch.save(model.state_dict(), os.path.join(save_dir, '{}_path_integration_model.pt'.format(args.spatial_encoding)))
