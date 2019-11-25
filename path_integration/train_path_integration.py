@@ -23,7 +23,7 @@ from spatial_semantic_pointers.plots import plot_predictions, plot_predictions_v
 import matplotlib.pyplot as plt
 from path_integration_utils import pc_to_loc_v, encoding_func_from_model, pc_gauss_encoding_func, ssp_encoding_func, \
     hd_gauss_encoding_func, hex_trig_encoding_func
-from ssp_navigation.encoding import get_encoding_function
+from ssp_navigation.utils.encoding import get_encoding_function
 
 
 parser = argparse.ArgumentParser(
@@ -55,7 +55,7 @@ parser.add_argument('--frozen-model', type=str, default='', help='model to use f
 parser.add_argument('--pc-gauss-sigma', type=float, default=0.01)
 parser.add_argument('--hex-freq-coef', type=float, default=2.5, help='constant to scale frequencies by')
 parser.add_argument('--n-tiles', type=int, default=8, help='number of layers for tile coding')
-parser.add_argument('--n-bins', type=int, default=0, help='number of bins for tile coding')
+parser.add_argument('--n-bins', type=int, default=8, help='number of bins for tile coding')
 parser.add_argument('--ssp-scaling', type=float, default=1.0)
 
 parser.add_argument('--dropout-p', type=float, default=0.5)
