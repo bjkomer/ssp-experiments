@@ -23,7 +23,7 @@ from spatial_semantic_pointers.plots import plot_predictions, plot_predictions_v
 import matplotlib.pyplot as plt
 from path_integration_utils import pc_to_loc_v, encoding_func_from_model, pc_gauss_encoding_func, ssp_encoding_func, \
     hd_gauss_encoding_func, hex_trig_encoding_func
-from ssp_navigation.utils.encoding import get_encoding_function
+from ssp_navigation.utils.encodings import get_encoding_function
 
 
 parser = argparse.ArgumentParser(
