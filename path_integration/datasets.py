@@ -153,7 +153,9 @@ def angular_train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, 
         for step in range(ssps.shape[1]):
             if encoding != '2d':
                 ssps[traj, step, :] = encoding_func(
-                    positions=positions[traj, step, :]
+                    # positions=positions[traj, step, :]
+                    x=positions[traj, step, 0],
+                    y=positions[traj, step, 1],
                 )
             hd_rep[traj, step, :] = hd_encoding_func(
                 angle=angles[traj, step]

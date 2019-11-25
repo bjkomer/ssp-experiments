@@ -158,9 +158,11 @@ for i, x in enumerate(xs):
             #     [[x, y]]
             # )
             # no batch dim
-            np.array(
-                [x, y]
-            )
+            # np.array(
+            #     [x, y]
+            # )
+            # new signature
+            x=x, y=y
         )
 
         heatmap_vectors[i, j, :] /= np.linalg.norm(heatmap_vectors[i, j, :])
