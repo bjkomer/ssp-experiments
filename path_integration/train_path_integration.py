@@ -23,6 +23,7 @@ from spatial_semantic_pointers.plots import plot_predictions, plot_predictions_v
 import matplotlib.pyplot as plt
 from path_integration_utils import pc_to_loc_v, encoding_func_from_model, pc_gauss_encoding_func, ssp_encoding_func, \
     hd_gauss_encoding_func, hex_trig_encoding_func
+from ssp_navigation.encoding import get_encoding_function
 
 
 parser = argparse.ArgumentParser(
@@ -34,8 +35,13 @@ parser = argparse.ArgumentParser(
 parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--n-epochs', type=int, default=20)
 parser.add_argument('--n-samples', type=int, default=1000)
-parser.add_argument('--encoding', type=str, default='ssp',
-                    choices=['ssp', '2d', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig', 'hex-trig-all-freq'])
+parser.add_argument('--spatial-encoding', type=str, default='ssp',
+                    choices=[
+                        'ssp', 'random', '2d', '2d-normalized', 'one-hot', 'hex-trig',
+                        'trig', 'random-trig', 'random-proj', 'learned', 'frozen-learned',
+                        'pc-gauss', 'tile-coding'
+                    ])
+                    # choices=['ssp', '2d', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig', 'hex-trig-all-freq'])
 parser.add_argument('--eval-period', type=int, default=50)
 parser.add_argument('--logdir', type=str, default='output/ssp_path_integration',
                     help='Directory for saved model and tensorboard log')
@@ -44,10 +50,15 @@ parser.add_argument('--load-saved-model', type=str, default='', help='Saved mode
 parser.add_argument('--loss-function', type=str, default='mse',
                     choices=['mse', 'cosine', 'combined', 'alternating', 'scaled'])
 parser.add_argument('--frozen-model', type=str, default='', help='model to use frozen encoding weights from')
+
+# Encoding specific parameters
 parser.add_argument('--pc-gauss-sigma', type=float, default=0.01)
 parser.add_argument('--hex-freq-coef', type=float, default=2.5, help='constant to scale frequencies by')
-parser.add_argument('--dropout-p', type=float, default=0.5)
+parser.add_argument('--n-tiles', type=int, default=8, help='number of layers for tile coding')
+parser.add_argument('--n-bins', type=int, default=0, help='number of bins for tile coding')
 parser.add_argument('--ssp-scaling', type=float, default=1.0)
+
+parser.add_argument('--dropout-p', type=float, default=0.5)
 parser.add_argument('--encoding-dim', type=int, default=512)
 parser.add_argument('--train-split', type=float, default=0.8, help='Training fraction of the train/test split')
 parser.add_argument('--allow-cache', action='store_true',
@@ -78,53 +89,58 @@ writer = SummaryWriter(log_dir=save_dir)
 data = np.load(args.dataset)
 
 # only used for frozen-learned and other custom encoding functions
-encoding_func = None
+# encoding_func = None
 
-if args.encoding == 'ssp':
-    dim = args.encoding_dim
-    encoding_func = ssp_encoding_func(seed=args.seed, dim=dim, ssp_scaling=args.ssp_scaling)
-elif args.encoding == '2d':
-    dim = 2
-    ssp_scaling = 1  # no scaling used for 2D coordinates directly
-elif args.encoding == 'pc':
-    dim = args.n_place_cells
-    ssp_scaling = 1
-elif args.encoding == 'frozen-learned':
-    dim = args.encoding_dim
-    ssp_scaling = 1
-    # Generate an encoding function from the model path
-    encoding_func = encoding_func_from_model(args.frozen_model)
-elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
-    dim = args.encoding_dim
-    ssp_scaling = 1
-    use_softmax = args.encoding == 'pc-guass-softmax'
-    # Generate an encoding function from the model path
-    rng = np.random.RandomState(args.seed)
-    encoding_func = pc_gauss_encoding_func(
-        limit_low=0 * ssp_scaling, limit_high=2.2 * ssp_scaling,
-        dim=dim, rng=rng, sigma=args.pc_gauss_sigma,
-        use_softmax=use_softmax
-    )
-elif args.encoding == 'hex-trig':
-    dim = args.encoding_dim
-    ssp_scaling = 1
-    encoding_func = hex_trig_encoding_func(
-        dim=dim, seed=args.seed,
-        frequencies=(args.hex_freq_coef, args.hex_freq_coef*1.4, args.hex_freq_coef*1.4 * 1.4)
-    )
-elif args.encoding == 'hex-trig-all-freq':
-    dim = args.encoding_dim
-    ssp_scaling = 1
-    encoding_func = hex_trig_encoding_func(
-        dim=dim, seed=args.seed,
-        frequencies=np.linspace(1, 10, 100),
-    )
-else:
-    raise NotImplementedError
+
+
+# if args.encoding == 'ssp':
+#     dim = args.encoding_dim
+#     encoding_func = ssp_encoding_func(seed=args.seed, dim=dim, ssp_scaling=args.ssp_scaling)
+# elif args.encoding == '2d':
+#     dim = 2
+#     ssp_scaling = 1  # no scaling used for 2D coordinates directly
+# elif args.encoding == 'pc':
+#     dim = args.n_place_cells
+#     ssp_scaling = 1
+# elif args.encoding == 'frozen-learned':
+#     dim = args.encoding_dim
+#     ssp_scaling = 1
+#     # Generate an encoding function from the model path
+#     encoding_func = encoding_func_from_model(args.frozen_model)
+# elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
+#     dim = args.encoding_dim
+#     ssp_scaling = 1
+#     use_softmax = args.encoding == 'pc-guass-softmax'
+#     # Generate an encoding function from the model path
+#     rng = np.random.RandomState(args.seed)
+#     encoding_func = pc_gauss_encoding_func(
+#         limit_low=0 * ssp_scaling, limit_high=2.2 * ssp_scaling,
+#         dim=dim, rng=rng, sigma=args.pc_gauss_sigma,
+#         use_softmax=use_softmax
+#     )
+# elif args.encoding == 'hex-trig':
+#     dim = args.encoding_dim
+#     ssp_scaling = 1
+#     encoding_func = hex_trig_encoding_func(
+#         dim=dim, seed=args.seed,
+#         frequencies=(args.hex_freq_coef, args.hex_freq_coef*1.4, args.hex_freq_coef*1.4 * 1.4)
+#     )
+# elif args.encoding == 'hex-trig-all-freq':
+#     dim = args.encoding_dim
+#     ssp_scaling = 1
+#     encoding_func = hex_trig_encoding_func(
+#         dim=dim, seed=args.seed,
+#         frequencies=np.linspace(1, 10, 100),
+#     )
+# else:
+#     raise NotImplementedError
 
 limit_low = 0 #* args.ssp_scaling
 limit_high = 2.2 #* args.ssp_scaling
 res = 128 #256
+
+encoding_func, dim = get_encoding_function(args, limit_low=limit_low, limit_high=limit_high)
+# dim = args.encoding_dim
 
 xs = np.linspace(limit_low, limit_high, res)
 ys = np.linspace(limit_low, limit_high, res)
@@ -181,17 +197,17 @@ optimizer = optim.RMSprop(model.parameters(), lr=args.learning_rate, momentum=ar
 
 # encoding specific cache string
 encoding_specific = ''
-if args.encoding == 'ssp':
+if args.spatial_encoding == 'ssp':
     encoding_specific = args.ssp_scaling
-elif args.encoding == 'frozen-learned':
+elif args.spatial_encoding == 'frozen-learned':
     encoding_specific = args.frozen_model
-elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
+elif args.spatial_encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
     encoding_specific = args.pc_gauss_sigma
-elif args.encoding == 'hex-trig':
+elif args.spatial_encoding == 'hex-trig':
     encoding_specific = args.hex_freq_coef
 
 cache_fname = 'dataset_cache/{}_{}_{}_{}_{}_{}.npz'.format(
-    args.encoding, args.encoding_dim, args.seed, args.n_samples, args.n_hd_cells, encoding_specific
+    args.spatial_encoding, args.encoding_dim, args.seed, args.n_samples, args.n_hd_cells, encoding_specific
 )
 
 # if the file exists, load it from cache
@@ -208,7 +224,7 @@ else:
             n_test_samples=n_samples,
             rollout_length=rollout_length,
             batch_size=batch_size,
-            encoding=args.encoding,
+            encoding=args.spatial_encoding,
             encoding_func=encoding_func,
             encoding_dim=args.encoding_dim,
             train_split=args.train_split,
@@ -223,7 +239,7 @@ else:
             n_test_samples=n_samples,
             rollout_length=rollout_length,
             batch_size=batch_size,
-            encoding=args.encoding,
+            encoding=args.spatial_encoding,
             encoding_func=encoding_func,
             encoding_dim=args.encoding_dim,
             train_split=args.train_split,
@@ -305,7 +321,7 @@ for epoch in range(n_epochs):
             predictions_end = np.zeros((ssp_pred.shape[1], 2))
             coords_end = np.zeros((ssp_pred.shape[1], 2))
 
-            if args.encoding == 'ssp':
+            if args.spatial_encoding == 'ssp':
                 print("computing prediction locations")
                 predictions_start[:, :] = ssp_to_loc_v(
                     ssp_pred.detach().numpy()[0, :, :args.encoding_dim],
@@ -324,7 +340,7 @@ for epoch in range(n_epochs):
                     ssp_outputs.detach().numpy()[:, -1, :args.encoding_dim],
                     heatmap_vectors, xs, ys
                 )
-            elif args.encoding == '2d':
+            elif args.spatial_encoding == '2d':
                 print("copying prediction locations")
                 predictions_start[:, :] = ssp_pred.detach().numpy()[0, :, :]
                 predictions_end[:, :] = ssp_pred.detach().numpy()[-1, :, :]
@@ -507,7 +523,7 @@ with torch.no_grad():
     predictions_end = np.zeros((ssp_pred.shape[1], 2))
     coords_end = np.zeros((ssp_pred.shape[1], 2))
 
-    if args.encoding == 'ssp':
+    if args.spatial_encoding == 'ssp':
         print("computing prediction locations")
         predictions_start[:, :] = ssp_to_loc_v(
             ssp_pred.detach().numpy()[0, :, :args.encoding_dim],
@@ -526,7 +542,7 @@ with torch.no_grad():
             ssp_outputs.detach().numpy()[:, -1, :args.encoding_dim],
             heatmap_vectors, xs, ys
         )
-    elif args.encoding == '2d':
+    elif args.spatial_encoding == '2d':
         print("copying prediction locations")
         predictions_start[:, :] = ssp_pred.detach().numpy()[0, :, :]
         predictions_end[:, :] = ssp_pred.detach().numpy()[-1, :, :]
