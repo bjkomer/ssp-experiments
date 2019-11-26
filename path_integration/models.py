@@ -140,7 +140,8 @@ class SSPPathIntegrationModel(nn.Module):
 
 
 # based on: https://github.com/abr/neurips2019/blob/master/lmu/lmu.py
-class LMUCell(nn.modules.rnn.RNNCellBase):
+# class LMUCell(nn.modules.rnn.RNNCellBase):
+class LMUCell(nn.Module):
 
     def __init__(self, input_size, hidden_size, #bias=True,
                  order,
