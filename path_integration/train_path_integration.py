@@ -77,6 +77,8 @@ parser.add_argument('--regularization-param', type=float, default=1e-5, help='Re
 parser.add_argument('--sin-cos-ang', type=int, default=1, choices=[0, 1],
                     help='Use the sin and cos of the angular velocity if angular velocities are used')
 
+parser.add_argument('--use-lmu', action='store_true', help='Use an LMU instead of an LSTM')
+
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
@@ -182,10 +184,17 @@ if args.n_hd_cells > 0:
         input_size = 3
     else:
         input_size = 2
-    model = SSPPathIntegrationModel(input_size=input_size, unroll_length=rollout_length, sp_dim=dim + args.n_hd_cells, dropout_p=args.dropout_p)
+    model = SSPPathIntegrationModel(
+        input_size=input_size, unroll_length=rollout_length,
+        sp_dim=dim + args.n_hd_cells, dropout_p=args.dropout_p, use_lmu=args.use_lmu
+    )
 else:
     hd_encoding_func = None
-    model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=dim, dropout_p=args.dropout_p)
+    model = SSPPathIntegrationModel(
+        input_size=2,
+        unroll_length=rollout_length,
+        sp_dim=dim, dropout_p=args.dropout_p, use_lmu=args.use_lmu
+    )
 
 if args.load_saved_model:
     model.load_state_dict(torch.load(args.load_saved_model), strict=False)
