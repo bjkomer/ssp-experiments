@@ -188,13 +188,15 @@ class LMUCell(nn.modules.rnn.RNNCellBase):
         self.AT = nn.Parameter(torch.Tensor(self._A), requires_grad=trainable_A)
         self.BT = nn.Parameter(torch.Tensor(self._B), requires_grad=trainable_B)
 
-        # TODO: different initialization for these parameters? Make sure AT and BT aren't overwritten
+        # TODO: different initialization for these parameters?
         self.reset_parameters()
 
     def reset_parameters(self):
         stdv = 1.0 / math.sqrt(self.hidden_size)
         for weight in self.parameters():
-            weight.data.uniform_(-stdv, stdv)
+            # only reset the parameters if they are trainable
+            if weight.requires_grad:
+                weight.data.uniform_(-stdv, stdv)
 
     def forward(self, input, hx):
 
