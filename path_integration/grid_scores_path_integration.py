@@ -62,6 +62,7 @@ parser.add_argument('--n-bins', type=int, default=20)
 parser.add_argument('--n-hd-cells', type=int, default=0, help='If non-zero, use linear and angular velocity as well as HD cell output')
 parser.add_argument('--sin-cos-ang', type=int, default=1, choices=[0, 1],
                     help='Use the sin and cos of the angular velocity if angular velocities are used')
+parser.add_argument('--use-lmu', action='store_true')
 
 args = parser.parse_args()
 
@@ -157,10 +158,16 @@ if args.n_hd_cells > 0:
         input_size = 3
     else:
         input_size = 2
-    model = SSPPathIntegrationModel(input_size=input_size, unroll_length=rollout_length, sp_dim=dim + args.n_hd_cells, dropout_p=args.dropout_p)
+    model = SSPPathIntegrationModel(
+        input_size=input_size, unroll_length=rollout_length,
+        sp_dim=dim + args.n_hd_cells, dropout_p=args.dropout_p, use_lmu=args.use_lmu
+    )
 else:
     hd_encoding_func = None
-    model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=dim, dropout_p=args.dropout_p)
+    model = SSPPathIntegrationModel(
+        input_size=2, unroll_length=rollout_length,
+        sp_dim=dim, dropout_p=args.dropout_p, use_lmu=args.use_lmu
+    )
 
 
 # model = SSPPathIntegrationModel(unroll_length=rollout_length, sp_dim=dim, dropout_p=args.dropout_p)
