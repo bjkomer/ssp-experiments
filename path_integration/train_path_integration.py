@@ -78,6 +78,7 @@ parser.add_argument('--sin-cos-ang', type=int, default=1, choices=[0, 1],
                     help='Use the sin and cos of the angular velocity if angular velocities are used')
 
 parser.add_argument('--use-lmu', action='store_true', help='Use an LMU instead of an LSTM')
+parser.add_argument('--lmu-order', type=int, default=6)
 
 args = parser.parse_args()
 
@@ -186,14 +187,14 @@ if args.n_hd_cells > 0:
         input_size = 2
     model = SSPPathIntegrationModel(
         input_size=input_size, unroll_length=rollout_length,
-        sp_dim=dim + args.n_hd_cells, dropout_p=args.dropout_p, use_lmu=args.use_lmu
+        sp_dim=dim + args.n_hd_cells, dropout_p=args.dropout_p, use_lmu=args.use_lmu, order=args.lmu_order
     )
 else:
     hd_encoding_func = None
     model = SSPPathIntegrationModel(
         input_size=2,
         unroll_length=rollout_length,
-        sp_dim=dim, dropout_p=args.dropout_p, use_lmu=args.use_lmu
+        sp_dim=dim, dropout_p=args.dropout_p, use_lmu=args.use_lmu, order=args.lmu_order
     )
 
 if args.load_saved_model:

@@ -84,7 +84,6 @@ class SSPPathIntegrationModel(nn.Module):
             for velocity in velocity_inputs:
                 h, c = self.lmu_cell(velocity, (h, c))
                 outputs.append(h)
-            # output = h
             output = torch.cat(outputs).view(len(outputs), batch_size, -1)
         else:
             velocities = torch.cat(velocity_inputs).view(len(velocity_inputs), batch_size, -1)
@@ -118,11 +117,14 @@ class SSPPathIntegrationModel(nn.Module):
             # c = cell_state.view(1, batch_size, self.lstm_hidden_size)
             h = hidden_state.view(batch_size, self.lstm_hidden_size)
             c = cell_state.view(batch_size, self.order)
+            outputs = []
             for velocity in velocity_inputs:
                 h, c = self.lmu_cell(velocity, (h, c))
-            output = h
+                outputs.append(h)
+            output = torch.cat(outputs).view(len(outputs), batch_size, -1)
         else:
             velocities = torch.cat(velocity_inputs).view(len(velocity_inputs), batch_size, -1)
+            # Note that output is a sequence, it contains a vector for every timestep
             output, (_, _) = self.lstm(
                 velocities,
                 (
