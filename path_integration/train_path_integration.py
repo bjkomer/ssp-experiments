@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from datasets import train_test_loaders, angular_train_test_loaders, load_from_cache
+from datasets import train_test_loaders, angular_train_test_loaders, tf_train_test_loaders, load_from_cache
 from models import SSPPathIntegrationModel
 from datetime import datetime
 from tensorboardX import SummaryWriter
@@ -218,9 +218,14 @@ elif args.spatial_encoding == 'pc-gauss' or args.spatial_encoding == 'pc-gauss-s
 elif args.spatial_encoding == 'hex-trig':
     encoding_specific = args.hex_freq_coef
 
-cache_fname = 'dataset_cache/{}_{}_{}_{}_{}_{}.npz'.format(
-    args.spatial_encoding, args.dim, args.seed, args.n_samples, args.n_hd_cells, encoding_specific
-)
+if 'tf' in args.dataset:
+    cache_fname = 'dataset_cache/tf_{}_{}_{}_{}_{}_{}.npz'.format(
+        args.spatial_encoding, args.dim, args.seed, args.n_samples, args.n_hd_cells, encoding_specific
+    )
+else:
+    cache_fname = 'dataset_cache/{}_{}_{}_{}_{}_{}.npz'.format(
+        args.spatial_encoding, args.dim, args.seed, args.n_samples, args.n_hd_cells, encoding_specific
+    )
 
 # if the file exists, load it from cache
 if os.path.exists(cache_fname):
@@ -229,8 +234,11 @@ if os.path.exists(cache_fname):
 else:
     print("Generating Train and Test Loaders")
 
-    if args.n_hd_cells > 0:
-        trainloader, testloader = angular_train_test_loaders(
+    if 'tf' in args.dataset:
+        # tfrecord dataset only supports using the sin and cos of angular velocity
+        assert args.sin_cos_ang == 1
+
+        trainloader, testloader = tf_train_test_loaders(
             data,
             n_train_samples=n_samples,
             n_test_samples=n_samples,
@@ -244,18 +252,36 @@ else:
             hd_encoding_func=hd_encoding_func,
             sin_cos_ang=args.sin_cos_ang,
         )
+
     else:
-        trainloader, testloader = train_test_loaders(
-            data,
-            n_train_samples=n_samples,
-            n_test_samples=n_samples,
-            rollout_length=rollout_length,
-            batch_size=batch_size,
-            encoding=args.spatial_encoding,
-            encoding_func=encoding_func,
-            encoding_dim=args.dim,
-            train_split=args.train_split,
-        )
+
+        if args.n_hd_cells > 0:
+            trainloader, testloader = angular_train_test_loaders(
+                data,
+                n_train_samples=n_samples,
+                n_test_samples=n_samples,
+                rollout_length=rollout_length,
+                batch_size=batch_size,
+                encoding=args.spatial_encoding,
+                encoding_func=encoding_func,
+                encoding_dim=args.dim,
+                train_split=args.train_split,
+                hd_dim=args.n_hd_cells,
+                hd_encoding_func=hd_encoding_func,
+                sin_cos_ang=args.sin_cos_ang,
+            )
+        else:
+            trainloader, testloader = train_test_loaders(
+                data,
+                n_train_samples=n_samples,
+                n_test_samples=n_samples,
+                rollout_length=rollout_length,
+                batch_size=batch_size,
+                encoding=args.spatial_encoding,
+                encoding_func=encoding_func,
+                encoding_dim=args.dim,
+                train_split=args.train_split,
+            )
 
     if args.allow_cache:
 

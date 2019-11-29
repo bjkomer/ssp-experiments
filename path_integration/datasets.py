@@ -253,6 +253,91 @@ def angular_train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, 
     return trainloader, testloader
 
 
+def tf_train_test_loaders(data, n_train_samples=500000, n_test_samples=500000, rollout_length=100,
+                       batch_size=10, encoding='ssp', encoding_func=None, encoding_dim=512,
+                       hd_encoding_func=None, hd_dim=0,
+                       train_split=0.8,
+                       sin_cos_ang=True,
+                       ):
+
+    for test_set, n_samples in enumerate([n_train_samples, n_test_samples]):
+
+        if test_set == 0:
+            print("Loading data for training set")
+            init_pos = data['init_pos'][:n_samples]
+            init_hd = data['init_hd'][:n_samples]
+            ego_vel = data['ego_vel'][:n_samples]
+            target_pos = data['target_pos'][:n_samples]
+            target_hd = data['target_hd'][:n_samples]
+        else:
+            print("Loading data for testing set")
+            init_pos = data['init_pos'][n_samples:]
+            init_hd = data['init_hd'][n_samples:]
+            ego_vel = data['ego_vel'][n_samples:]
+            target_pos = data['target_pos'][n_samples:]
+            target_hd = data['target_hd'][n_samples:]
+
+        ssp_inputs = np.zeros((init_pos.shape[0], encoding_dim + hd_dim))
+        ssp_outputs = np.zeros((target_pos.shape[0], target_pos.shape[1], encoding_dim + hd_dim))
+
+        print("Generating encodings for every point")
+
+        # inputs
+        for traj in range(ssp_inputs.shape[0]):
+
+            ssp_inputs[traj, :encoding_dim] = encoding_func(
+                x=init_pos[traj, 0],
+                y=init_pos[traj, 1],
+            )
+
+            if hd_dim > 0:
+                ssp_inputs[traj, encoding_dim:] = hd_encoding_func(
+                    angle=init_hd[traj]
+                )
+
+        # outputs
+        for traj in range(ssp_outputs.shape[0]):
+            for step in range(ssp_outputs.shape[1]):
+                # if encoding != '2d':
+                #     ssp = encoding_func(
+                #         # positions=positions[traj, step, :]
+                #         x=positions[traj, step, 0],
+                #         y=positions[traj, step, 1],
+                #     )
+                # hd_rep = hd_encoding_func(
+                #     angle=angles[traj, step]
+                # )
+
+                ssp_outputs[traj, step, :encoding_dim] = encoding_func(
+                        x=target_pos[traj, step, 0],
+                        y=target_pos[traj, step, 1],
+                    )
+
+                if hd_dim > 0:
+                    ssp_outputs[traj, step, encoding_dim:] = hd_encoding_func(
+                        angle=target_hd[traj, step]
+                    )
+
+        print("Encoding Generation Complete")
+
+        dataset = SSPTrajectoryDataset(
+            velocity_inputs=ego_vel,
+            ssp_inputs=ssp_inputs,
+            ssp_outputs=ssp_outputs,
+        )
+
+        if test_set == 0:
+            trainloader = torch.utils.data.DataLoader(
+                dataset, batch_size=batch_size, shuffle=True, num_workers=0,
+            )
+        else:
+            testloader = torch.utils.data.DataLoader(
+                dataset, batch_size=n_samples, shuffle=True, num_workers=0,
+            )
+
+    return trainloader, testloader
+
+
 def load_from_cache(fname, batch_size=10, n_samples=1000):
 
     data = np.load(fname)

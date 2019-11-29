@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+import matplotlib.pyplot as plt
 from tfrecord import (
     Writer, Reader,
     pack_int64_list, unpack_int64_list,
@@ -53,16 +54,16 @@ feature_shapes = {
 }
 
 
+# TODO: make sure the reshaping is doing things in a correct manner. Plot some of the 2D trajectories.
 def reshape_sample(sample):
     reshaped = {}
     for key, value in sample.items():
         reshaped[key] = np.array(value).reshape(feature_shapes[key])
     return reshaped
 
+
 def unpack_sample(feats):
     return {
-        # 'floats': unpack_float_list(feats['floats']),
-        # 'bytes' : unpack_bytes_list(feats['bytes'])
         'init_pos': unpack_float_list(feats['init_pos']),
         'init_hd': unpack_float_list(feats['init_hd']),
         'ego_vel': unpack_float_list(feats['ego_vel']),
@@ -73,7 +74,7 @@ def unpack_sample(feats):
 
 with Reader(FILENAME, unpack_sample) as r:
     for sample in r:
-        print(reshape_sample(sample))
+        # print(reshape_sample(sample))
         # print(sample)
         # # print(len(sample['init_pos']))
         # # print(len(sample['init_hd']))
@@ -84,3 +85,10 @@ with Reader(FILENAME, unpack_sample) as r:
 
         # example = tf.parse_example(sample, feature_map)
         # print(example)
+
+        data = reshape_sample(sample)
+
+        plt.scatter(data['target_pos'][:, 0], data['target_pos'][:, 1])
+        plt.xlim([-1.1, 1.1])
+        plt.ylim([-1.1, 1.1])
+        plt.show()
