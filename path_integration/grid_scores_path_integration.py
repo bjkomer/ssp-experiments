@@ -39,7 +39,7 @@ parser.add_argument('--dataset', type=str, default='')
 parser.add_argument('--model', type=str, default='')
 parser.add_argument('--fname-prefix', type=str, default='sac')
 parser.add_argument('--ssp-scaling', type=float, default=1.0)
-parser.add_argument('--encoding', type=str, default='ssp',
+parser.add_argument('--spatial-encoding', type=str, default='ssp',
                     choices=['ssp', '2d', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig', 'hex-trig-all-freq'])
 parser.add_argument('--frozen-model', type=str, default='', help='model to use frozen encoding weights from')
 parser.add_argument('--pc-gauss-sigma', type=float, default=0.25)
@@ -48,7 +48,7 @@ parser.add_argument('--hex-freq-coef', type=float, default=2.5, help='constant t
 
 parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--dropout-p', type=float, default=0.5)
-parser.add_argument('--encoding-dim', type=int, default=512)
+parser.add_argument('--dim', type=int, default=512)
 parser.add_argument('--train-split', type=float, default=0.8, help='Training fraction of the train/test split')
 parser.add_argument('--allow-cache', action='store_true',
                     help='once the dataset has been generated, it will be saved to a file to be loaded faster')
@@ -75,48 +75,6 @@ data = np.load(args.dataset)
 
 # only used for frozen-learned and other custom encoding functions
 # encoding_func = None
-
-# if args.encoding == 'ssp':
-#     dim = args.encoding_dim
-#     encoding_func = ssp_encoding_func(seed=args.seed, dim=dim, ssp_scaling=args.ssp_scaling)
-# elif args.encoding == '2d':
-#     dim = 2
-#     ssp_scaling = 1  # no scaling used for 2D coordinates directly
-# elif args.encoding == 'pc':
-#     dim = args.n_place_cells
-#     ssp_scaling = 1
-# elif args.encoding == 'frozen-learned':
-#     dim = args.encoding_dim
-#     ssp_scaling = 1
-#     # Generate an encoding function from the model path
-#     encoding_func = encoding_func_from_model(args.frozen_model)
-# elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
-#     dim = args.encoding_dim
-#     ssp_scaling = 1
-#     use_softmax = args.encoding == 'pc-guass-softmax'
-#     # Generate an encoding function from the model path
-#     rng = np.random.RandomState(args.seed)
-#     encoding_func = pc_gauss_encoding_func(
-#         limit_low=0 * ssp_scaling, limit_high=2.2 * ssp_scaling,
-#         dim=dim, rng=rng, sigma=args.pc_gauss_sigma,
-#         use_softmax=use_softmax
-#     )
-# elif args.encoding == 'hex-trig':
-#     dim = args.encoding_dim
-#     ssp_scaling = 1
-#     encoding_func = hex_trig_encoding_func(
-#         dim=dim, seed=args.seed,
-#         frequencies=(args.hex_freq_coef, args.hex_freq_coef*1.4, args.hex_freq_coef*1.4 * 1.4)
-#     )
-# elif args.encoding == 'hex-trig-all-freq':
-#     dim = args.encoding_dim
-#     ssp_scaling = 1
-#     encoding_func = hex_trig_encoding_func(
-#         dim=dim, seed=args.seed,
-#         frequencies=np.linspace(1, 10, 100),
-#     )
-# else:
-#     raise NotImplementedError
 
 limit_low = 0 #* args.ssp_scaling
 limit_high = 2.2 #* args.ssp_scaling
@@ -182,22 +140,22 @@ model.eval()
 
 # encoding specific cache string
 encoding_specific = ''
-if args.encoding == 'ssp':
+if args.spatial_encoding == 'ssp':
     encoding_specific = args.ssp_scaling
-elif args.encoding == 'frozen-learned':
+elif args.spatial_encoding == 'frozen-learned':
     encoding_specific = args.frozen_model
-elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
+elif args.spatial_encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
     encoding_specific = args.pc_gauss_sigma
-elif args.encoding == 'hex-trig':
+elif args.spatial_encoding == 'hex-trig':
     encoding_specific = args.hex_freq_coef
 
 if 'tf' in args.dataset:
     cache_fname = 'dataset_cache/tf_{}_{}_{}_{}_{}_{}.npz'.format(
-        args.encoding, args.encoding_dim, args.seed, args.n_samples, args.n_hd_cells, encoding_specific
+        args.spatial_encoding, args.dim, args.seed, args.n_samples, args.n_hd_cells, encoding_specific
     )
 else:
     cache_fname = 'dataset_cache/{}_{}_{}_{}_{}_{}.npz'.format(
-        args.encoding, args.encoding_dim, args.seed, args.n_samples, args.n_hd_cells, encoding_specific
+        args.spatial_encoding, args.dim, args.seed, args.n_samples, args.n_hd_cells, encoding_specific
     )
 
 # if the file exists, load it from cache
@@ -217,9 +175,9 @@ else:
             n_test_samples=n_samples,
             rollout_length=rollout_length,
             batch_size=batch_size,
-            encoding=args.encoding,
+            encoding=args.spatial_encoding,
             encoding_func=encoding_func,
-            encoding_dim=args.encoding_dim,
+            encoding_dim=args.dim,
             train_split=args.train_split,
             hd_dim=args.n_hd_cells,
             hd_encoding_func=hd_encoding_func,
@@ -235,9 +193,9 @@ else:
                 n_test_samples=n_samples,
                 rollout_length=rollout_length,
                 batch_size=batch_size,
-                encoding=args.encoding,
+                encoding=args.spatial_encoding,
                 encoding_func=encoding_func,
-                encoding_dim=args.encoding_dim,
+                encoding_dim=args.dim,
                 train_split=args.train_split,
                 hd_dim=args.n_hd_cells,
                 hd_encoding_func=hd_encoding_func,
@@ -250,9 +208,9 @@ else:
                 n_test_samples=n_samples,
                 rollout_length=rollout_length,
                 batch_size=batch_size,
-                encoding=args.encoding,
+                encoding=args.spatial_encoding,
                 encoding_func=encoding_func,
-                encoding_dim=args.encoding_dim,
+                encoding_dim=args.dim,
                 train_split=args.train_split,
             )
 
@@ -314,7 +272,7 @@ with torch.no_grad():
         # trim out head direction info if that was included by only looking up to args.encoding_dim
 
         # computing 'predicted' coordinates, where the agent thinks it is
-        pred = ssp_pred.detach().numpy()[ri, :, :args.encoding_dim]
+        pred = ssp_pred.detach().numpy()[ri, :, :args.dim]
         # pred = pred / pred.sum(axis=1)[:, np.newaxis]
         predictions[ri * ssp_pred.shape[1]:(ri + 1) * ssp_pred.shape[1], :] = ssp_to_loc_v(
             pred,
@@ -322,7 +280,7 @@ with torch.no_grad():
         )
 
         # computing 'ground truth' coordinates, where the agent should be
-        coord = ssp_outputs.detach().numpy()[:, ri, :args.encoding_dim]
+        coord = ssp_outputs.detach().numpy()[:, ri, :args.dim]
         # coord = coord / coord.sum(axis=1)[:, np.newaxis]
         coords[ri * ssp_pred.shape[1]:(ri + 1) * ssp_pred.shape[1], :] = ssp_to_loc_v(
             coord,
