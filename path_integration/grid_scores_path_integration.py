@@ -190,11 +190,11 @@ elif args.encoding == 'hex-trig':
 
 if 'tf' in args.dataset:
     cache_fname = 'dataset_cache/tf_{}_{}_{}_{}_{}_{}.npz'.format(
-        args.encoding, args.dim, args.seed, args.n_samples, args.n_hd_cells, encoding_specific
+        args.encoding, args.encoding_dim, args.seed, args.n_samples, args.n_hd_cells, encoding_specific
     )
 else:
     cache_fname = 'dataset_cache/{}_{}_{}_{}_{}_{}.npz'.format(
-        args.encoding, args.dim, args.seed, args.n_samples, args.n_hd_cells, encoding_specific
+        args.encoding, args.encoding_dim, args.seed, args.n_samples, args.n_hd_cells, encoding_specific
     )
 
 # if the file exists, load it from cache
@@ -216,7 +216,7 @@ else:
             batch_size=batch_size,
             encoding=args.encoding,
             encoding_func=encoding_func,
-            encoding_dim=args.dim,
+            encoding_dim=args.encoding_dim,
             train_split=args.train_split,
             hd_dim=args.n_hd_cells,
             hd_encoding_func=hd_encoding_func,
@@ -234,7 +234,7 @@ else:
                 batch_size=batch_size,
                 encoding=args.encoding,
                 encoding_func=encoding_func,
-                encoding_dim=args.dim,
+                encoding_dim=args.encoding_dim,
                 train_split=args.train_split,
                 hd_dim=args.n_hd_cells,
                 hd_encoding_func=hd_encoding_func,
@@ -249,7 +249,7 @@ else:
                 batch_size=batch_size,
                 encoding=args.encoding,
                 encoding_func=encoding_func,
-                encoding_dim=args.dim,
+                encoding_dim=args.encoding_dim,
                 train_split=args.train_split,
             )
 
