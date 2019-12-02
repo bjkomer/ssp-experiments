@@ -23,8 +23,7 @@ from spatial_semantic_pointers.plots import plot_predictions, plot_predictions_v
 import matplotlib.pyplot as plt
 from path_integration_utils import pc_to_loc_v, encoding_func_from_model, pc_gauss_encoding_func, ssp_encoding_func, \
     hd_gauss_encoding_func, hex_trig_encoding_func
-
-
+from ssp_navigation.utils.encodings import get_encoding_function
 
 import grid_scoring.scores as scores
 import grid_scoring.utils as utils
@@ -75,53 +74,55 @@ np.random.seed(args.seed)
 data = np.load(args.dataset)
 
 # only used for frozen-learned and other custom encoding functions
-encoding_func = None
+# encoding_func = None
 
-if args.encoding == 'ssp':
-    dim = args.encoding_dim
-    encoding_func = ssp_encoding_func(seed=args.seed, dim=dim, ssp_scaling=args.ssp_scaling)
-elif args.encoding == '2d':
-    dim = 2
-    ssp_scaling = 1  # no scaling used for 2D coordinates directly
-elif args.encoding == 'pc':
-    dim = args.n_place_cells
-    ssp_scaling = 1
-elif args.encoding == 'frozen-learned':
-    dim = args.encoding_dim
-    ssp_scaling = 1
-    # Generate an encoding function from the model path
-    encoding_func = encoding_func_from_model(args.frozen_model)
-elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
-    dim = args.encoding_dim
-    ssp_scaling = 1
-    use_softmax = args.encoding == 'pc-guass-softmax'
-    # Generate an encoding function from the model path
-    rng = np.random.RandomState(args.seed)
-    encoding_func = pc_gauss_encoding_func(
-        limit_low=0 * ssp_scaling, limit_high=2.2 * ssp_scaling,
-        dim=dim, rng=rng, sigma=args.pc_gauss_sigma,
-        use_softmax=use_softmax
-    )
-elif args.encoding == 'hex-trig':
-    dim = args.encoding_dim
-    ssp_scaling = 1
-    encoding_func = hex_trig_encoding_func(
-        dim=dim, seed=args.seed,
-        frequencies=(args.hex_freq_coef, args.hex_freq_coef*1.4, args.hex_freq_coef*1.4 * 1.4)
-    )
-elif args.encoding == 'hex-trig-all-freq':
-    dim = args.encoding_dim
-    ssp_scaling = 1
-    encoding_func = hex_trig_encoding_func(
-        dim=dim, seed=args.seed,
-        frequencies=np.linspace(1, 10, 100),
-    )
-else:
-    raise NotImplementedError
+# if args.encoding == 'ssp':
+#     dim = args.encoding_dim
+#     encoding_func = ssp_encoding_func(seed=args.seed, dim=dim, ssp_scaling=args.ssp_scaling)
+# elif args.encoding == '2d':
+#     dim = 2
+#     ssp_scaling = 1  # no scaling used for 2D coordinates directly
+# elif args.encoding == 'pc':
+#     dim = args.n_place_cells
+#     ssp_scaling = 1
+# elif args.encoding == 'frozen-learned':
+#     dim = args.encoding_dim
+#     ssp_scaling = 1
+#     # Generate an encoding function from the model path
+#     encoding_func = encoding_func_from_model(args.frozen_model)
+# elif args.encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
+#     dim = args.encoding_dim
+#     ssp_scaling = 1
+#     use_softmax = args.encoding == 'pc-guass-softmax'
+#     # Generate an encoding function from the model path
+#     rng = np.random.RandomState(args.seed)
+#     encoding_func = pc_gauss_encoding_func(
+#         limit_low=0 * ssp_scaling, limit_high=2.2 * ssp_scaling,
+#         dim=dim, rng=rng, sigma=args.pc_gauss_sigma,
+#         use_softmax=use_softmax
+#     )
+# elif args.encoding == 'hex-trig':
+#     dim = args.encoding_dim
+#     ssp_scaling = 1
+#     encoding_func = hex_trig_encoding_func(
+#         dim=dim, seed=args.seed,
+#         frequencies=(args.hex_freq_coef, args.hex_freq_coef*1.4, args.hex_freq_coef*1.4 * 1.4)
+#     )
+# elif args.encoding == 'hex-trig-all-freq':
+#     dim = args.encoding_dim
+#     ssp_scaling = 1
+#     encoding_func = hex_trig_encoding_func(
+#         dim=dim, seed=args.seed,
+#         frequencies=np.linspace(1, 10, 100),
+#     )
+# else:
+#     raise NotImplementedError
 
 limit_low = 0 #* args.ssp_scaling
 limit_high = 2.2 #* args.ssp_scaling
 res = 128 #256
+
+encoding_func, dim = get_encoding_function(args, limit_low=limit_low, limit_high=limit_high)
 
 xs = np.linspace(limit_low, limit_high, res)
 ys = np.linspace(limit_low, limit_high, res)
