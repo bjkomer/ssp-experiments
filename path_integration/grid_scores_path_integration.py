@@ -190,11 +190,11 @@ elif args.encoding == 'hex-trig':
 
 if 'tf' in args.dataset:
     cache_fname = 'dataset_cache/tf_{}_{}_{}_{}_{}_{}.npz'.format(
-        args.spatial_encoding, args.dim, args.seed, args.n_samples, args.n_hd_cells, encoding_specific
+        args.encoding, args.dim, args.seed, args.n_samples, args.n_hd_cells, encoding_specific
     )
 else:
     cache_fname = 'dataset_cache/{}_{}_{}_{}_{}_{}.npz'.format(
-        args.spatial_encoding, args.dim, args.seed, args.n_samples, args.n_hd_cells, encoding_specific
+        args.encoding, args.dim, args.seed, args.n_samples, args.n_hd_cells, encoding_specific
     )
 
 # if the file exists, load it from cache
@@ -214,7 +214,7 @@ else:
             n_test_samples=n_samples,
             rollout_length=rollout_length,
             batch_size=batch_size,
-            encoding=args.spatial_encoding,
+            encoding=args.encoding,
             encoding_func=encoding_func,
             encoding_dim=args.dim,
             train_split=args.train_split,
@@ -232,7 +232,7 @@ else:
                 n_test_samples=n_samples,
                 rollout_length=rollout_length,
                 batch_size=batch_size,
-                encoding=args.spatial_encoding,
+                encoding=args.encoding,
                 encoding_func=encoding_func,
                 encoding_dim=args.dim,
                 train_split=args.train_split,
@@ -247,7 +247,7 @@ else:
                 n_test_samples=n_samples,
                 rollout_length=rollout_length,
                 batch_size=batch_size,
-                encoding=args.spatial_encoding,
+                encoding=args.encoding,
                 encoding_func=encoding_func,
                 encoding_dim=args.dim,
                 train_split=args.train_split,
