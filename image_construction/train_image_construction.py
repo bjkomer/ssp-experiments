@@ -8,25 +8,16 @@ if display is None or 'localhost' in display:
 import argparse
 import numpy as np
 # NOTE: this is currently soft-linked to this directory
-from arguments import add_parameters
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
-from datasets import train_test_loaders, angular_train_test_loaders, tf_train_test_loaders, load_from_cache
-from models import SSPPathIntegrationModel
 from datetime import datetime
 from tensorboardX import SummaryWriter
 import json
-from spatial_semantic_pointers.utils import get_heatmap_vectors, ssp_to_loc, ssp_to_loc_v
-from spatial_semantic_pointers.plots import plot_predictions, plot_predictions_v
-import matplotlib.pyplot as plt
-from path_integration_utils import pc_to_loc_v, encoding_func_from_model, pc_gauss_encoding_func, ssp_encoding_func, \
-    hd_gauss_encoding_func, hex_trig_encoding_func
 from ssp_navigation.utils.encodings import get_encoding_function
 from ssp_navigation.utils.models import MLP, LearnedEncoding
 
-from utils import create_train_test_image_dataloaders
+from utils import create_train_test_image_dataloaders, PolicyValidationSet
 import nengo.spa as spa
 
 parser = argparse.ArgumentParser(
@@ -39,6 +30,8 @@ parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--epochs', type=int, default=250, help='Number of epochs to train for')
 parser.add_argument('--epoch-offset', type=int, default=0,
                     help='Optional offset to start epochs counting from. To be used when continuing training')
+parser.add_argument('--viz-period', type=int, default=50, help='number of epochs before a viz set run')
+parser.add_argument('--val-period', type=int, default=25, help='number of epochs before a test/validation set run')
 parser.add_argument('--n-samples', type=int, default=1000)
 parser.add_argument('--spatial-encoding', type=str, default='ssp',
                     choices=[
@@ -47,7 +40,6 @@ parser.add_argument('--spatial-encoding', type=str, default='ssp',
                         'pc-gauss', 'tile-coding'
                     ])
                     # choices=['ssp', '2d', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig', 'hex-trig-all-freq'])
-parser.add_argument('--eval-period', type=int, default=50)
 parser.add_argument('--logdir', type=str, default='output/ssp_image_construction',
                     help='Directory for saved model and tensorboard log')
 parser.add_argument('--dataset', type=str, default='data/image_dataset.npz')
@@ -55,6 +47,10 @@ parser.add_argument('--load-saved-model', type=str, default='', help='Saved mode
 parser.add_argument('--loss-function', type=str, default='mse',
                     choices=['mse', 'cosine', 'combined', 'alternating', 'scaled'])
 parser.add_argument('--frozen-model', type=str, default='', help='model to use frozen encoding weights from')
+parser.add_argument('--hidden-size', type=int, default=512)
+parser.add_argument('--n-hidden-layers', type=int, default=1)
+parser.add_argument('--subsample', type=int, default=2)
+parser.add_argument('--batch-size', type=int, default=64)
 
 parser.add_argument('--n-train-samples', type=int, default=50000, help='Number of training samples')
 parser.add_argument('--n-test-samples', type=int, default=50000, help='Number of testing samples')
@@ -76,7 +72,7 @@ parser.add_argument('--allow-cache', action='store_true',
 
 parser.add_argument('--learning-rate', type=float, default=1e-5, help='Step size multiplier in the RMSProp algorithm')
 parser.add_argument('--momentum', type=float, default=0.9, help='Momentum parameter of the RMSProp algorithm')
-parser.add_argument('--regularization-param', type=float, default=1e-5, help='Regularisation parameter for linear layer')
+parser.add_argument('--weight-histogram', action='store_true', help='Save histogram of the weights')
 
 parser.add_argument('--gpu', type=int, default=-1,
                     help="set to an integer corresponding to the gpu to use. Set to -1 to use the CPU")
@@ -269,10 +265,12 @@ for i in range(args.n_images):
 
 # TODO: make a version of this for images
 validation_set = PolicyValidationSet(
-    data=data, dim=repr_dim, maze_sps=maze_sps, maze_indices=maze_indices, goal_indices=goal_indices, subsample=args.subsample,
+    data=data, dim=args.dim, id_vecs=id_vecs, image_indices=[0, 1, 2, 3], n_goals=2, subsample=args.subsample,
     # spatial_encoding=args.spatial_encoding,
-    encoding_func=encoding_func, device=device
+    encoding_func=encoding_func, device=device,
+    seed=13
 )
+
 
 trainloader, testloader = create_train_test_image_dataloaders(
     data=data, n_train_samples=args.n_train_samples, n_test_samples=args.n_test_samples,
@@ -280,8 +278,7 @@ trainloader, testloader = create_train_test_image_dataloaders(
     encoding_func=encoding_func, pin_memory=pin_memory
 )
 
-
-
+validation_set.run_ground_truth(writer=writer)
 
 
 for e in range(args.epoch_offset, args.epochs + args.epoch_offset):
@@ -290,7 +287,7 @@ for e in range(args.epoch_offset, args.epochs + args.epoch_offset):
     if e % args.viz_period == 0:
         print("Running Viz Set")
         # do a validation run and save images
-        validation_set.run_validation(model, writer, e, use_wall_overlay=not args.no_wall_overlay)
+        validation_set.run_validation(model, writer, e)
 
         if e > 0:
             # Save a copy of the model at this stage
