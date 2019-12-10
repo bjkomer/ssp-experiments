@@ -322,8 +322,6 @@ def plot_predicted_image(directions_pred, directions_true, name='', ax=None):
     size = int(np.sqrt(directions_pred.shape[0]))
     image = directions_pred.reshape((size, size, 3))
 
-    print(image)
-
     # angles_pred = angles_flat_pred.reshape((size, size))
 
     # ax.imshow(angles_pred, cmap='hsv', interpolation=None)
