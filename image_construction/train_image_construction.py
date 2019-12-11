@@ -56,6 +56,7 @@ parser.add_argument('--n-test-samples', type=int, default=50000, help='Number of
 
 parser.add_argument('--n-images', type=int, default=20, help='Number of different images to use from the dataset')
 parser.add_argument('--fixed-goals', action='store_true', help='Goal is always get to (0,0). Used for debugging')
+parser.add_argument('--normalize-image', action='store_true', help='Normalize the RGB of the image plot')
 
 # Encoding specific parameters
 parser.add_argument('--pc-gauss-sigma', type=float, default=0.01)
@@ -277,6 +278,7 @@ validation_set = PolicyValidationSet(
     # spatial_encoding=args.spatial_encoding,
     encoding_func=encoding_func, device=device,
     fixed_goals=args.fixed_goals,
+    normalize_image=args.normalize_image,
     seed=13
 )
 

@@ -89,13 +89,15 @@ def create_train_test_image_dataloaders(
 class PolicyValidationSet(object):
 
     def __init__(self, data, dim, id_vecs, image_indices, n_goals, subsample=1,
-                 encoding_func=None, device=None, cache_fname='', fixed_goals=False, seed=13
+                 encoding_func=None, device=None, cache_fname='', fixed_goals=False, seed=13, normalize_image=False
                  ):
 
         rng = np.random.RandomState(seed=seed)
 
         # Either cpu or cuda
         self.device = device
+
+        self.normalize_image = normalize_image
 
         # n_images by size by size by channel
         images = data['images']
@@ -225,6 +227,7 @@ class PolicyValidationSet(object):
                 fig_truth, rmse = plot_predicted_image(
                     directions_pred=directions.detach().cpu().numpy(),
                     directions_true=directions.detach().cpu().numpy(),
+                    normalize_image=self.normalize_image
                 )
 
                 # Record figures to tensorboard
@@ -247,6 +250,7 @@ class PolicyValidationSet(object):
                 fig_pred, rmse = plot_predicted_image(
                     directions_pred=outputs.detach().cpu().numpy(),
                     directions_true=directions.detach().cpu().numpy(),
+                    normalize_image=self.normalize_image
                 )
 
                 # Record figures to tensorboard
