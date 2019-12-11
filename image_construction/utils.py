@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 from ssp_navigation.utils.datasets import MazeDataset
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import normalize
 
 
 def create_train_test_image_dataloaders(
