@@ -32,7 +32,6 @@ parser.add_argument('--epoch-offset', type=int, default=0,
                     help='Optional offset to start epochs counting from. To be used when continuing training')
 parser.add_argument('--viz-period', type=int, default=50, help='number of epochs before a viz set run')
 parser.add_argument('--val-period', type=int, default=25, help='number of epochs before a test/validation set run')
-parser.add_argument('--n-samples', type=int, default=1000)
 parser.add_argument('--spatial-encoding', type=str, default='ssp',
                     choices=[
                         'ssp', 'random', '2d', '2d-normalized', 'one-hot', 'hex-trig',
@@ -56,6 +55,7 @@ parser.add_argument('--n-train-samples', type=int, default=50000, help='Number o
 parser.add_argument('--n-test-samples', type=int, default=50000, help='Number of testing samples')
 
 parser.add_argument('--n-images', type=int, default=20, help='Number of different images to use from the dataset')
+parser.add_argument('--fixed-goals', action='store_true', help='Goal is always get to (0,0). Used for debugging')
 
 # Encoding specific parameters
 parser.add_argument('--pc-gauss-sigma', type=float, default=0.01)
@@ -263,11 +263,20 @@ for i in range(args.n_images):
     id_vecs[i, :] = spa.SemanticPointer(args.dim).v
 
 
+if args.n_images < 4:
+    image_indices = list(np.arange(args.n_images))
+    n_goals = 4
+else:
+    image_indices = [0, 1, 2, 3]
+    n_goals = 2
+
+
 # TODO: make a version of this for images
 validation_set = PolicyValidationSet(
-    data=data, dim=args.dim, id_vecs=id_vecs, image_indices=[0, 1, 2, 3], n_goals=2, subsample=args.subsample,
+    data=data, dim=args.dim, id_vecs=id_vecs, image_indices=image_indices, n_goals=n_goals, subsample=args.subsample,
     # spatial_encoding=args.spatial_encoding,
     encoding_func=encoding_func, device=device,
+    fixed_goals=args.fixed_goals,
     seed=13
 )
 
@@ -275,7 +284,8 @@ validation_set = PolicyValidationSet(
 trainloader, testloader = create_train_test_image_dataloaders(
     data=data, n_train_samples=args.n_train_samples, n_test_samples=args.n_test_samples,
     id_vecs=id_vecs, args=args, n_images=args.n_images,
-    encoding_func=encoding_func, pin_memory=pin_memory
+    encoding_func=encoding_func, pin_memory=pin_memory,
+    fixed_goals=args.fixed_goals
 )
 
 validation_set.run_ground_truth(writer=writer)
@@ -398,7 +408,7 @@ if n_test_batches > 0:
 
 
 print("Visualization")
-validation_set.run_validation(model, writer, args.epochs + args.epoch_offset, use_wall_overlay=not args.no_wall_overlay)
+validation_set.run_validation(model, writer, args.epochs + args.epoch_offset)
 
 
 # Close tensorboard writer

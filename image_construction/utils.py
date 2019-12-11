@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 from ssp_navigation.utils.datasets import MazeDataset
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import normalize
 
 
 def create_train_test_image_dataloaders(
@@ -11,7 +12,8 @@ def create_train_test_image_dataloaders(
         n_images,
         id_vecs, args, encoding_func,
         split_seed=13,
-        pin_memory=False):
+        pin_memory=False,
+        fixed_goals=False):
     """
 
     :param data:
@@ -41,7 +43,10 @@ def create_train_test_image_dataloaders(
     for test_set, n_samples in enumerate([n_train_samples, n_test_samples]):
 
         sample_locs = rng.randint(low=limit_low, high=limit_high, size=(n_samples, 2))
-        sample_goals = rng.randint(low=limit_low, high=limit_high, size=(n_samples, 2))
+        if fixed_goals:
+            sample_goals = np.zeros((n_samples, 2), dtype=np.int32)
+        else:
+            sample_goals = rng.randint(low=limit_low, high=limit_high, size=(n_samples, 2))
         sample_loc_sps = np.zeros((n_samples, encoding_dim))
         sample_goal_sps = np.zeros((n_samples, encoding_dim))
         sample_output_dirs = np.zeros((n_samples, 3))
@@ -55,7 +60,7 @@ def create_train_test_image_dataloaders(
             sample_goal_sps[n, :] = encoding_func(x=sample_goals[n, 0], y=sample_goals[n, 1])
             # x and y coordinates in the image for the output
             x = sample_locs[n, 0] + sample_goals[n, 0]
-            y = sample_locs[n, 0] + sample_goals[n, 0]
+            y = sample_locs[n, 1] + sample_goals[n, 1]
             sample_output_dirs[n, :] = images[image_indices[n], x, y, :]
             sample_id_vecs[n, :] = id_vecs[image_indices[n]]
 
@@ -84,7 +89,7 @@ def create_train_test_image_dataloaders(
 class PolicyValidationSet(object):
 
     def __init__(self, data, dim, id_vecs, image_indices, n_goals, subsample=1,
-                 encoding_func=None, device=None, cache_fname='', seed=13
+                 encoding_func=None, device=None, cache_fname='', fixed_goals=False, seed=13
                  ):
 
         rng = np.random.RandomState(seed=seed)
@@ -121,20 +126,24 @@ class PolicyValidationSet(object):
 
         else:
 
-            goal_sps = np.zeros((self.n_images, self.n_goals, dim))
-            for ni in range(self.n_images):
-                for gi in range(self.n_goals):
-                    x = rng.randint(0, limit_high)
-                    y = rng.randint(0, limit_high)
-                    goal_sps[ni, gi, :] = encoding_func(x=x, y=y)
+            # goal_sps = np.zeros((self.n_images, self.n_goals, dim))
+            # for ni in range(self.n_images):
+            #     for gi in range(self.n_goals):
+            #         if fixed_goals:
+            #             x = 0
+            #             y = 0
+            #         else:
+            #             x = rng.randint(0, limit_high)
+            #             y = rng.randint(0, limit_high)
+            #         goal_sps[ni, gi, :] = encoding_func(x=x, y=y)
 
             n_samples = res * res * self.n_images * self.n_goals
 
             # Visualization
             viz_locs = np.zeros((n_samples, 2))
             viz_goals = np.zeros((n_samples, 2))
-            viz_loc_sps = np.zeros((n_samples, goal_sps.shape[2]))
-            viz_goal_sps = np.zeros((n_samples, goal_sps.shape[2]))
+            viz_loc_sps = np.zeros((n_samples, dim))
+            viz_goal_sps = np.zeros((n_samples, dim))
             viz_output_dirs = np.zeros((n_samples, 3))
             viz_id_vecs = np.zeros((n_samples, id_vecs.shape[1]))
 
@@ -142,8 +151,10 @@ class PolicyValidationSet(object):
             si = 0  # sample index, increments each time
             for ii in image_indices:
                 for gi in range(self.n_goals):
-                    goal_loc = rng.randint(limit_low, limit_high, size=(2,))
-                    # goal_loc = (0, 0)
+                    if fixed_goals:
+                        goal_loc = (0, 0)
+                    else:
+                        goal_loc = rng.randint(limit_low, limit_high, size=(2,))
                     for xi in range(0, limit_high, subsample):
                         for yi in range(0, limit_high, subsample):
                             # loc_x = self.xs[xi]
@@ -309,7 +320,7 @@ def compute_rmse(directions_pred, directions_true):
     # return rmse, angle_rmse
 
 
-def plot_predicted_image(directions_pred, directions_true, name='', ax=None):
+def plot_predicted_image(directions_pred, directions_true, name='', ax=None, normalize_image=False):
 
     if ax is None:
         fig, ax = plt.subplots()
@@ -321,6 +332,14 @@ def plot_predicted_image(directions_pred, directions_true, name='', ax=None):
     # NOTE: this assumes the data can be reshaped into a perfect square
     size = int(np.sqrt(directions_pred.shape[0]))
     image = directions_pred.reshape((size, size, 3))
+
+    if normalize_image:
+        for x in range(size):
+            for y in range(size):
+                s = np.linalg.norm(image[x, y, :])
+                if s > 0:
+                    image[x, y, :] /= s
+        # image = normalize(image, axis=2, norm='l1')
 
     # angles_pred = angles_flat_pred.reshape((size, size))
 
