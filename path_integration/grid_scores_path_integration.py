@@ -241,8 +241,10 @@ latest_epoch_scorer = scores.GridScorer(
 )
 
 
-fname_pred = '{}_{}samples_pred.pdf'.format(args.fname_prefix, args.n_samples)
-fname_truth = '{}_{}samples_truth.pdf'.format(args.fname_prefix, args.n_samples)
+fname_lstm_pred = '{}_{}samples_lstm_pred.pdf'.format(args.fname_prefix, args.n_samples)
+fname_lstm_truth = '{}_{}samples_lstm_truth.pdf'.format(args.fname_prefix, args.n_samples)
+fname_dense_pred = '{}_{}samples_dense_pred.pdf'.format(args.fname_prefix, args.n_samples)
+fname_dense_truth = '{}_{}samples_dense_truth.pdf'.format(args.fname_prefix, args.n_samples)
 
 # Run and gather activations
 
@@ -252,11 +254,12 @@ with torch.no_grad():
     for i, data in enumerate(testloader):
         velocity_inputs, ssp_inputs, ssp_outputs = data
 
-        ssp_pred, lstm_outputs = model.forward_activations(velocity_inputs, ssp_inputs)
+        ssp_pred, lstm_outputs, dense_outputs = model.forward_activations(velocity_inputs, ssp_inputs)
 
     predictions = np.zeros((ssp_pred.shape[0]*ssp_pred.shape[1], 2))
     coords = np.zeros((ssp_pred.shape[0]*ssp_pred.shape[1], 2))
-    activations = np.zeros((ssp_pred.shape[0]*ssp_pred.shape[1], model.lstm_hidden_size))
+    lstm_activations = np.zeros((ssp_pred.shape[0]*ssp_pred.shape[1], model.lstm_hidden_size))
+    dense_activations = np.zeros((ssp_pred.shape[0] * ssp_pred.shape[1], model.lstm_hidden_size))
 
     assert rollout_length == ssp_pred.shape[0]
 
@@ -288,7 +291,8 @@ with torch.no_grad():
         )
 
         # reshaping activations and converting to numpy array
-        activations[ri*ssp_pred.shape[1]:(ri+1)*ssp_pred.shape[1], :] = lstm_outputs.detach().numpy()[ri, :, :]
+        lstm_activations[ri*ssp_pred.shape[1]:(ri+1)*ssp_pred.shape[1], :] = lstm_outputs.detach().numpy()[ri, :, :]
+        dense_activations[ri * ssp_pred.shape[1]:(ri + 1) * ssp_pred.shape[1], :] = dense_outputs.detach().numpy()[ri, :, :]
 
 # predictions = predictions / args.ssp_scaling
 # coords = coords / args.ssp_scaling
@@ -299,17 +303,33 @@ print(np.min(predictions))
 grid_scores_60_pred, grid_scores_90_pred, grid_scores_60_separation_pred, grid_scores_90_separation_pred = utils.get_scores_and_plot(
     scorer=latest_epoch_scorer,
     data_abs_xy=predictions, #res['pos_xy'],
-    activations=activations, #res['bottleneck'],
+    activations=lstm_activations, #res['bottleneck'],
     directory='output_grid_scores', #FLAGS.saver_results_directory,
-    filename=fname_pred,
+    filename=fname_lstm_pred,
 )
 
 grid_scores_60_truth, grid_scores_90_truth, grid_scores_60_separation_truth, grid_scores_90_separation_truth = utils.get_scores_and_plot(
     scorer=latest_epoch_scorer,
     data_abs_xy=coords, #res['pos_xy'],
-    activations=activations, #res['bottleneck'],
+    activations=lstm_activations, #res['bottleneck'],
     directory='output_grid_scores', #FLAGS.saver_results_directory,
-    filename=fname_truth,
+    filename=fname_lstm_truth,
+)
+
+grid_scores_60_dense_pred, grid_scores_90_dense_pred, grid_scores_60_separation_dense_pred, grid_scores_90_separation_dense_pred = utils.get_scores_and_plot(
+    scorer=latest_epoch_scorer,
+    data_abs_xy=predictions, #res['pos_xy'],
+    activations=dense_activations, #res['bottleneck'],
+    directory='output_grid_scores', #FLAGS.saver_results_directory,
+    filename=fname_dense_pred,
+)
+
+grid_scores_60_dense_truth, grid_scores_90_dense_truth, grid_scores_60_separation_dense_truth, grid_scores_90_separation_dense_truth = utils.get_scores_and_plot(
+    scorer=latest_epoch_scorer,
+    data_abs_xy=coords, #res['pos_xy'],
+    activations=dense_activations, #res['bottleneck'],
+    directory='output_grid_scores', #FLAGS.saver_results_directory,
+    filename=fname_dense_truth,
 )
 
 
@@ -327,4 +347,13 @@ np.savez(
     grid_scores_90_truth=grid_scores_90_truth,
     grid_scores_60_separation_truth=grid_scores_60_separation_truth,
     grid_scores_90_separation_truth=grid_scores_90_separation_truth,
+
+    grid_scores_60_dense_pred=grid_scores_60_dense_pred,
+    grid_scores_90_dense_pred=grid_scores_90_dense_pred,
+    grid_scores_60_separation_dense_pred=grid_scores_60_separation_dense_pred,
+    grid_scores_90_separation_dense_pred=grid_scores_90_separation_dense_pred,
+    grid_scores_60_dense_truth=grid_scores_60_dense_truth,
+    grid_scores_90_dense_truth=grid_scores_90_dense_truth,
+    grid_scores_60_separation_dense_truth=grid_scores_60_separation_dense_truth,
+    grid_scores_90_separation_dense_truth=grid_scores_90_separation_dense_truth,
 )

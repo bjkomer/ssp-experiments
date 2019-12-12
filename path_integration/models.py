@@ -138,7 +138,7 @@ class SSPPathIntegrationModel(nn.Module):
         # TODO: should normalization be used here?
         ssp_pred = self.ssp_output(features)
 
-        return ssp_pred, output
+        return ssp_pred, output, features
 
 
 # based on: https://github.com/abr/neurips2019/blob/master/lmu/lmu.py
