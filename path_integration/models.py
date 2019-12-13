@@ -198,6 +198,7 @@ class LMUCell(nn.Module):
         stdv = 1.0 / math.sqrt(self.hidden_size)
         for weight in self.parameters():
             # only reset the parameters if they are trainable
+            # TODO: allow different initializations to be chosen
             if weight.requires_grad:
                 weight.data.uniform_(-stdv, stdv)
 

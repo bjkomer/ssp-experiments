@@ -259,7 +259,7 @@ with torch.no_grad():
     predictions = np.zeros((ssp_pred.shape[0]*ssp_pred.shape[1], 2))
     coords = np.zeros((ssp_pred.shape[0]*ssp_pred.shape[1], 2))
     lstm_activations = np.zeros((ssp_pred.shape[0]*ssp_pred.shape[1], model.lstm_hidden_size))
-    dense_activations = np.zeros((ssp_pred.shape[0] * ssp_pred.shape[1], model.lstm_hidden_size))
+    dense_activations = np.zeros((ssp_pred.shape[0] * ssp_pred.shape[1], model.linear_hidden_size))
 
     assert rollout_length == ssp_pred.shape[0]
 
