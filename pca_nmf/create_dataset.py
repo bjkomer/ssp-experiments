@@ -52,9 +52,11 @@ elif args.spatial_encoding == 'hex-trig':
 elif args.spatial_encoding == 'tile-coding':
     encoding_specific = '{}tiles_{}bins'.format(args.n_tiles, args.n_bins)
 
-fname = 'data/random_walk_{}_{}_{}dim_{}steps.npz'.format(
+fname = 'data/random_walk_{}_{}_{}to{}_{}dim_{}steps.npz'.format(
     args.spatial_encoding,
     encoding_specific,
+    args.limit_low,
+    args.limit_high,
     args.dim,
     args.n_steps,
 )
