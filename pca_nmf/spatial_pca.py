@@ -33,9 +33,15 @@ args = parser.parse_args()
 
 data = np.load(args.dataset)
 
-encoding_func, dim = get_encoding_function(args, limit_low=0, limit_high=2.2)
-
-activations, flat_pos = get_activations(data=data, encoding_func=encoding_func, encoding_dim=dim)
+# if the dataset already has activations, just load them
+if args.spatial_encoding in args.dataset:
+    print("Loading activations directly")
+    activations = data['activations']
+    flat_pos = data['positions']
+else:
+    print("Computing activations")
+    encoding_func, dim = get_encoding_function(args, limit_low=0, limit_high=2.2)
+    activations, flat_pos = get_activations(data=data, encoding_func=encoding_func, encoding_dim=dim)
 
 pca = PCA(n_components=args.n_components)
 # pca = NMF(n_components=args.n_components)
