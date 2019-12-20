@@ -1,4 +1,69 @@
 import numpy as np
+from ssp_navigation.utils.encodings import get_encoding_function
+
+
+class Environment(object):
+
+    def __init__(self, encoding_func, limit_low=0, limit_high=2.2, periodic_boundary=True, seed=13,
+                 lin_vel_rayleigh_scale=0.13, rot_vel_std=330, dt=0.02):
+
+        self.encoding_func = encoding_func
+        self.limit_low = limit_low
+        self.limit_high = limit_high
+        self.side_len = limit_high - limit_low
+        self.periodic_boundary = periodic_boundary
+        self.lin_vel_rayleigh_scale = lin_vel_rayleigh_scale
+        self.rot_vel_std = rot_vel_std
+        self.dt = dt
+
+        self.rng = np.random.RandomState(seed=seed)
+
+        # initialize the agent to the center of the environment
+        self.pos = np.array([(limit_high + limit_low) / 2, (limit_high + limit_low) / 2])
+        # initialize the agent heading
+        self.angle = 0
+
+    def step(self):
+        """
+        Move the agent by one timestep, and return both the true position and the encoding activation
+        """
+
+        lin_vel = self.rng.rayleigh(scale=self.lin_vel_rayleigh_scale)
+        ang_vel = self.rng.normal(loc=0, scale=self.rot_vel_std) * np.pi / 180
+
+        self.pos[0] = self.pos[0] + lin_vel * np.cos(self.angle) * self.dt
+        self.pos[1] = self.pos[1] + lin_vel * np.sin(self.angle) * self.dt
+
+        self.angle = self.angle + ang_vel * self.dt
+
+        if self.angle > np.pi:
+            self.angle -= 2*np.pi
+        elif self.angle < -np.pi:
+            self.angle += 2*np.pi
+
+        if self.periodic_boundary:
+            if self.pos[0] > self.limit_high:
+                self.pos[0] = self.pos[0] - self.side_len
+            elif self.pos[0] < self.limit_low:
+                self.pos[0] = self.pos[0] + self.side_len
+            if self.pos[1] > self.limit_high:
+                self.pos[1] = self.pos[1] - self.side_len
+            elif self.pos[1] < self.limit_low:
+                self.pos[1] = self.pos[1] + self.side_len
+        else:
+            # just smush into the walls for now
+            if self.pos[0] > self.limit_high:
+                self.pos[0] = self.limit_high
+            elif self.pos[0] < self.limit_low:
+                self.pos[0] = self.limit_low
+            if self.pos[1] > self.limit_high:
+                self.pos[1] = self.limit_high
+            elif self.pos[1] < self.limit_low:
+                self.pos[1] = self.limit_low
+
+        activations = self.encoding_func(x=self.pos[0], y=self.pos[1])
+
+        return activations, self.pos
 
 
 def get_activations(data, encoding_func, encoding_dim):
@@ -51,6 +116,7 @@ def spatial_heatmap(activations, positions, xs, ys):
             # print(activations[indices, :].shape)
             # print(activations[indices, :].sum(axis=0).shape)
 
-            heatmap[:, i, j] = activations[indices, :].sum(axis=0) / n_samples
+            if n_samples > 0:
+                heatmap[:, i, j] = activations[indices, :].sum(axis=0) / n_samples
 
     return heatmap

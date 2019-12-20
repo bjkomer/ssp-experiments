@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--n-components', type=int, default=20)
 parser.add_argument('--dataset', type=str,
-                    default='../path_integration/data/path_integration_raw_trajectories_1000t_15s_seed13.npz')
+                    default='../path_integration/data/path_integration_raw_trajectories_100t_15s_seed13.npz')
 parser.add_argument('--spatial-encoding', type=str, default='ssp',
                     choices=[
                         'ssp', 'random', '2d', '2d-normalized', 'one-hot', 'hex-trig',
@@ -21,7 +21,7 @@ parser.add_argument('--spatial-encoding', type=str, default='ssp',
 parser.add_argument('--res', type=int, default=128, help='resolution of the spatial heatmap')
 
 # Encoding specific parameters
-parser.add_argument('--pc-gauss-sigma', type=float, default=0.01)
+parser.add_argument('--pc-gauss-sigma', type=float, default=0.75)
 parser.add_argument('--hex-freq-coef', type=float, default=2.5, help='constant to scale frequencies by')
 parser.add_argument('--n-tiles', type=int, default=8, help='number of layers for tile coding')
 parser.add_argument('--n-bins', type=int, default=8, help='number of bins for tile coding')
