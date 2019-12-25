@@ -16,12 +16,13 @@ parser.add_argument('--spatial-encoding', type=str, default='ssp',
                     choices=[
                         'ssp', 'random', '2d', '2d-normalized', 'one-hot', 'hex-trig',
                         'trig', 'random-trig', 'random-proj', 'learned', 'frozen-learned',
-                        'pc-gauss', 'tile-coding'
+                        'pc-gauss', 'tile-coding', 'pc-dog'
                     ])
 parser.add_argument('--res', type=int, default=128, help='resolution of the spatial heatmap')
 
 # Encoding specific parameters
 parser.add_argument('--pc-gauss-sigma', type=float, default=0.75)
+parser.add_argument('--pc-diff-sigma', type=float, default=1.0)
 parser.add_argument('--hex-freq-coef', type=float, default=2.5, help='constant to scale frequencies by')
 parser.add_argument('--n-tiles', type=int, default=8, help='number of layers for tile coding')
 parser.add_argument('--n-bins', type=int, default=8, help='number of bins for tile coding')

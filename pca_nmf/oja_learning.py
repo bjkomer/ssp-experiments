@@ -9,15 +9,17 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--n-components', type=int, default=20)
 parser.add_argument('--dataset', type=str,
                     default='data/random_walk_pc-gauss_0.75_0.0to2.2_512dim_10000steps.npz')
-parser.add_argument('--spatial-encoding', type=str, default='ssp',
+parser.add_argument('--spatial-encoding', type=str, default='pc-gauss',
                     choices=[
                         'ssp', 'random', '2d', '2d-normalized', 'one-hot', 'hex-trig',
                         'trig', 'random-trig', 'random-proj', 'learned', 'frozen-learned',
-                        'pc-gauss', 'tile-coding'
+                        'pc-gauss', 'tile-coding', 'pc-dog'
                     ])
 parser.add_argument('--res', type=int, default=128, help='resolution of the spatial heatmap')
 parser.add_argument('--lr', type=float, default=0.001)
-parser.add_argument('--n-epochs', type=int, default=10)
+parser.add_argument('--n-epochs', type=int, default=1)
+
+parser.add_argument('--saturation', type=float, default=30, help='grid cell activation saturation')
 
 parser.add_argument('--non-negative', action='store_true')
 
@@ -50,7 +52,7 @@ n_steps = r.shape[0]
 
 
 def activation(x):
-    # 30*.7 * np.arctan(100*x)
+    # args.saturation*.7 * np.arctan(100*x)
     return np.tanh(x)
     # return np.mean(x)
     # return x
@@ -85,8 +87,8 @@ for e in range(args.n_epochs):
 
         w[t, 0] = activation(np.dot(J, r[t, :]))
 
-        lr = 1 / (t + args.lr)
-        # lr = args.lr
+        # lr = 1 / (t + args.lr)
+        lr = args.lr
 
         # dJ = lr * (w[t, 0]*r[t, :] - w[t, 0]**2 * J)
         # dJ = lr * (w[t, 0] * r[t, :] - (np.dot(w[t, 0], w[t, 0])) * J)
@@ -110,6 +112,9 @@ for t in range(n_steps):
     # print(tmp)
     # assert np.allclose(tmp, np.dot(J, r[t, :]))
     outputs[t, 0] = activation(np.dot(J, r[t, :]))
+
+    # apply saturation
+    outputs[outputs>args.saturation] = args.saturation
 
 xs = np.linspace(0, 2.2, args.res)
 ys = np.linspace(0, 2.2, args.res)
