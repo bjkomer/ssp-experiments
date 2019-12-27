@@ -36,7 +36,11 @@ parser.add_argument('--arc', type=str, default='single', choices=['single', 'mul
 
 parser.add_argument('--non-negative', action='store_true')
 
+parser.add_argument('--fname', type=str, default='rep_output.npz')
+
 parser.add_argument('--gc-index', type=int, default=0, help='index of grid cell to visualize')
+
+parser.add_argument('--no-display', action='store_true')
 
 # Encoding specific parameters
 # parser.add_argument('--pc-gauss-sigma', type=float, default=0.75)
@@ -48,6 +52,8 @@ parser.add_argument('--gc-index', type=int, default=0, help='index of grid cell 
 parser.add_argument('--seed', type=int, default=13)
 
 args = parser.parse_args()
+
+rng = np.random.RandomState(seed=args.seed)
 
 eps = 1e-12
 
@@ -65,7 +71,7 @@ for i in range(args.n_place_cells_dim):
 
 sigma_x = args.pc_size
 sigma_y = args.pc_size
-theta = 2*np.pi*np.random.uniform(1, len(pc_centers))  # Gives a "tilt" to the place cell... not used when sigma_x =sigma_y
+theta = 2*np.pi*rng.uniform(1, len(pc_centers))  # Gives a "tilt" to the place cell... not used when sigma_x =sigma_y
 
 a_std = np.cos(theta)**2/2/sigma_x**2 + np.sin(theta)**2/2/sigma_y**2
 b_std = -np.sin(2*theta)/4/sigma_x**2 + np.sin(2*theta)/4/sigma_y**2
@@ -75,12 +81,12 @@ c_std = np.sin(theta)**2/2/sigma_x**2 + np.cos(theta)**2/2/sigma_y**2
 sigma_x2 = 2 * sigma_x
 sigma_y2 = 2 * sigma_y
 
-theta2 = 2*np.pi*np.random.uniform(1, len(pc_centers))
+theta2 = 2*np.pi*rng.uniform(1, len(pc_centers))
 a_std2 = np.cos(theta2)**2/2/sigma_x2**2 + np.sin(theta2)**2/2/sigma_y2**2
 b_std2 = -np.sin(2*theta2)/4/sigma_x2**2 + np.sin(2*theta2)/4/sigma_y2**2
 c_std2 = np.sin(theta2)**2/2/sigma_x2**2 + np.cos(theta2)**2/2/sigma_y2**2
 
-J = np.random.uniform(0, 1, size=(args.n_grid_cells, n_total_pc))
+J = rng.uniform(0, 1, size=(args.n_grid_cells, n_total_pc))
 
 # normFactor = repmat(sum(J,2),1,Struct.N1);
 # norm_factor = np.sum(J, axis=1)
@@ -92,7 +98,8 @@ norm_factor = np.tile(np.sum(J, axis=1)[:, np.newaxis], (1, n_total_pc))
 
 J = args.max_weight * J / norm_factor
 # inter layer weights initialized at zero
-W = np.zeros(args.n_grid_cells)
+# W = np.zeros((args.n_grid_cells, 1))
+W = np.zeros((1, args.n_grid_cells))
 # the relative importance of the inter layer connections
 rho = 0.5
 
@@ -121,9 +128,10 @@ dt = 1
 assert(args.limit_low == 0)
 
 for t in range(int(args.duration)):
+    # print(t)
     print('\x1b[2K\r Step {} of {}'.format(t + 1, int(args.duration)), end="\r")
 
-    cur_dir += ang_vel * np.random.randn()
+    cur_dir += ang_vel * rng.randn()
 
     if cur_dir > 2*np.pi:
         cur_dir -= 2*np.pi
@@ -165,14 +173,19 @@ for t in range(int(args.duration)):
 
     epsilon = 1/(t*args.delta + args.epsilon)
 
-    h_out = h
-
     if args.arc == 'single':
         # print("h before", h.shape)
         h = (J @ r.T).T#np.dot(J, r)  # TODO: make sure transposes are correct
         # print("h after", h.shape)
     elif args.arc == 'multiple':
-        h = (1 - rho) * (J @ r.T).T + rho * (W @ (h + eps))
+        # print((J @ r.T).T.shape)
+        # print("")
+        # print("W.shape", W.shape)
+        # print("h.shape", h.shape)
+        # print((W @ (h + eps).T).shape)
+        h = (1 - rho) * (J @ r.T).T + rho * (W @ (h + eps).T).T
+
+    h_out = h
 
     if args.activation_func == 'sigmoid':
         slope = 100
@@ -180,6 +193,8 @@ for t in range(int(args.duration)):
     elif args.activation_func == 'linear':
         slope = 100
         psi = slope * h_out
+    else:
+        raise NotImplementedError
 
     # updating weights using the Oja rule
     # deltaJ = psi'*r -  eye(Struct.NmEC,Struct.NmEC).*(psi'*psi)*J;
@@ -188,7 +203,7 @@ for t in range(int(args.duration)):
 
     if args.arc == 'multiple':
         # inter-output layer. weights need to be learned very slow. there's a positive feedback
-        W = W - 0.001*epsilon*np.dot(psi, psi)
+        W = W - 0.001*epsilon*(psi.T @ psi)
         # no self connections
         W = np.ones_like(W) - np.dot(np.eye(len(W)), W)# NOTE: dot product
 
@@ -197,7 +212,7 @@ for t in range(int(args.duration)):
 
 
     # Drawing
-    if t % int(args.duration/100) == 0:
+    if (not args.no_display) and (t % int(args.duration/100) == 0):
         # print(W)
         # print(J)
         # print(J.shape)
@@ -206,3 +221,18 @@ for t in range(int(args.duration)):
         plt.imshow(J[args.gc_index,:].reshape(args.n_place_cells_dim, args.n_place_cells_dim))
         plt.show(block=False)
         plt.pause(0.001)
+
+fname = 'output/{}'.format(args.fname)
+
+np.savez(
+    fname,
+    J=J,
+    W=W,
+    pc_centers=pc_centers,
+    a_std=a_std,
+    b_std=b_std,
+    c_std=c_std,
+    a_std2=a_std2,
+    b_std2=b_std2,
+    c_std2=c_std2,
+)
