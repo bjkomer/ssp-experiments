@@ -67,7 +67,7 @@ n_neurons = args.dim
 # J[0, :] /= np.linalg.norm(J[0, :])
 
 # J = np.zeros((n_neurons,))
-J = rng.uniform(0, 1, size=(n_neurons,))
+J = rng.uniform(0, .1, size=(n_neurons,))
 J /= np.linalg.norm(J)
 
 # output
@@ -88,7 +88,8 @@ for e in range(args.n_epochs):
         w[t, 0] = activation(np.dot(J, r[t, :]))
 
         # lr = 1 / (t + args.lr)
-        lr = args.lr
+        # lr = args.lr
+        lr = 1 / (t * .1 + 1e7)
 
         # dJ = lr * (w[t, 0]*r[t, :] - w[t, 0]**2 * J)
         # dJ = lr * (w[t, 0] * r[t, :] - (np.dot(w[t, 0], w[t, 0])) * J)

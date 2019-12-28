@@ -189,7 +189,7 @@ for t in range(int(args.duration)):
 
     if args.activation_func == 'sigmoid':
         slope = 100
-        psi = args.saturation * 0.7 & np.atan(slope * h_out)
+        psi = args.saturation * 0.7 * np.arctan(slope * h_out)
     elif args.activation_func == 'linear':
         slope = 100
         psi = slope * h_out

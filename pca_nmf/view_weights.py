@@ -18,6 +18,8 @@ parser.add_argument('--saturation', type=float, default=30, help='grid cell acti
 parser.add_argument('--activation-func', type=str, default='linear', choices=['linear', 'sigmoid'])
 parser.add_argument('--arc', type=str, default='single', choices=['single', 'multiple'])
 
+parser.add_argument('--view-tesselation', action='store_true',
+                    help='tesselate the output image to show the looping boundaries better')
 
 args = parser.parse_args()
 
@@ -67,13 +69,17 @@ def get_activations(x, y, J, W):
         # print("h.shape", h.shape)
         # print((W @ (h + eps).T).shape)
         # TODO: need an initial h here
+        # NOTE: might only make sense to have this in learning, and not in viewing
         h = (1 - rho) * (J @ r.T).T + rho * (W @ (h).T).T
+    else:
+        raise NotImplementedError
 
+    # NOTE: the outputs look very saturated if the slope is high, maybe only useful for training?
     if args.activation_func == 'sigmoid':
-        slope = 100
-        psi = args.saturation * 0.7 & np.atan(slope * h)
+        slope = 1#100
+        psi = args.saturation * 0.7 * np.arctan(slope * h)
     elif args.activation_func == 'linear':
-        slope = 100
+        slope = 1#100
         psi = slope * h
     else:
         raise NotImplementedError
@@ -85,7 +91,13 @@ for i, x in enumerate(xs):
         activations[:, i, j] = get_activations(x=x, y=y, J=J, W=W)
 
 for i in range(J.shape[0]):
-    plt.imshow(activations[i, :, :])
+    print(activations[i, :, :])
+    print(np.min(activations[i, :, :]))
+    print(np.max(activations[i, :, :]))
+    if args.view_tesselation:
+        plt.imshow(np.tile(activations[i, :, :], (3, 3)))
+    else:
+        plt.imshow(activations[i, :, :])
     plt.show()
 
 
