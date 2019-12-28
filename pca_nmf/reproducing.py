@@ -206,7 +206,10 @@ for t in range(int(args.duration)):
         # inter-output layer. weights need to be learned very slow. there's a positive feedback
         W = W - 0.001*epsilon*(psi.T @ psi)
         # no self connections
-        W = np.ones_like(W) - np.dot(np.eye(len(W)), W)# NOTE: dot product
+        # W = np.ones_like(W) - np.dot(np.eye(len(W)), W)# NOTE: dot product
+        # This is effectively what the matlab code is doing
+        for i in range(W.shape[0]):
+            W[i, i] = 0
 
     if args.non_negative:
         J[J<0] = 0
