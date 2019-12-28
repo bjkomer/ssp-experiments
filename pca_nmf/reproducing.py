@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
+import os
 from utils import spatial_heatmap
 
 
@@ -221,6 +222,10 @@ for t in range(int(args.duration)):
         plt.imshow(J[args.gc_index,:].reshape(args.n_place_cells_dim, args.n_place_cells_dim))
         plt.show(block=False)
         plt.pause(0.001)
+
+
+if not os.path.exists('output'):
+    os.makedirs('output')
 
 fname = 'output/{}'.format(args.fname)
 

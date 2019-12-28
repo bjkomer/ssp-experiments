@@ -4,6 +4,7 @@ from matplotlib.animation import FuncAnimation
 from utils import Environment, spatial_heatmap
 from ssp_navigation.utils.encodings import get_encoding_function
 from sklearn.decomposition import PCA
+import os
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -54,6 +55,9 @@ elif args.spatial_encoding == 'hex-trig':
     encoding_specific = args.hex_freq_coef
 elif args.spatial_encoding == 'tile-coding':
     encoding_specific = '{}tiles_{}bins'.format(args.n_tiles, args.n_bins)
+
+if not os.path.exists('data'):
+    os.makedirs('data')
 
 fname = 'data/random_walk_{}_{}_{}to{}_{}dim_{}steps.npz'.format(
     args.spatial_encoding,
