@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--n-components', type=int, default=20)
 # parser.add_argument('--dataset', type=str,
 #                     default='data/random_walk_pc-gauss_0.75_0.0to2.2_512dim_10000steps.npz')
-parser.add_argument('--spatial-encoding', type=str, default='pc-gauss',
+parser.add_argument('--spatial-encoding', type=str, default='pc-dog',
                     choices=[
                         'ssp', 'random', '2d', '2d-normalized', 'one-hot', 'hex-trig',
                         'trig', 'random-trig', 'random-proj', 'learned', 'frozen-learned',
@@ -34,6 +34,7 @@ parser.add_argument('--max-weight', type=float, default=0.1)
 parser.add_argument('--epsilon', type=float, default=1e7)
 parser.add_argument('--activation-func', type=str, default='linear', choices=['linear', 'sigmoid'])
 parser.add_argument('--arc', type=str, default='single', choices=['single', 'multiple'])
+parser.add_argument('--pc-arrangement', type=str, default='array', choices=['array', 'scattered'])
 
 parser.add_argument('--non-negative', action='store_true')
 
@@ -63,12 +64,16 @@ n_total_pc = args.n_place_cells_dim ** 2
 lin_vel = args.limit_high / args.res
 ang_vel = 2*np.pi
 
-# pc_centers = '??'
 pc_centers = np.zeros((n_total_pc, 2))
-for i in range(args.n_place_cells_dim):
-    for j in range(args.n_place_cells_dim):
-        pc_centers[i * args.n_place_cells_dim + j, 0] = i * (args.limit_high / args.n_place_cells_dim)
-        pc_centers[i * args.n_place_cells_dim + j, 1] = j * (args.limit_high / args.n_place_cells_dim)
+if args.pc_arrangement == 'array':
+    for i in range(args.n_place_cells_dim):
+        for j in range(args.n_place_cells_dim):
+            pc_centers[i * args.n_place_cells_dim + j, 0] = i * (args.limit_high / args.n_place_cells_dim)
+            pc_centers[i * args.n_place_cells_dim + j, 1] = j * (args.limit_high / args.n_place_cells_dim)
+elif args.pc_arrangement == 'scattered':
+    pc_centers = rng.uniform(low=args.limit_low, high=args.limit_high, size=(n_total_pc, 2))
+else:
+    raise NotImplementedError
 
 sigma_x = args.pc_size
 sigma_y = args.pc_size
@@ -107,6 +112,8 @@ rho = 0.5
 h_avg = np.zeros((1, args.n_grid_cells))
 # input data
 r = np.zeros((1, n_total_pc))
+# complete input data, for calculating covariance matrix
+data = np.zeros((int(args.duration), n_total_pc))
 # input from place cells to grid cells
 h = np.zeros((1, args.n_grid_cells))
 
@@ -172,6 +179,8 @@ for t in range(int(args.duration)):
 
     r[0, :] = args.saturation * np.exp(-square_dists) - args.saturation * A * np.exp(-square_dists2) + eps
 
+    data[t, :] = r[0, :]
+
     epsilon = 1/(t*args.delta + args.epsilon)
 
     if args.arc == 'single':
@@ -232,6 +241,8 @@ if not os.path.exists('output'):
 
 fname = 'output/{}'.format(args.fname)
 
+covariance = np.cov(data.T)
+
 np.savez(
     fname,
     J=J,
@@ -243,4 +254,5 @@ np.savez(
     a_std2=a_std2,
     b_std2=b_std2,
     c_std2=c_std2,
+    covariance=covariance,
 )

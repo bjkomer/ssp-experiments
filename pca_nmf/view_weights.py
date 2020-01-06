@@ -86,6 +86,13 @@ def get_activations(x, y, J, W):
 
     return psi
 
+try:
+    covariance = data['covariance']
+    plt.imshow(covariance)
+    plt.show()
+except KeyError:
+    print("No covariance matrix found in the data")
+
 for i, x in enumerate(xs):
     for j, y in enumerate(ys):
         activations[:, i, j] = get_activations(x=x, y=y, J=J, W=W)
