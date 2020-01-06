@@ -321,6 +321,9 @@ class NonNegativeWeights(object):
             w = w.clamp(min=0)
             module.weight.data = w
 
+
+non_negative_weights = NonNegativeWeights()
+
 # Keep track of running average losses, to adaptively scale the weight between them
 running_avg_cosine_loss = 1.
 running_avg_mse_loss = 1.
