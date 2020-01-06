@@ -32,7 +32,7 @@ parser.add_argument('--duration', type=int, default=5e5)
 parser.add_argument('--delta', type=float, default=0.1)
 parser.add_argument('--max-weight', type=float, default=0.1)
 parser.add_argument('--epsilon', type=float, default=1e7)
-parser.add_argument('--activation-func', type=str, default='linear', choices=['linear', 'sigmoid'])
+parser.add_argument('--activation-func', type=str, default='sigmoid', choices=['linear', 'sigmoid'])
 parser.add_argument('--arc', type=str, default='single', choices=['single', 'multiple'])
 parser.add_argument('--pc-arrangement', type=str, default='array', choices=['array', 'scattered'])
 
@@ -54,6 +54,9 @@ parser.add_argument('--no-display', action='store_true')
 parser.add_argument('--seed', type=int, default=13)
 
 args = parser.parse_args()
+
+# Nothing else is supported yet
+assert args.spatial_encoding == 'pc-dog'
 
 rng = np.random.RandomState(seed=args.seed)
 
