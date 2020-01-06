@@ -39,7 +39,7 @@ parser.add_argument('--spatial-encoding', type=str, default='ssp',
                     choices=[
                         'ssp', 'random', '2d', '2d-normalized', 'one-hot', 'hex-trig',
                         'trig', 'random-trig', 'random-proj', 'learned', 'frozen-learned',
-                        'pc-gauss', 'tile-coding'
+                        'pc-gauss', 'pc-dog', 'tile-coding'
                     ])
                     # choices=['ssp', '2d', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig', 'hex-trig-all-freq'])
 parser.add_argument('--eval-period', type=int, default=50)
@@ -52,7 +52,8 @@ parser.add_argument('--loss-function', type=str, default='mse',
 parser.add_argument('--frozen-model', type=str, default='', help='model to use frozen encoding weights from')
 
 # Encoding specific parameters
-parser.add_argument('--pc-gauss-sigma', type=float, default=0.01)
+parser.add_argument('--pc-gauss-sigma', type=float, default=0.75)
+parser.add_argument('--pc-diff-sigma', type=float, default=1.50)
 parser.add_argument('--hex-freq-coef', type=float, default=2.5, help='constant to scale frequencies by')
 parser.add_argument('--n-tiles', type=int, default=8, help='number of layers for tile coding')
 parser.add_argument('--n-bins', type=int, default=8, help='number of bins for tile coding')
@@ -79,6 +80,8 @@ parser.add_argument('--sin-cos-ang', type=int, default=1, choices=[0, 1],
 
 parser.add_argument('--use-lmu', action='store_true', help='Use an LMU instead of an LSTM')
 parser.add_argument('--lmu-order', type=int, default=6)
+
+parser.add_argument('--non-negative', action='store_true', help='Restrict weights to be positive')
 
 args = parser.parse_args()
 
@@ -304,6 +307,18 @@ params = vars(args)
 with open(os.path.join(save_dir, "params.json"), "w") as f:
     json.dump(params, f)
 
+
+class NonNegativeWeights(object):
+
+    def __init__(self, frequency=1):
+        self.frequency = frequency
+
+    def __call__(self, module):
+        if hasattr(module, 'weight'):
+            w = module.weight.data
+            w = w.clamp(min=0)
+            module.weight.data = w
+
 # Keep track of running average losses, to adaptively scale the weight between them
 running_avg_cosine_loss = 1.
 running_avg_mse_loss = 1.
@@ -499,6 +514,10 @@ for epoch in range(n_epochs):
         torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_thresh)
 
         optimizer.step()
+
+        if args.non_negative:
+            # Set any negative weights to 0
+            model.apply(non_negative_weights)
 
         # avg_loss += loss.data.item()
         n_batches += 1
