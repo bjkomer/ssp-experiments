@@ -7,6 +7,14 @@ from spatial_semantic_pointers.utils import encode_point, make_good_unitary, \
     generate_region_vector, get_heatmap_vectors, spatial_dot
 from spatial_semantic_pointers.plots import image_svg
 
+# For the spatial spike html plot
+from PIL import Image
+import base64
+import sys
+if sys.version_info[0] == 3:
+    from io import BytesIO
+else:
+    import cStringIO
 
 def plot_heatmap(sp, heatmap_vectors, name='', vmin=-1, vmax=1,
                  cmap='plasma', invert=False, origin='lower', show=True):
@@ -360,3 +368,164 @@ class AngleSpacingVisualizer(object):
             values = (self.cm(self.vs)*255).astype(np.uint8)
 
             self._nengo_html_ = image_svg(values)
+
+
+def image_svg(arr):
+    """
+    Given an array, return an svg image
+    """
+    if sys.version_info[0] == 3:
+        # Python 3
+
+        png = Image.fromarray(arr)
+        buffer = BytesIO()
+        png.save(buffer, format="PNG")
+        buffer.seek(0)
+        img_str = base64.b64encode(buffer.read()).decode()
+        return '''
+            <svg width="100%%" height="100%%" viewbox="0 0 100 100">
+            <image width="100%%" height="100%%"
+                   xlink:href="data:image/png;base64,%s"
+                   style="image-rendering: pixelated;">
+            </svg>''' % (''.join(img_str))
+
+    else:
+        # Python 2
+
+        png = Image.fromarray(arr)
+        buffer = cStringIO.StringIO()
+        png.save(buffer, format="PNG")
+        img_str = base64.b64encode(buffer.getvalue())
+        return '''
+            <svg width="100%%" height="100%%" viewbox="0 0 100 100">
+            <image width="100%%" height="100%%"
+                   xlink:href="data:image/png;base64,%s"
+                   style="image-rendering: pixelated;">
+            </svg>''' % (''.join(img_str))
+
+
+class CompleteSpatialSpikePlot(object):
+    """
+    Plots spiking activity of a neuron in relation to the spatial location of an agent
+    Records activity of all neurons, and selects which one to show with an index input
+    """
+
+    def __init__(self, grid_size=512, n_neurons=500, xlim=(-1, 1), ylim=(-1, 1)):
+        self.grid_size = grid_size
+        self.xlim = xlim
+        self.ylim = ylim
+        self.space = np.zeros((n_neurons, grid_size, grid_size))
+        self.x_len = xlim[1] - xlim[0]
+        self.y_len = ylim[1] - ylim[0]
+        self.n_neurons = n_neurons
+        self._nengo_html_ = ''
+
+    def __call__(self, t, x):
+
+        x_loc = x[0]
+        y_loc = x[1]
+        index = int(x[2])
+        spikes = x[3:]
+
+        index = max(0, index)
+        index = min(self.n_neurons - 1, index)
+
+        # Get coordinates in the image
+        """
+        x_im = int((x_loc + self.x_len/2.)*1.*self.grid_size/self.x_len)
+        #y_im = int((y_loc + self.y_len/2.)*1.*self.grid_size/self.y_len)
+        y_im = int((-y_loc + self.y_len/2.)*1.*self.grid_size/self.y_len)
+        """
+        x_im = int((x_loc - self.xlim[0]) / self.x_len * self.grid_size)
+        y_im = int((y_loc - self.ylim[0]) / self.y_len * self.grid_size)
+
+        if x_im >= 0 and x_im < self.grid_size and y_im >= 0 and y_im < self.grid_size:
+
+            # Place a spike or travelled path in the image
+            for i, spike in enumerate(spikes):
+                if spike > 0:
+                    self.space[i, x_im, y_im] = 255
+                    # self.space[i, y_im, x_im] = 255
+                else:
+                    if self.space[i, x_im, y_im] == 0:
+                        self.space[i, x_im, y_im] = 128
+                    # if self.space[i, y_im, x_im] == 0:
+                    #    self.space[i, y_im, x_im] = 128
+
+        # values = self.space[index,:,:].astype('uint8')
+        values = self.space[index, :, :].astype('uint8').T
+        self._nengo_html_ = image_svg(values)
+
+
+#################################
+# Trajectory generation classes #
+#################################
+
+class GeneratedOutput(object):
+    def __init__(self, dt=0.001, vel_max=10, fixed_environment=True, xlim=(-3, 3), ylim=(-3, 3)):
+        self.x = 0  # current x position
+        self.y = 0  # current y position
+        self.vx = 0  # current x velocity
+        self.vy = 0  # current y velocity
+        self.vel_max = vel_max  # maximum linear velocity
+        self.ang = 0  # current facing angle
+        self.vel = 0
+        self.dt = dt
+
+        self.xlim = xlim
+        self.ylim = ylim
+        self.fixed_environment = fixed_environment
+
+    def step(self, t):
+        raise NotImplemented
+
+    def __call__(self, t):
+        self.step(t)
+        return self.x, self.y, self.vx, self.vy
+
+
+class Spiral(GeneratedOutput):
+
+    def __init__(self, ang_vel=2.9, lin_acc=.025, *args, **kwargs):
+
+        # determines how tight the spiral is
+        self.ang_vel = ang_vel
+
+        # The linear acceleration, also determines tightness of spiral
+        self.lin_acc = lin_acc
+
+        GeneratedOutput.__init__(self, *args, **kwargs)
+
+    def step(self, t):
+
+        self.ang += self.ang_vel * self.dt
+
+        self.vel += self.lin_acc * self.dt
+        if self.vel > self.vel_max:
+            self.vel = self.vel_max
+
+        self.vx = self.vel*np.cos(self.ang)
+        self.vy = self.vel*np.sin(self.ang)
+
+        self.x += self.vx*self.dt
+        self.y += self.vy*self.dt
+
+        if self.fixed_environment:
+            if self.x > self.xlim[1]:
+                self.x = self.xlim[1]
+            if self.x < self.xlim[0]:
+                self.x = self.xlim[0]
+            if self.y > self.ylim[1]:
+                self.y = self.ylim[1]
+            if self.y < self.ylim[0]:
+                self.y = self.ylim[0]
+        else:
+            # Loop around if the environment is not fixed
+            if self.x > 1:
+                self.x -= 2
+            if self.x < -1:
+                self.x += 2
+            if self.y > 1:
+                self.y -= 2
+            if self.y < -1:
+                self.y += 2
