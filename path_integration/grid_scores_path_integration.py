@@ -145,8 +145,10 @@ if args.spatial_encoding == 'ssp':
     encoding_specific = args.ssp_scaling
 elif args.spatial_encoding == 'frozen-learned':
     encoding_specific = args.frozen_model
-elif args.spatial_encoding == 'pc-gauss' or args.encoding == 'pc-gauss-softmax':
+elif args.spatial_encoding == 'pc-gauss' or args.spatial_encoding == 'pc-gauss-softmax':
     encoding_specific = args.pc_gauss_sigma
+elif args.spatial_encoding == 'pc-dog':
+    encoding_specific = '{}-{}'.format(args.pc_gauss_sigma, args.pc_diff_sigma)
 elif args.spatial_encoding == 'hex-trig':
     encoding_specific = args.hex_freq_coef
 
