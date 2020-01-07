@@ -40,9 +40,10 @@ parser.add_argument('--model', type=str, default='')
 parser.add_argument('--fname-prefix', type=str, default='sac')
 parser.add_argument('--ssp-scaling', type=float, default=1.0)
 parser.add_argument('--spatial-encoding', type=str, default='ssp',
-                    choices=['ssp', '2d', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig', 'hex-trig-all-freq'])
+                    choices=['ssp', '2d', 'frozen-learned', 'pc-gauss', 'pc-dog', 'pc-gauss-softmax', 'hex-trig', 'hex-trig-all-freq'])
 parser.add_argument('--frozen-model', type=str, default='', help='model to use frozen encoding weights from')
 parser.add_argument('--pc-gauss-sigma', type=float, default=0.25)
+parser.add_argument('--pc-diff-sigma', type=float, default=0.5)
 parser.add_argument('--hex-freq-coef', type=float, default=2.5, help='constant to scale frequencies by')
 
 
