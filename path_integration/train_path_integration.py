@@ -81,7 +81,10 @@ parser.add_argument('--sin-cos-ang', type=int, default=1, choices=[0, 1],
 parser.add_argument('--use-lmu', action='store_true', help='Use an LMU instead of an LSTM')
 parser.add_argument('--lmu-order', type=int, default=6)
 
-parser.add_argument('--non-negative', action='store_true', help='Restrict weights to be positive')
+parser.add_argument('--non-negative', action='store_true', help='Restrict weights in the linear layer to be positive')
+parser.add_argument('--all-non-negative', action='store_true', help='Restrict all weights to be positive')
+
+parser.add_argument('--optimizer', type=str, default='rmsprop', choices=['rmsprop', 'adam'])
 
 args = parser.parse_args()
 
@@ -208,7 +211,12 @@ if args.load_saved_model:
 cosine_criterion = nn.CosineEmbeddingLoss()
 mse_criterion = nn.MSELoss()
 
-optimizer = optim.RMSprop(model.parameters(), lr=args.learning_rate, momentum=args.momentum)
+if args.optimizer == 'rmsprop':
+    optimizer = optim.RMSprop(model.parameters(), lr=args.learning_rate, momentum=args.momentum)
+elif args.optimizer == 'adam':
+    optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+else:
+    raise NotImplementedError
 
 # encoding specific cache string
 encoding_specific = ''
@@ -317,6 +325,7 @@ class NonNegativeWeights(object):
 
     def __call__(self, module):
         if hasattr(module, 'weight'):
+            print("has weight attribute")
             w = module.weight.data
             w = w.clamp(min=0)
             module.weight.data = w
@@ -521,8 +530,14 @@ for epoch in range(n_epochs):
         optimizer.step()
 
         if args.non_negative:
-            # Set any negative weights to 0
-            model.apply(non_negative_weights)
+            if args.all_non_negative:
+                # Set any negative weights to 0
+                model.apply(non_negative_weights)
+            else:
+                # only targeting the one set of weights
+                w = model.linear.weight.data
+                w = w.clamp(min=0)
+                model.linear.weight.data = w
 
         # avg_loss += loss.data.item()
         n_batches += 1
