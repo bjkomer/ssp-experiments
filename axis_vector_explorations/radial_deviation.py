@@ -5,6 +5,7 @@ import os
 from spatial_semantic_pointers.utils import make_good_unitary, get_heatmap_vectors, encode_point, power, \
     get_heatmap_vectors_hex, encode_point_hex
 import seaborn as sns
+import pandas as pd
 
 parser = argparse.ArgumentParser('radial deviation for regular 2D and hex encoding')
 
@@ -16,6 +17,7 @@ parser.add_argument('--samples', type=int, default=100, help='number of samples 
 
 args = parser.parse_args()
 
+use_pandas = True
 
 def compute_rad_dev(X, Y, Z=None, res=128, limit=5, samples=100, hex=False):
     rs = np.linspace(0, limit, res)
@@ -44,7 +46,8 @@ def compute_rad_dev(X, Y, Z=None, res=128, limit=5, samples=100, hex=False):
 if not os.path.exists('rad_dev_output'):
     os.makedirs('rad_dev_output')
 
-fname = 'rad_dev_output/{}dim_{}res_{}samples, {}seeds.npz'.format(args.dim, args.res, args.samples, args.n_seeds)
+fname = 'rad_dev_output/{}dim_{}res_{}samples_{}seeds.npz'.format(args.dim, args.res, args.samples, args.n_seeds)
+fname_pd = 'rad_dev_output/{}dim_{}res_{}samples_{}seeds.csv'.format(args.dim, args.res, args.samples, args.n_seeds)
 
 # square_axes = np.zeros((args.n_seeds, 2, args.dim))
 # hex_axes = np.zeros((args.n_seeds, 3, args.dim))
@@ -83,38 +86,96 @@ else:
         rad_dev_hex=rad_dev_hex,
     )
 
+if use_pandas:
+    if os.path.exists(fname_pd):
+        df = pd.read_csv(fname_pd)
+    else:
+        print("Generating Pandas Dataframe")
+        df = pd.DataFrame()
+        rs = np.linspace(0, args.limit, args.res)
+        dfs = []
+        for seed in range(args.n_seeds):
+            print("\x1b[2K\r Seed {} of {}".format(seed + 1, args.n_seeds), end="\r")
+            for ri, r in enumerate(rs):
 
-# vmin = None
-# vmax = None
-vmin = -1
-vmax = 1
+                df_square = pd.DataFrame(
+                    data=rad_dev_square[seed, ri, :],
+                    columns=['Similarity']
+                )
+                df_square['Generation'] = 'Square'
+                df_square['Radius'] = r
+                df_square['Seed'] = seed
 
-avg_rad_dev_square = rad_dev_square.mean(axis=2).mean(axis=0)
-avg_rad_dev_hex = rad_dev_hex.mean(axis=2).mean(axis=0)
+                df_hex = pd.DataFrame(
+                    data=rad_dev_hex[seed, ri, :],
+                    columns=['Similarity']
+                )
+                df_hex['Generation'] = 'Hexagonal'
+                df_hex['Radius'] = r
+                df_hex['Seed'] = seed
 
-avg_abs_rad_dev_square = np.abs(rad_dev_square).mean(axis=2).mean(axis=0)
-avg_abs_rad_dev_hex = np.abs(rad_dev_hex).mean(axis=2).mean(axis=0)
+                dfs.append(df_square)
+                dfs.append(df_hex)
 
-# plt.figure()
-# plt.plot(avg_rad_dev_square)
-# plt.title("Square Radial Deviation")
-# plt.figure()
-# plt.plot(avg_rad_dev_hex)
-# plt.title("Hexagonal Radial Deviation")
-# plt.figure()
-# plt.plot(avg_abs_rad_dev_square)
-# plt.title("Square Absolute Radial Deviation")
-# plt.figure()
-# plt.plot(avg_abs_rad_dev_hex)
-# plt.title("Hexagonal Absolute Radial Deviation")
+                # df = df.append(df_square, ignore_index=True)
+                # df = df.append(df_hex, ignore_index=True)
 
-plt.figure()
-plt.plot(avg_rad_dev_square)
-plt.plot(avg_rad_dev_hex)
-plt.title("Radial Deviation")
-plt.figure()
-plt.plot(avg_abs_rad_dev_square)
-plt.plot(avg_abs_rad_dev_hex)
-plt.title("Absolute Radial Deviation")
+                # for n in range(args.samples):
+                #     df = df.append(
+                #         {
+                #             'Generation': 'Square',
+                #             'Similarity': rad_dev_square[seed, ri, n],
+                #             'Radius': r,
+                #             'Seed': seed,
+                #         },
+                #         ignore_index=True
+                #     )
+                #     df = df.append(
+                #         {
+                #             'Generation': 'Hexagonal',
+                #             'Similarity': rad_dev_hex[seed, ri, n],
+                #             'Radius': r,
+                #             'Seed': seed,
+                #         },
+                #         ignore_index=True
+                #     )
+
+        # more efficient to do it this way
+        df = df.append(dfs)
+
+        df.to_csv(fname_pd)
+
+    # sns.lineplot(data=df[df['Seed'] == 0], x='Radius', y='Similarity', hue='Generation', ci='sd')
+    sns.lineplot(data=df, x='Radius', y='Similarity', hue='Generation', ci='sd')
+
+else:
+
+    avg_rad_dev_square = rad_dev_square.mean(axis=2).mean(axis=0)
+    avg_rad_dev_hex = rad_dev_hex.mean(axis=2).mean(axis=0)
+
+    avg_abs_rad_dev_square = np.abs(rad_dev_square).mean(axis=2).mean(axis=0)
+    avg_abs_rad_dev_hex = np.abs(rad_dev_hex).mean(axis=2).mean(axis=0)
+
+    # plt.figure()
+    # plt.plot(avg_rad_dev_square)
+    # plt.title("Square Radial Deviation")
+    # plt.figure()
+    # plt.plot(avg_rad_dev_hex)
+    # plt.title("Hexagonal Radial Deviation")
+    # plt.figure()
+    # plt.plot(avg_abs_rad_dev_square)
+    # plt.title("Square Absolute Radial Deviation")
+    # plt.figure()
+    # plt.plot(avg_abs_rad_dev_hex)
+    # plt.title("Hexagonal Absolute Radial Deviation")
+
+    plt.figure()
+    plt.plot(avg_rad_dev_square)
+    plt.plot(avg_rad_dev_hex)
+    plt.title("Radial Deviation")
+    plt.figure()
+    plt.plot(avg_abs_rad_dev_square)
+    plt.plot(avg_abs_rad_dev_hex)
+    plt.title("Absolute Radial Deviation")
 
 plt.show()
