@@ -145,6 +145,13 @@ if use_pandas:
 
         df.to_csv(fname_pd)
 
+    # std_square = df[df['Generation'] == 'Square'].groupby(['Radius'])[['Similarity']].std()
+    # std_hex = df[df['Generation'] == 'Hexagonal'].groupby(['Radius'])[['Similarity']].std()
+    #
+    # plt.plot(std_square)
+    # plt.plot(std_hex)
+    # plt.title('Standard Deviation of Radial Deviation')
+
     # sns.lineplot(data=df[df['Seed'] == 0], x='Radius', y='Similarity', hue='Generation', ci='sd')
     sns.lineplot(data=df, x='Radius', y='Similarity', hue='Generation', ci='sd')
 
