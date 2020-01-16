@@ -91,10 +91,19 @@ avg_square_heatmap = square_heatmaps.mean(axis=0)
 avg_hex_heatmap = hex_heatmaps.mean(axis=0)
 
 plt.figure()
+plt.imshow(square_heatmaps[0, :, :], vmin=vmin, vmax=vmax, cmap=cmap)
+plt.title("Single Square Heatmap")
+plt.figure()
+plt.imshow(hex_heatmaps[0, :, :], vmin=vmin, vmax=vmax, cmap=cmap)
+plt.title("Single Hexagonal Heatmap")
+
+plt.figure()
 plt.imshow(avg_square_heatmap, vmin=vmin, vmax=vmax, cmap=cmap)
 plt.title("Square Heatmap")
 plt.figure()
 plt.imshow(avg_hex_heatmap, vmin=vmin, vmax=vmax, cmap=cmap)
 plt.title("Hexagonal Heatmap")
+
+# fig.savefig("fname.pdf", dpi=600, bbox_inches='tight')
 
 plt.show()
