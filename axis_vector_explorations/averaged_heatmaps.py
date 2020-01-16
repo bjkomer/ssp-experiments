@@ -90,20 +90,39 @@ vmax = 1
 avg_square_heatmap = square_heatmaps.mean(axis=0)
 avg_hex_heatmap = hex_heatmaps.mean(axis=0)
 
-plt.figure()
-plt.imshow(square_heatmaps[0, :, :], vmin=vmin, vmax=vmax, cmap=cmap)
-plt.title("Single Square Heatmap")
-plt.figure()
-plt.imshow(hex_heatmaps[0, :, :], vmin=vmin, vmax=vmax, cmap=cmap)
-plt.title("Single Hexagonal Heatmap")
+fig, ax = plt.subplots(2, 2, figsize=(10, 9))
 
-plt.figure()
-plt.imshow(avg_square_heatmap, vmin=vmin, vmax=vmax, cmap=cmap)
-plt.title("Square Heatmap")
-plt.figure()
-plt.imshow(avg_hex_heatmap, vmin=vmin, vmax=vmax, cmap=cmap)
-plt.title("Hexagonal Heatmap")
+title_font_size = 16
 
-# fig.savefig("fname.pdf", dpi=600, bbox_inches='tight')
+im = ax[0, 0].imshow(
+    square_heatmaps[0, :, :], vmin=vmin, vmax=vmax, cmap=cmap,
+    origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1])
+)
+ax[0, 0].set_title("Single Square Heatmap", fontsize=title_font_size)
+
+ax[0, 1].imshow(
+    hex_heatmaps[0, :, :], vmin=vmin, vmax=vmax, cmap=cmap,
+    origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1])
+)
+ax[0, 1].set_title("Single Hexagonal Heatmap", fontsize=title_font_size)
+
+
+ax[1, 0].imshow(
+    avg_square_heatmap, vmin=vmin, vmax=vmax, cmap=cmap,
+    origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1])
+)
+ax[1, 0].set_title("Mean Square Heatmap", fontsize=title_font_size)
+
+ax[1, 1].imshow(
+    avg_hex_heatmap, vmin=vmin, vmax=vmax, cmap=cmap,
+    origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1])
+)
+ax[1, 1].set_title("Mean Hexagonal Heatmap", fontsize=title_font_size)
+
+fig.subplots_adjust(right=0.8)
+cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+fig.colorbar(im, cax=cbar_ax)
+
+fig.savefig("averaged_heatmaps.pdf", dpi=600, bbox_inches='tight')
 
 plt.show()
