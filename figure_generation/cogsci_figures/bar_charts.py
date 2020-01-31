@@ -8,7 +8,7 @@ from itertools import product
 # fname = '/home/bjkomer/ssp-navigation/ssp_navigation/eval_data_tt/med_dim_adam_exps/combined_data.csv'
 # fname = '/home/bjkomer/ssp-navigation/ssp_navigation/eval_data_tt/bounds_exps/combined_data.csv'
 
-bounds = False
+bounds = True#False
 label_fontsize = 20
 tick_fontsize = 16
 
