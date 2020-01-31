@@ -13,6 +13,7 @@ parser.add_argument('--dim', type=int, default=256)
 parser.add_argument('--limit', type=float, default=5)
 parser.add_argument('--res', type=int, default=256)
 parser.add_argument('--palette', type=str, default='plasma', choices=['default', 'diverging', 'plasma'])
+parser.add_argument('--gaussian-rmse', action='store_true', help='compare to an ideal gaussian and compute RMSE')
 
 args = parser.parse_args()
 
@@ -90,39 +91,114 @@ vmax = 1
 avg_square_heatmap = square_heatmaps.mean(axis=0)
 avg_hex_heatmap = hex_heatmaps.mean(axis=0)
 
-fig, ax = plt.subplots(2, 2, figsize=(10, 9))
+if args.gaussian_rmse:
+    def gaussian_2d(x, y, sigma, meshgrid):
+        X, Y = meshgrid
+        return np.exp(-((X - x) ** 2 + (Y - y) ** 2) / sigma / sigma)
 
-title_font_size = 16
+    meshgrid = np.meshgrid(xs, ys)
 
-im = ax[0, 0].imshow(
-    square_heatmaps[0, :, :], vmin=vmin, vmax=vmax, cmap=cmap,
-    origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1])
-)
-ax[0, 0].set_title("Single Square Heatmap", fontsize=title_font_size)
+    sigma = .7
+    gauss = gaussian_2d(0, 0, sigma, meshgrid)
 
-ax[0, 1].imshow(
-    hex_heatmaps[0, :, :], vmin=vmin, vmax=vmax, cmap=cmap,
-    origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1])
-)
-ax[0, 1].set_title("Single Hexagonal Heatmap", fontsize=title_font_size)
+    fig, ax = plt.subplots(3, 3, figsize=(10, 9))
+
+    title_font_size = 16
+
+    im = ax[0, 0].imshow(
+        square_heatmaps[0, :, :], vmin=vmin, vmax=vmax, cmap=cmap,
+        origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1])
+    )
+    ax[0, 0].set_title("Single Square Heatmap", fontsize=title_font_size)
+
+    ax[0, 1].imshow(
+        hex_heatmaps[0, :, :], vmin=vmin, vmax=vmax, cmap=cmap,
+        origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1])
+    )
+    ax[0, 1].set_title("Single Hexagonal Heatmap", fontsize=title_font_size)
+
+    ax[1, 0].imshow(
+        avg_square_heatmap, vmin=vmin, vmax=vmax, cmap=cmap,
+        origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1])
+    )
+    ax[1, 0].set_title("Mean Square Heatmap", fontsize=title_font_size)
+
+    ax[1, 1].imshow(
+        avg_hex_heatmap, vmin=vmin, vmax=vmax, cmap=cmap,
+        origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1])
+    )
+    ax[1, 1].set_title("Mean Hexagonal Heatmap", fontsize=title_font_size)
+
+    ax[0, 2].imshow(
+        gauss, vmin=vmin, vmax=vmax, cmap=cmap,
+        origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1])
+    )
+    ax[0, 2].set_title("Gaussian", fontsize=title_font_size)
+
+    ax[1, 2].imshow(
+        avg_hex_heatmap - gauss, vmin=vmin, vmax=vmax, cmap=cmap,
+        origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1])
+    )
+    ax[1, 2].set_title("Gaussian Difference", fontsize=title_font_size)
+
+    square_rmse = np.sqrt(np.mean((avg_square_heatmap - gauss)**2))
+    hex_rmse = np.sqrt(np.mean((avg_hex_heatmap - gauss) ** 2))
+
+    # square_rmse = np.sqrt(np.mean((square_heatmaps[0, :, :] - gauss) ** 2))
+    # hex_rmse = np.sqrt(np.mean((hex_heatmaps[0, :, :] - gauss) ** 2))
+
+    # ax[2, 0].plot(square_heatmaps[0, args.res // 2, :])
+    ax[2, 0].plot(avg_square_heatmap[args.res // 2, :])
+    ax[2, 0].plot(gauss[args.res // 2, :])
+    ax[2, 0].set_title("RMSE: {}".format(square_rmse), fontsize=title_font_size)
+
+    # ax[2, 1].plot(hex_heatmaps[0, args.res // 2, :])
+    ax[2, 1].plot(avg_hex_heatmap[args.res // 2, :])
+    ax[2, 1].plot(gauss[args.res // 2, :])
+    ax[2, 1].set_title("RMSE: {}".format(hex_rmse), fontsize=title_font_size)
+
+    ax[2, 2].plot(gauss[args.res // 2, :])
 
 
-ax[1, 0].imshow(
-    avg_square_heatmap, vmin=vmin, vmax=vmax, cmap=cmap,
-    origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1])
-)
-ax[1, 0].set_title("Mean Square Heatmap", fontsize=title_font_size)
 
-ax[1, 1].imshow(
-    avg_hex_heatmap, vmin=vmin, vmax=vmax, cmap=cmap,
-    origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1])
-)
-ax[1, 1].set_title("Mean Hexagonal Heatmap", fontsize=title_font_size)
 
-fig.subplots_adjust(right=0.8)
-cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
-fig.colorbar(im, cax=cbar_ax)
 
-fig.savefig("averaged_heatmaps.pdf", dpi=600, bbox_inches='tight')
+    plt.show()
+else:
 
-plt.show()
+    fig, ax = plt.subplots(2, 2, figsize=(10, 9))
+
+    title_font_size = 16
+
+    im = ax[0, 0].imshow(
+        square_heatmaps[0, :, :], vmin=vmin, vmax=vmax, cmap=cmap,
+        origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1])
+    )
+    ax[0, 0].set_title("Single Square Heatmap", fontsize=title_font_size)
+
+    ax[0, 1].imshow(
+        hex_heatmaps[0, :, :], vmin=vmin, vmax=vmax, cmap=cmap,
+        origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1])
+    )
+    ax[0, 1].set_title("Single Hexagonal Heatmap", fontsize=title_font_size)
+
+
+    ax[1, 0].imshow(
+        avg_square_heatmap, vmin=vmin, vmax=vmax, cmap=cmap,
+        origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1])
+    )
+    ax[1, 0].set_title("Mean Square Heatmap", fontsize=title_font_size)
+
+    ax[1, 1].imshow(
+        avg_hex_heatmap, vmin=vmin, vmax=vmax, cmap=cmap,
+        origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1])
+    )
+    ax[1, 1].set_title("Mean Hexagonal Heatmap", fontsize=title_font_size)
+
+    fig.subplots_adjust(right=0.8)
+    cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+    fig.colorbar(im, cax=cbar_ax)
+
+    fig.savefig("averaged_heatmaps.pdf", dpi=600, bbox_inches='tight')
+
+    plt.show()
