@@ -111,6 +111,44 @@ def get_projected_heatmap_vectors(xs, ys, x_axis_sp, y_axis_sp, z_axis_sp):
     return vectors
 
 
+def get_simplex_coordinates(n):
+    # https://en.wikipedia.org/wiki/Simplex#Cartesian_coordinates_for_regular_n-dimensional_simplex_in_Rn
+
+    # n+1 vectors in n dimensions define the vertices of the shape
+    axes = np.zeros((n + 1, n))
+
+    # the dot product between any two vectors must be this value
+    dot_product = -1/n
+
+    # initialize the first vector to [1, 0, 0 ...]
+    axes[0, 0] = 1
+    axes[1:, 0] = dot_product
+    axes[0, 1:] = 0
+
+    # element index
+    for ei in range(1, n):
+        print(axes[ei, :ei])
+        # calculated using pythagorean theorem, distance to center must be 1
+
+        prev_sum = np.sum(axes[ei, :ei]**2)
+
+        axes[ei, ei] = np.sqrt(1 - prev_sum)  # 1**2 = ?**2 + prev**2 + .. -> ? = sqrt(1 - prev**2 ...)
+
+        # set this element in other vectors based on the dot product
+        axes[ei+1:, ei] = (dot_product - prev_sum) / axes[ei, ei]  # dp = new*? + prev**2 + ... -> ? = (dp - prev**2 + ...) / new
+
+        # set all other elements in the vector to 0
+        axes[ei, ei + 1:] = 0
+
+    # the last vector is the second last vector, but with the sign flipped on the last element
+    axes[-1, :] = axes[-2, :]
+    axes[-1, -1] = -axes[-1, -1]
+
+    print(axes)
+
+    return axes
+
+
 if __name__ == '__main__':
     # run some tests
 
