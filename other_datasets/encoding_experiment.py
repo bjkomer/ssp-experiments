@@ -23,7 +23,7 @@ def main():
     # datasets = ['appendicitis']
     # datasets = ['diabetes']
     # datasets = ['titanic']
-    datasets = ['banana', 'appendicitis', 'diabetes', 'titanic']
+    # datasets = ['banana', 'appendicitis', 'diabetes', 'titanic']
 
     n_datasets = len(datasets)
 
@@ -66,6 +66,15 @@ def main():
         for max_iter in max_iters:
             for hidden_layer_sizes in hidden_layers:
                 for seed in seeds:
+                    print(
+                        '\x1b[2K\r {} of {}. {} - hs {} - seed {}'.format(
+                            i + 1,
+                            n_datasets,
+                            classification_dataset,
+                            hidden_layer_sizes,seed
+                        ),
+                        end="\r"
+                    )
                     for scale in scales:
                         for dim in dims:
 
