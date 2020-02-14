@@ -27,3 +27,75 @@ def encode_dataset(data, dim=256, seed=13, scale=1.0):
             data_out[s, f*dim:(f+1)*dim] = power(axis_vec, data[s, f] * scale).v
 
     return data_out
+
+
+# Note: this is extremely slow, may want to 'cache' the result on real experiments
+def encode_dataset_nd(data, n, dim=256, seed=13, scale=1.0):
+    """
+    :param data: the data to be encoded
+    :param dim: dimensionality of the SSP
+    :param seed: seed for the single axis vector
+    :param scale: scaling of the data for the encoding
+    :return:
+    """
+    rng = np.random.RandomState(seed=seed)
+
+    n_samples = data.shape[0]
+
+    data_out = np.zeros((n_samples, dim))
+
+    encoding_func = get_nd_encoding_func(n=n, dim=dim)
+
+    for s in range(n_samples):
+        data_out[s, :] = encoding_func(data[s, :] * scale)
+
+    return data_out
+
+
+def get_simplex_coordinates(n):
+    # https://en.wikipedia.org/wiki/Simplex#Cartesian_coordinates_for_regular_n-dimensional_simplex_in_Rn
+
+    # n+1 vectors in n dimensions define the vertices of the shape
+    axes = np.zeros((n + 1, n))
+
+    # the dot product between any two vectors must be this value
+    dot_product = -1/n
+
+    # initialize the first vector to [1, 0, 0 ...]
+    axes[0, 0] = 1
+    axes[1:, 0] = dot_product
+    axes[0, 1:] = 0
+
+    # element index
+    for ei in range(1, n):
+        print(axes[ei, :ei])
+        # calculated using pythagorean theorem, distance to center must be 1
+
+        prev_sum = np.sum(axes[ei, :ei]**2)
+
+        axes[ei, ei] = np.sqrt(1 - prev_sum)  # 1**2 = ?**2 + prev**2 + .. -> ? = sqrt(1 - prev**2 ...)
+
+        # set this element in other vectors based on the dot product
+        axes[ei+1:, ei] = (dot_product - prev_sum) / axes[ei, ei]  # dp = new*? + prev**2 + ... -> ? = (dp - prev**2 + ...) / new
+
+        # set all other elements in the vector to 0
+        axes[ei, ei + 1:] = 0
+
+    # the last vector is the second last vector, but with the sign flipped on the last element
+    axes[-1, :] = axes[-2, :]
+    axes[-1, -1] = -axes[-1, -1]
+
+    return axes
+
+
+def get_nd_encoding_func(n, dim, seed=13):
+
+    transform_axes = get_simplex_coordinates(n)
+
+    def encoding_func(features):
+        """
+        Take in 'n' features as a numpy array, and output a 'dim' dimensional SSP
+        """
+        return '?'
+
+    return encoding_func
