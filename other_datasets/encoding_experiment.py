@@ -71,7 +71,7 @@ def main():
 
         # only run if the data does not already exist
         if os.path.exists(inter_fname):
-            df = pd.from_csv(inter_fname)
+            df = pd.read_csv(inter_fname)
         else:
             # contains all results for this dataset
             df = pd.DataFrame()
