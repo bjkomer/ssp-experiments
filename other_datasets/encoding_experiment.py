@@ -55,104 +55,116 @@ def main():
         else:
             solver = 'lbfgs'
 
-        max_iters = [300]
-        hidden_layers = [(512,), (1024,), (256, 256)]
+        #max_iters = [300]
+        #hidden_layers = [(512,), (1024,), (256, 256)]
+        #seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        #scales = [0.25, 1.0]
+        #dims = [256]
+
+        max_iters = [500]
+        hidden_layers = [(512, 512), (1024,)]
         seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-        scales = [0.25, 1.0]
+        scales = [0.25]
         dims = [256]
 
-        # contains all results for this dataset
-        df = pd.DataFrame()
-        for max_iter in max_iters:
-            for hidden_layer_sizes in hidden_layers:
-                for seed in seeds:
-                    print(
-                        '\x1b[2K\r {} of {}. {} - hs {} - seed {}'.format(
-                            i + 1,
-                            n_datasets,
-                            classification_dataset,
-                            hidden_layer_sizes,seed
-                        ),
-                        end="\r"
-                    )
-                    for scale in scales:
-                        for dim in dims:
+        inter_fname = 'intermediate/encoding_exp_results_500iters_{}.csv'.format(classification_dataset)
 
-                            # train_X_enc = encode_dataset(train_X, dim=dim, seed=seed, scale=scale)
-                            # test_X_enc = encode_dataset(test_X, dim=dim, seed=seed, scale=scale)
+        # only run if the data does not already exist
+        if os.path.exists(inter_fname):
+            df = pd.from_csv(inter_fname)
+        else:
+            # contains all results for this dataset
+            df = pd.DataFrame()
+            for max_iter in max_iters:
+                for hidden_layer_sizes in hidden_layers:
+                    for seed in seeds:
+                        print(
+                            '\x1b[2K\r {} of {}. {} - hs {} - seed {}'.format(
+                                i + 1,
+                                n_datasets,
+                                classification_dataset,
+                                hidden_layer_sizes,seed
+                            ),
+                            end="\r"
+                        )
+                        for scale in scales:
+                            for dim in dims:
 
-                            train_X_enc_scaled = encode_dataset(train_X_scaled, dim=dim, seed=seed, scale=scale)
-                            test_X_enc_scaled = encode_dataset(test_X_scaled, dim=dim, seed=seed, scale=scale)
+                                # train_X_enc = encode_dataset(train_X, dim=dim, seed=seed, scale=scale)
+                                # test_X_enc = encode_dataset(test_X, dim=dim, seed=seed, scale=scale)
 
-                            mlp = MLPClassifier(
-                                hidden_layer_sizes=hidden_layer_sizes,
-                                activation='relu',
-                                solver=solver,
-                                max_iter=max_iter,
-                                random_state=seed,
-                                early_stopping=True,
-                                validation_fraction=0.1,
-                            )
+                                train_X_enc_scaled = encode_dataset(train_X_scaled, dim=dim, seed=seed, scale=scale)
+                                test_X_enc_scaled = encode_dataset(test_X_scaled, dim=dim, seed=seed, scale=scale)
 
-                            mlp.fit(train_X_enc_scaled, train_y)
-                            acc = mlp.score(test_X_enc_scaled, test_y)
+                                mlp = MLPClassifier(
+                                    hidden_layer_sizes=hidden_layer_sizes,
+                                    activation='relu',
+                                    solver=solver,
+                                    max_iter=max_iter,
+                                    random_state=seed,
+                                    early_stopping=True,
+                                    validation_fraction=0.1,
+                                )
 
-                            df = df.append(
-                                {
-                                    'Dim': dim,
-                                    'Seed': seed,
-                                    'Scale': scale,
-                                    'Encoding': 'SSP Normalized',
-                                    'Dataset': classification_dataset,
-                                    'Model': 'MLP - {}'.format(hidden_layer_sizes),
-                                    'Accuracy': acc,
-                                    'Solver': solver,
-                                    'Max Iter': max_iter,
-                                },
-                                ignore_index=True,
-                            )
+                                mlp.fit(train_X_enc_scaled, train_y)
+                                acc = mlp.score(test_X_enc_scaled, test_y)
 
-                    mlp = MLPClassifier(
-                        hidden_layer_sizes=hidden_layer_sizes,
-                        activation='relu',
-                        solver=solver,
-                        max_iter=max_iter,
-                        random_state=seed,
-                        early_stopping=True,
-                        validation_fraction=0.1,
-                    )
+                                df = df.append(
+                                    {
+                                        'Dim': dim,
+                                        'Seed': seed,
+                                        'Scale': scale,
+                                        'Encoding': 'SSP Normalized',
+                                        'Dataset': classification_dataset,
+                                        'Model': 'MLP - {}'.format(hidden_layer_sizes),
+                                        'Accuracy': acc,
+                                        'Solver': solver,
+                                        'Max Iter': max_iter,
+                                    },
+                                    ignore_index=True,
+                                )
 
-                    mlp.fit(train_X_scaled, train_y)
-                    acc = mlp.score(test_X_scaled, test_y)
+                        mlp = MLPClassifier(
+                            hidden_layer_sizes=hidden_layer_sizes,
+                            activation='relu',
+                            solver=solver,
+                            max_iter=max_iter,
+                            random_state=seed,
+                            early_stopping=True,
+                            validation_fraction=0.1,
+                        )
 
-                    df = df.append(
-                        {
-                            'Dim': 0,
-                            'Seed': seed,
-                            'Scale': 0,
-                            'Encoding': 'Normalized',
-                            'Dataset': classification_dataset,
-                            'Model': 'MLP - {}'.format(hidden_layer_sizes),
-                            'Accuracy': acc,
-                            'Solver': solver,
-                            'Max Iter': max_iter,
-                        },
-                        ignore_index=True,
-                    )
-                # df.to_csv('encoding_exp_results_iter{}_hs{}.csv'.format(
-                #     max_iter,
-                #     str(hidden_layer_sizes).replace(" ", "-").replace(",", ""))
-                # )
-                #
-                # df_all = df_all.append(df, ignore_index=True)
-        # save each dataset individually, in case the run crashes and needs to be restarted
-        df.to_csv('intermediate/encoding_exp_results_300iters_{}.csv'.format(classification_dataset))
+                        mlp.fit(train_X_scaled, train_y)
+                        acc = mlp.score(test_X_scaled, test_y)
+
+                        df = df.append(
+                            {
+                                'Dim': 0,
+                                'Seed': seed,
+                                'Scale': 0,
+                                'Encoding': 'Normalized',
+                                'Dataset': classification_dataset,
+                                'Model': 'MLP - {}'.format(hidden_layer_sizes),
+                                'Accuracy': acc,
+                                'Solver': solver,
+                                'Max Iter': max_iter,
+                            },
+                            ignore_index=True,
+                        )
+                    # df.to_csv('encoding_exp_results_iter{}_hs{}.csv'.format(
+                    #     max_iter,
+                    #     str(hidden_layer_sizes).replace(" ", "-").replace(",", ""))
+                    # )
+                    #
+                    # df_all = df_all.append(df, ignore_index=True)
+            # save each dataset individually, in case the run crashes and needs to be restarted
+            df.to_csv(inter_fname)
 
         df_all = df_all.append(df, ignore_index=True)
 
     print("Saving All Results")
 
-    df_all.to_csv('encoding_exp_all_results_300iters.csv')
+    df_all.to_csv('encoding_exp_all_results_500iters.csv')
 
 if __name__ == '__main__':
     main()
