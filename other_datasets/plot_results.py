@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import sys
 
 # {
 #     'Dim': 0,
@@ -13,19 +14,16 @@ import seaborn as sns
 #     'Solver': solver,
 # },
 
-# df = pd.read_csv('encoding_exp_results_v2.csv')
-# df = pd.read_csv('encoding_exp_results.csv')
-# df = pd.read_csv('encoding_exp_all_results.csv')
-df = pd.read_csv('encoding_exp_all_results_100iters.csv')
+fname = sys.argv[1]
+
+df = pd.read_csv(fname)
 
 meta_df = pd.read_csv('metadata.csv')
 
 df = df.merge(meta_df, on='Dataset')
 
-print(df['Model'])
-
-df_ssp = df[df['Encoding'] == 'SSP Normalized']
-df_normal = df[df['Encoding'] == 'Normalized']
+# df_ssp = df[df['Encoding'] == 'SSP Normalized']
+# df_normal = df[df['Encoding'] == 'Normalized']
 
 plt.figure()
 sns.barplot(data=df, x='Encoding', y='Accuracy')

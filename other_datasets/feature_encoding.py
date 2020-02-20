@@ -30,21 +30,27 @@ def encode_dataset(data, dim=256, seed=13, scale=1.0):
 
 
 # Note: this is extremely slow, may want to 'cache' the result on real experiments
-def encode_dataset_nd(data, n, dim=256, seed=13, scale=1.0):
+def encode_dataset_nd(data, dim=256, seed=13, scale=1.0, style='normal'):
     """
     :param data: the data to be encoded
     :param dim: dimensionality of the SSP
     :param seed: seed for the single axis vector
     :param scale: scaling of the data for the encoding
+    :param style: 'normal' or 'simplex'
     :return:
     """
-    rng = np.random.RandomState(seed=seed)
 
     n_samples = data.shape[0]
+    n = data.shape[1]
 
     data_out = np.zeros((n_samples, dim))
 
-    encoding_func = get_nd_encoding_func(n=n, dim=dim)
+    if style == 'normal':
+        encoding_func = get_nd_encoding_func(n=n, dim=dim, seed=seed)
+    elif style == 'simplex':
+        encoding_func = get_nd_simplex_encoding_func(n=n, dim=dim, seed=seed)
+    else:
+        raise NotImplementedError
 
     for s in range(n_samples):
         data_out[s, :] = encoding_func(data[s, :] * scale)
@@ -68,7 +74,7 @@ def get_simplex_coordinates(n):
 
     # element index
     for ei in range(1, n):
-        print(axes[ei, :ei])
+        # print(axes[ei, :ei])
         # calculated using pythagorean theorem, distance to center must be 1
 
         prev_sum = np.sum(axes[ei, :ei]**2)
@@ -88,14 +94,50 @@ def get_simplex_coordinates(n):
     return axes
 
 
-def get_nd_encoding_func(n, dim, seed=13):
+def get_nd_simplex_encoding_func(n, dim, seed=13):
 
     transform_axes = get_simplex_coordinates(n)
+
+    rng = np.random.RandomState(seed=seed)
+
+    axis_vectors = []
+    for i in range(n + 1):
+        axis_vectors.append(make_good_unitary(dim, rng=rng))
 
     def encoding_func(features):
         """
         Take in 'n' features as a numpy array, and output a 'dim' dimensional SSP
         """
-        return '?'
+        # TODO: any scaling required?
+        # TODO: make sure matrix multiply order is correct
+        tranformed_features = transform_axes @ features
+
+        vec = power(axis_vectors[0], tranformed_features[0])
+        for i in range(1, n + 1):
+            vec *= power(axis_vectors[i], tranformed_features[i])
+
+        return vec.v
+
+    return encoding_func
+
+
+def get_nd_encoding_func(n, dim, seed=13):
+
+    rng = np.random.RandomState(seed=seed)
+
+    axis_vectors = []
+    for i in range(n):
+        axis_vectors.append(make_good_unitary(dim, rng=rng))
+
+    def encoding_func(features):
+        """
+        Take in 'n' features as a numpy array, and output a 'dim' dimensional SSP
+        """
+
+        vec = power(axis_vectors[0], features[0])
+        for i in range(1, n):
+            vec *= power(axis_vectors[i], features[i])
+
+        return vec.v
 
     return encoding_func
