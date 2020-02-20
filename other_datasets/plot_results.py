@@ -14,11 +14,14 @@ import sys
 #     'Solver': solver,
 # },
 
-fname = sys.argv[1]
-
-df = pd.read_csv(fname)
-
 meta_df = pd.read_csv('metadata.csv')
+
+if len(sys.argv) > 1:
+    # one or more files given, load them all into one dataframe
+    fnames = sys.argv[1:]
+    df = pd.DataFrame()
+    for fname in fnames:
+        df = df.append(pd.read_csv(fname))
 
 df = df.merge(meta_df, on='Dataset')
 
