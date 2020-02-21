@@ -141,3 +141,103 @@ def get_nd_encoding_func(n, dim, seed=13):
         return vec.v
 
     return encoding_func
+
+
+def get_one_hot_encoding_func(dim, limit_low=-1, limit_high=1, **_):
+
+    xs = np.linspace(limit_low, limit_high, dim)
+
+    def encoding_func(feature):
+        arr = np.zeros((len(xs),))
+
+        ind = (np.abs(xs - feature)).argmin()
+        arr[ind] = 1
+
+        return arr
+
+    return encoding_func
+
+
+def get_tile_coding_encoding_func(dim, n_tiles, seed, limit_low=-1, limit_high=1, **_):
+
+    rng = np.random.RandomState(seed=seed)
+
+    n_bins = dim // n_tiles
+
+    assert dim == n_tiles * n_bins
+
+    # Make the random offsets relative to the bin_size
+    bin_size = (limit_high - limit_low) / (n_bins)
+
+    # A series of shifted linspaces
+    xss = np.zeros((n_tiles, n_bins))
+
+    # The x and y offsets for each tile. Max offset is half the bin_size
+    offsets = rng.uniform(-bin_size/2, bin_size/2, size=(n_tiles, 2))
+
+    for i in range(n_tiles):
+        xss[i, :] = np.linspace(limit_low + offsets[i, 0], limit_high + offsets[i, 0], n_bins)
+
+    def encoding_func(feature):
+        arr = np.zeros((n_tiles, n_bins))
+        for i in range(n_tiles):
+            ind = (np.abs(xss[i, :] - feature)).argmin()
+            arr[i, ind] = 1
+        return arr.flatten()
+
+    return encoding_func
+
+
+def get_rbf_encoding_func(dim, sigma, seed, limit_low=-1, limit_high=1, **_):
+
+    rng = np.random.RandomState(seed=seed)
+
+    # generate PC centers
+    pc_centers = rng.uniform(low=limit_low, high=limit_high, size=(dim,))
+
+    def encoding_func(feature):
+        activations = np.zeros((dim,))
+        for i in range(dim):
+            activations[i] = np.exp(-((pc_centers[i] - feature) ** 2) / sigma / sigma)
+        return activations
+
+    return encoding_func
+
+
+def get_ssp_encoding_func(dim, scale, seed, **_):
+
+    rng = np.random.RandomState(seed=seed)
+
+    axis_vec = make_good_unitary(dim, rng=rng)
+
+    def encoding_func(feature):
+        return power(axis_vec, feature * scale).v
+
+    return encoding_func
+
+
+def encode_comparison_dataset(data, encoding, dim, **params):
+
+    if encoding == 'one-hot':
+        enc_func = get_one_hot_encoding_func(dim=dim, **params)
+    elif encoding == 'tile-code':
+        enc_func = get_tile_coding_encoding_func(dim=dim, **params)
+    elif encoding == 'pc-gauss':
+        enc_func = get_rbf_encoding_func(dim=dim, **params)
+    elif encoding == 'ssp':
+        enc_func = get_ssp_encoding_func(dim=dim, **params)
+    else:
+        raise NotImplementedError('unknown encoding: {}'.format(encoding))
+
+    n_samples = data.shape[0]
+    n_features = data.shape[1]
+
+    n_out_features = n_features * dim
+
+    data_out = np.zeros((n_samples, n_out_features))
+
+    for s in range(n_samples):
+        for f in range(n_features):
+            data_out[s, f*dim:(f+1)*dim] = enc_func(data[s, f])
+
+    return data_out
