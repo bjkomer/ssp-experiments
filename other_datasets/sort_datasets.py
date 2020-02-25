@@ -6,55 +6,7 @@ import seaborn as sns
 from constants import full_continuous
 import sys
 
-# df = pd.read_csv('encoding_exp_results_v2.csv')
-# # df = pd.read_csv('encoding_exp_results.csv')
-#
-# # remove the bad scales
-# df = df[df['Scale'] != 5.0]
-# df = df[df['Scale'] != 2.0]
-# df = df[df['Scale'] != 1.0]
-# df = df[df['Scale'] != 0.5]
-#
-# meta_df = pd.read_csv('metadata.csv')
-#
-# df = df.merge(meta_df, on='Dataset')
-#
-# ssp_best = []
-# normal_best = []
-# tied = []
-#
-# for dataset_name in full_continuous:
-#     acc_ssp = df[(df['Dataset'] == dataset_name) & (df['Encoding'] == 'SSP Normalized')]['Accuracy'].mean()
-#     acc_normal = df[(df['Dataset'] == dataset_name) & (df['Encoding'] == 'Normalized')]['Accuracy'].mean()
-#
-#     if acc_ssp > acc_normal:
-#         ssp_best.append(dataset_name)
-#     elif acc_normal > acc_ssp:
-#         normal_best.append(dataset_name)
-#     else:
-#         tied.append(dataset_name)
-#
-#
-# # get metadata for the best results
-# meta_ssp_df = meta_df[meta_df['Dataset'].isin(ssp_best)]
-# meta_normal_df = meta_df[meta_df['Dataset'].isin(normal_best)]
-#
-# print("")
-# print("SSP best: {}".format(ssp_best))
-# print("Number of datasets: {}".format(len(ssp_best)))
-# print("Avg # of features: {}".format(meta_ssp_df['Float Features'].mean()))
-# print("Avg imbalance metric: {}".format(meta_ssp_df['Imbalance Metric'].mean()))
-# print("Avg # of samples: {}".format(meta_ssp_df['Number of Samples'].mean()))
-# print("Avg overall Acc: {}".format(df[df['Encoding'] == 'SSP Normalized']['Accuracy'].mean()))
-# print("")
-# print("Normal best: {}".format(normal_best))
-# print("Number of datasets: {}".format(len(normal_best)))
-# print("Avg # of features: {}".format(meta_normal_df['Float Features'].mean()))
-# print("Avg imbalance metric: {}".format(meta_normal_df['Imbalance Metric'].mean()))
-# print("Avg # of samples: {}".format(meta_normal_df['Number of Samples'].mean()))
-# print("Avg overall Acc: {}".format(df[df['Encoding'] == 'Normalized']['Accuracy'].mean()))
-# print("")
-# print("Tied: {}".format(tied))
+across_models = False#True
 
 if len(sys.argv) > 1:
     # one or more files given, load them all into one dataframe
@@ -66,24 +18,54 @@ if len(sys.argv) > 1:
 meta_df = pd.read_csv('metadata.csv')
 df = df.merge(meta_df, on='Dataset')
 
+# hardcode model of interest here. TODO: make parameter
+# df = df[df['Model'] == 'MLP - (512, 512)']
+# df = df[df['Model'] == 'MLP - (1024,)']
+# df = df[df['Model'] == 'MLP - (512,)']
+# df = df[df['Model'] == 'MLP - (1024, 1024)']
+# df = df[df['Model'] == 'MLP - (256, 512)']
+# df = df[df['Model'] == 'MLP - (512, 256)']
+
 encodings = df['Encoding'].unique()
+
+models = df['Model'].unique()
 
 n_encodings = len(encodings)
 n_datasets = len(full_continuous)
+n_models = len(models)
 
 # initialize dictionary with empty lists
 best_dict = {}
 for encoding in encodings:
     best_dict[encoding] = []
 
-accs = np.zeros((n_encodings, n_datasets))
+if across_models:
+    accs = np.zeros((n_encodings, n_models, n_datasets))
 
-for di, dataset_name in enumerate(full_continuous):
-    for ei, encoding in enumerate(encodings):
-        accs[ei, di] = df[(df['Dataset'] == dataset_name) & (df['Encoding'] == encoding)]['Accuracy'].mean()
+    for di, dataset_name in enumerate(full_continuous):
+        for ei, encoding in enumerate(encodings):
+            for mi, model in enumerate(models):
+                accs[ei, mi, di] = df[(df['Dataset'] == dataset_name) & (df['Encoding'] == encoding) & (df['Model'] == model)]['Accuracy'].mean()
+                if np.isnan(accs[ei, mi, di]):
+                    accs[ei, mi, di] = 0
 
-    ind_best = np.argmax(accs[:, di])
-    best_dict[encodings[ind_best]].append(dataset_name)
+        if np.sum(accs[:, :, di]) > 0:
+            # make sure there is some data
+            ind_best = np.unravel_index(np.argmax(accs[:, :, di], axis=None), accs[:, :, di].shape)
+            best_dict[encodings[ind_best[0]]].append(dataset_name)
+else:
+    accs = np.zeros((n_encodings, n_datasets))
+
+    for di, dataset_name in enumerate(full_continuous):
+        for ei, encoding in enumerate(encodings):
+            accs[ei, di] = df[(df['Dataset'] == dataset_name) & (df['Encoding'] == encoding)]['Accuracy'].mean()
+            if np.isnan(accs[ei, di]):
+                accs[ei, di] = 0
+
+        if np.sum(accs[:, di]) > 0:
+            # make sure there is some data
+            ind_best = np.argmax(accs[:, di])
+            best_dict[encodings[ind_best]].append(dataset_name)
 
 for encoding in encodings:
     result_df = meta_df[meta_df['Dataset'].isin(best_dict[encoding])]
