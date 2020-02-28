@@ -219,7 +219,7 @@ def experiment(dataset, exp_args):
         # save each dataset individually, in case the run crashes and needs to be restarted
         df.to_csv(inter_fname)
 
-        return dataset
+    return dataset
 
 
 class ExpRunner:
@@ -236,7 +236,7 @@ class ExpRunner:
         if self.exp_args.regression:
             if self.exp_args.debug:
                 # self.datasets = ['1595_poker', '537_houses', '215_2dplanes', '1096_FacultySalaries']
-                self.datasets = ['1096_FacultySalaries']
+                self.datasets = ['1096_FacultySalaries', '192_vineyard', '690_visualizing_galaxy', '665_sleuth_case2002', '485_analcatdata_vehicle']
             else:
                 # just using the ones with small number of features for regression, since there is a lot anyway
                 self.datasets = small_continuous_regression
