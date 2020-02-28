@@ -40,7 +40,7 @@ for i, dataset in enumerate(dataset_names):
     mse = imbalance_metrics(df['target'].tolist())
 
     if dataset in full_continuous:
-        dataset_type = 'Classificaion'
+        dataset_type = 'Classification'
     elif dataset in full_continuous_regression:
         dataset_type = 'Regression'
     else:
