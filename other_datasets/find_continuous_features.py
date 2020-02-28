@@ -11,12 +11,15 @@ some_continuous = []
 # 10 or less continuous features, only continuous
 small_continuous = []
 
-n_datasets = len(classification_dataset_names)
+# dataset_names = classification_dataset_names
+dataset_names = regression_dataset_names
+
+n_datasets = len(dataset_names)
 
 # for i, classification_dataset in enumerate(['banana', 'iris', 'titanic']):
-for i, classification_dataset in enumerate(classification_dataset_names):
-    print('\x1b[2K\r {} of {}. {}'.format(i+1, n_datasets, classification_dataset), end="\r")
-    df = fetch_data(classification_dataset, return_X_y=False)
+for i, dataset in enumerate(dataset_names):
+    print('\x1b[2K\r {} of {}. {}'.format(i+1, n_datasets, dataset), end="\r")
+    df = fetch_data(dataset, return_X_y=False)
     # feat = count_features_type(df.ix[:, df.columns != 'class'])
     feat = count_features_type(df.ix[:, df.columns != 'target'])
     n_binary = feat[0]
@@ -37,12 +40,12 @@ for i, classification_dataset in enumerate(classification_dataset_names):
     #     print(df)
 
     if n_float > 0:
-        some_continuous.append(classification_dataset)
+        some_continuous.append(dataset)
         if n_binary == 0 and n_integer == 0:
-            full_continuous.append(classification_dataset)
+            full_continuous.append(dataset)
 
             if n_float <= 10:
-                small_continuous.append(classification_dataset)
+                small_continuous.append(dataset)
 
 
 print(some_continuous)

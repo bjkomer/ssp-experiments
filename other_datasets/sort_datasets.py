@@ -6,7 +6,7 @@ import seaborn as sns
 from constants import full_continuous
 import sys
 
-across_models = False#True
+across_models = True
 
 if len(sys.argv) > 1:
     # one or more files given, load them all into one dataframe
@@ -25,6 +25,14 @@ df = df.merge(meta_df, on='Dataset')
 # df = df[df['Model'] == 'MLP - (1024, 1024)']
 # df = df[df['Model'] == 'MLP - (256, 512)']
 # df = df[df['Model'] == 'MLP - (512, 256)']
+
+# df = df[df['Encoding'] != 'RBF']
+# df = df[df['Encoding'] != 'One Hot']
+# df = df[df['Encoding'] != 'Tile Coding']
+# df = df[df['Encoding'] != 'Normalized']
+# df = df[df['Encoding'] != 'SSP Normalized']
+# df = df[df['Encoding'] != 'Combined SSP Normalized']
+# df = df[df['Encoding'] != 'Combined Simplex SSP Normalized']
 
 encodings = df['Encoding'].unique()
 

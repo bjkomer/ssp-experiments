@@ -1,4 +1,4 @@
-from sklearn.neural_network import MLPClassifier
+from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import pandas as pd
@@ -7,7 +7,7 @@ from sklearn.utils.testing import ignore_warnings
 from sklearn.exceptions import ConvergenceWarning
 import argparse
 
-from constants import some_continuous, full_continuous, small_continuous
+from constants import full_continuous, small_continuous, full_continuous_regression, small_continuous_regression
 from feature_encoding import encode_dataset, encode_dataset_nd, encode_comparison_dataset
 
 from pmlb import fetch_data, classification_dataset_names
@@ -31,14 +31,20 @@ parser.add_argument('--limit-low', type=float, default=-3)
 parser.add_argument('--limit-high', type=float, default=3)
 parser.add_argument('--max-workers', type=int, default=10)
 parser.add_argument('--folder', type=str, default='process_output')
+parser.add_argument('--regression', action='store_true', help='Use the regression datasets instead of classification')
 args = parser.parse_args()
 
 params = vars(args)
 
+if args.regression:
+    MLP = MLPRegressor
+else:
+    MLP = MLPClassifier
+
 
 @ignore_warnings(category=ConvergenceWarning)
 def experiment(dataset, exp_args):
-    X, y = fetch_data(dataset, return_X_y=True)
+    X, y = fetch_data(dataset, return_X_y=True, local_cache_dir='cache')
 
     # making features 0 mean and unit variance
     scaler = StandardScaler()
@@ -49,6 +55,14 @@ def experiment(dataset, exp_args):
 
     train_X_scaled = scaler.transform(train_X)
     test_X_scaled = scaler.transform(test_X)
+
+    # optionally scale the targets, from a single test, overall performance is worse with scaled targets
+    # if exp_args.regression:
+    #     scaler_reg = StandardScaler()
+    #
+    #     scaler_reg.fit(train_y.reshape(-1, 1))
+    #     train_y = scaler_reg.transform(train_y.reshape(-1, 1)).reshape(-1)
+    #     test_y = scaler_reg.transform(test_y.reshape(-1, 1)).reshape(-1)
 
     # don't use adam on the smaller datasets
     if len(train_X) > 1000:
@@ -143,7 +157,7 @@ def experiment(dataset, exp_args):
                                 else:
                                     raise NotImplementedError('unknown encoding type: {}'.format(enc_type))
 
-                                mlp = MLPClassifier(
+                                mlp = MLP(
                                     hidden_layer_sizes=hidden_layer_sizes,
                                     activation='relu',
                                     solver=solver,
@@ -173,7 +187,7 @@ def experiment(dataset, exp_args):
                                     ignore_index=True,
                                 )
 
-                    mlp = MLPClassifier(
+                    mlp = MLP(
                         hidden_layer_sizes=hidden_layer_sizes,
                         activation='relu',
                         solver=solver,
@@ -219,10 +233,18 @@ class ExpRunner:
 
         self.exp_args = args
 
-        if self.exp_args.debug:
-            self.datasets = ['banana', 'appendicitis', 'diabetes', 'titanic']
+        if self.exp_args.regression:
+            if self.exp_args.debug:
+                # self.datasets = ['1595_poker', '537_houses', '215_2dplanes', '1096_FacultySalaries']
+                self.datasets = ['1096_FacultySalaries']
+            else:
+                # just using the ones with small number of features for regression, since there is a lot anyway
+                self.datasets = small_continuous_regression
         else:
-            self.datasets = full_continuous
+            if self.exp_args.debug:
+                self.datasets = ['banana', 'appendicitis', 'diabetes', 'titanic']
+            else:
+                self.datasets = full_continuous
 
         self.n_datasets = len(self.datasets)
 
@@ -239,7 +261,6 @@ class ExpRunner:
             print("Finished process for: {}".format(e.result()))
 
     def run(self):
-
         # loop until all datasets are launched and all workers are finished
         while (self.dataset_index < self.n_datasets) or (self.n_workers > 0):
             # if there is room for another worker and still work to be done, launch it
