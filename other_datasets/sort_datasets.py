@@ -38,8 +38,10 @@ encodings = df['Encoding'].unique()
 
 models = df['Model'].unique()
 
+datasets = df['Dataset'].unique()
+
 n_encodings = len(encodings)
-n_datasets = len(full_continuous)
+n_datasets = len(datasets)
 n_models = len(models)
 
 # initialize dictionary with empty lists
@@ -50,27 +52,27 @@ for encoding in encodings:
 if across_models:
     accs = np.zeros((n_encodings, n_models, n_datasets))
 
-    for di, dataset_name in enumerate(full_continuous):
+    for di, dataset_name in enumerate(datasets):
         for ei, encoding in enumerate(encodings):
             for mi, model in enumerate(models):
                 accs[ei, mi, di] = df[(df['Dataset'] == dataset_name) & (df['Encoding'] == encoding) & (df['Model'] == model)]['Accuracy'].mean()
                 if np.isnan(accs[ei, mi, di]):
                     accs[ei, mi, di] = 0
 
-        if np.sum(accs[:, :, di]) > 0:
+        if np.sum(accs[:, :, di]) != 0:
             # make sure there is some data
             ind_best = np.unravel_index(np.argmax(accs[:, :, di], axis=None), accs[:, :, di].shape)
             best_dict[encodings[ind_best[0]]].append(dataset_name)
 else:
     accs = np.zeros((n_encodings, n_datasets))
 
-    for di, dataset_name in enumerate(full_continuous):
+    for di, dataset_name in enumerate(datasets):
         for ei, encoding in enumerate(encodings):
             accs[ei, di] = df[(df['Dataset'] == dataset_name) & (df['Encoding'] == encoding)]['Accuracy'].mean()
             if np.isnan(accs[ei, di]):
                 accs[ei, di] = 0
 
-        if np.sum(accs[:, di]) > 0:
+        if np.sum(accs[:, di]) != 0:
             # make sure there is some data
             ind_best = np.argmax(accs[:, di])
             best_dict[encodings[ind_best]].append(dataset_name)
