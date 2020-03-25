@@ -188,12 +188,15 @@ def get_tile_coding_encoding_func(dim, n_tiles, seed, limit_low=-1, limit_high=1
     return encoding_func
 
 
-def get_rbf_encoding_func(dim, sigma, seed, limit_low=-1, limit_high=1, **_):
+def get_rbf_encoding_func(dim, sigma, seed, random_centers=True, limit_low=-1, limit_high=1, **_):
 
     rng = np.random.RandomState(seed=seed)
 
     # generate PC centers
-    pc_centers = rng.uniform(low=limit_low, high=limit_high, size=(dim,))
+    if random_centers:
+        pc_centers = rng.uniform(low=limit_low, high=limit_high, size=(dim,))
+    else:
+        pc_centers = np.linspace(limit_low, limit_high, dim)
 
     def encoding_func(feature):
         activations = np.zeros((dim,))
@@ -223,7 +226,9 @@ def encode_comparison_dataset(data, encoding, dim, **params):
     elif encoding == 'tile-code':
         enc_func = get_tile_coding_encoding_func(dim=dim, **params)
     elif encoding == 'pc-gauss':
-        enc_func = get_rbf_encoding_func(dim=dim, **params)
+        enc_func = get_rbf_encoding_func(dim=dim, random_centers=True, **params)
+    elif encoding == 'pc-gauss-tiled':
+        enc_func = get_rbf_encoding_func(dim=dim, random_centers=False, **params)
     elif encoding == 'ssp':
         enc_func = get_ssp_encoding_func(dim=dim, **params)
     else:

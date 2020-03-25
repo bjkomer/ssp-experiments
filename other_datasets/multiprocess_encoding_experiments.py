@@ -81,11 +81,11 @@ def experiment(dataset, exp_args):
     dims = [256]
 
     if exp_args.encoding_type == 'all':
-        enc_types = ['independent-ssp', 'combined-ssp', 'combined-simplex-ssp', 'one-hot', 'tile-code', 'pc-gauss']
+        enc_types = ['independent-ssp', 'combined-ssp', 'combined-simplex-ssp', 'one-hot', 'tile-code', 'pc-gauss', 'pc-gauss-tiled']
     elif exp_args.encoding_type == 'all-ssp':
         enc_types = ['independent-ssp', 'combined-ssp', 'combined-simplex-ssp']
     elif exp_args.encoding_type == 'all-other':
-        enc_types = ['one-hot', 'tile-code', 'pc-gauss']
+        enc_types = ['one-hot', 'tile-code', 'pc-gauss', 'pc-gauss-tiled']
     else:
         enc_types = [exp_args.encoding_type]
 
@@ -141,7 +141,7 @@ def experiment(dataset, exp_args):
                                         test_X_scaled, dim=dim, seed=seed, scale=scale, style='simplex'
                                     )
                                     encoding_name = 'Combined Simplex SSP Normalized'
-                                elif enc_type in ['one-hot', 'tile-code', 'pc-gauss']:
+                                elif enc_type in ['one-hot', 'tile-code', 'pc-gauss', 'pc-gauss-tiled']:
                                     train_X_enc_scaled = encode_comparison_dataset(
                                         train_X_scaled, encoding=enc_type, seed=seed, dim=dim, **params
                                     )
@@ -154,6 +154,8 @@ def experiment(dataset, exp_args):
                                         encoding_name = 'Tile Coding'
                                     elif enc_type == 'pc-gauss':
                                         encoding_name = 'RBF'
+                                    elif enc_type == 'pc-gauss-tiled':
+                                        encoding_name = 'RBF Tiled'
                                 else:
                                     raise NotImplementedError('unknown encoding type: {}'.format(enc_type))
 
@@ -176,7 +178,7 @@ def experiment(dataset, exp_args):
                                         'Seed': seed,
                                         'Scale': scale if 'ssp' in enc_type else 0,
                                         'N-Tiles': exp_args.n_tiles if enc_type == 'tile-coding' else 0,
-                                        'Sigma': exp_args.sigma if enc_type == 'pc-guass' else 0,
+                                        'Sigma': exp_args.sigma if ((enc_type == 'pc-guass') or (enc_type == 'pc-guass-tiled')) else 0,
                                         'Encoding': encoding_name,
                                         'Dataset': dataset,
                                         'Model': 'MLP - {}'.format(hidden_layer_sizes),
