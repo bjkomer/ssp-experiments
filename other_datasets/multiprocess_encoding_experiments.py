@@ -21,7 +21,7 @@ parser = argparse.ArgumentParser('Encoding experiment on PMLB')
 parser.add_argument('--debug', action='store_true', help='if set, just try on a few datasets and variants')
 parser.add_argument(
     '--encoding-type', type=str, default='all',
-    choices=['independent-ssp', 'combined-ssp', 'combined-simplex-ssp', 'all', 'pc-gauss', 'one-hot', 'tile-code'],
+    choices=['independent-ssp', 'combined-ssp', 'combined-simplex-ssp', 'all', 'pc-gauss', 'pc-gauss-tiled', 'one-hot', 'tile-code'],
     help='type of ssp encoding to use'
 )
 parser.add_argument('--sigma', type=float, default=0.5)
