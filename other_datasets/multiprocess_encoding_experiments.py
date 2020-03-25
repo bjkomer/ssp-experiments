@@ -32,6 +32,7 @@ parser.add_argument('--limit-high', type=float, default=3)
 parser.add_argument('--max-workers', type=int, default=10)
 parser.add_argument('--folder', type=str, default='process_output')
 parser.add_argument('--regression', action='store_true', help='Use the regression datasets instead of classification')
+parser.add_argument('--only-encoding', action='store_true', help='only run the encodings and not the base normalized')
 args = parser.parse_args()
 
 params = vars(args)
@@ -189,35 +190,37 @@ def experiment(dataset, exp_args):
                                     ignore_index=True,
                                 )
 
-                    mlp = MLP(
-                        hidden_layer_sizes=hidden_layer_sizes,
-                        activation='relu',
-                        solver=solver,
-                        max_iter=max_iter,
-                        random_state=seed,
-                        early_stopping=True,
-                        validation_fraction=0.1,
-                    )
+                    if not args.only_encoding:
 
-                    mlp.fit(train_X_scaled, train_y)
-                    acc = mlp.score(test_X_scaled, test_y)
+                        mlp = MLP(
+                            hidden_layer_sizes=hidden_layer_sizes,
+                            activation='relu',
+                            solver=solver,
+                            max_iter=max_iter,
+                            random_state=seed,
+                            early_stopping=True,
+                            validation_fraction=0.1,
+                        )
 
-                    df = df.append(
-                        {
-                            'Dim': 0,
-                            'Seed': seed,
-                            'Scale': 0,
-                            'N-Tiles': 0,
-                            'Sigma': 0,
-                            'Encoding': 'Normalized',
-                            'Dataset': dataset,
-                            'Model': 'MLP - {}'.format(hidden_layer_sizes),
-                            'Accuracy': acc,
-                            'Solver': solver,
-                            'Max Iter': max_iter,
-                        },
-                        ignore_index=True,
-                    )
+                        mlp.fit(train_X_scaled, train_y)
+                        acc = mlp.score(test_X_scaled, test_y)
+
+                        df = df.append(
+                            {
+                                'Dim': 0,
+                                'Seed': seed,
+                                'Scale': 0,
+                                'N-Tiles': 0,
+                                'Sigma': 0,
+                                'Encoding': 'Normalized',
+                                'Dataset': dataset,
+                                'Model': 'MLP - {}'.format(hidden_layer_sizes),
+                                'Accuracy': acc,
+                                'Solver': solver,
+                                'Max Iter': max_iter,
+                            },
+                            ignore_index=True,
+                        )
         # save each dataset individually, in case the run crashes and needs to be restarted
         df.to_csv(inter_fname)
 
