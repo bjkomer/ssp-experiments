@@ -17,7 +17,7 @@ if len(sys.argv) > 1:
     for fname in fnames:
         df = df.append(pd.read_csv(fname))
 
-df = df.merge(meta_df, on='Dataset')
+# df = df.merge(meta_df, on='Dataset')
 
 if not os.path.exists('figures'):
     os.makedirs('figures')
@@ -143,6 +143,9 @@ pairs = [
     ['SSP', 'Tile Coding'],
     ['SSP', 'One Hot'],
     ['SSP', 'RBF'],
+    # ['SSP', 'RBF Tiled'],
+    # ['Combined SSP', 'Normalized'],
+    # ['Simplex SSP', 'Normalized'],
 ]
 
 df_bests = []
