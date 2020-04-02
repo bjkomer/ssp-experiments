@@ -18,32 +18,37 @@ path_prefix = '/media/ctnuser/53f2c4b3-4b3b-4768-ba69-f0a3da30c237/ctnuser/data/
 #     os.makedirs('output')
 
 diff_axis = True
-
-dim = 361#256#64#256
-
-limit_high = 30
-limit_low = -30
-# limit_high = 5
-# limit_low = -5
-pc_limit_high = 30
-pc_limit_low = -30
-# pc_limit_low = -5
-# pc_limit_high = 5
-intercepts = .2
-
 grid_axes = True
+
+dim = 512#256#64#256
+
+# limit_high = 30
+# limit_low = -30
+limit_high = 5
+limit_low = -5
+# pc_limit_high = 30
+# pc_limit_low = -30
+pc_limit_low = -5
+pc_limit_high = 5
+intercepts = .2
 
 rng = np.random.RandomState(seed=13)
 if grid_axes:
     X, Y = get_fixed_dim_grid_axes(dim=dim, seed=13)
 else:
     X, Y = get_axes(dim=dim, n=3, seed=13, period=0, optimal_phi=False)
-X_new, Y_new = get_axes(dim=dim, n=3, seed=14, period=0, optimal_phi=False)
+# X_new, Y_new = get_axes(dim=dim, n=3, seed=14, period=0, optimal_phi=False)
+
 
 
 def to_ssp(v):
 
     return encode_point(v[0], v[1], X, Y).v
+
+
+def to_bound_ssp(v, item):
+
+    return (item * encode_point(v[0], v[1], X, Y)).v
 
 # 3 directions 120 degrees apart
 vec_dirs = [0, 2 * np.pi / 3, 4 * np.pi / 3]
@@ -89,9 +94,9 @@ model = nengo.Network(seed=13)
 # duration = 70
 # one pass for one 'environment' another pass for a different one
 duration = 40*2
-duration = 80*2
-duration = 160*2
-duration = 200*2
+# duration = 80*2
+# duration = 160*2
+# duration = 200*2
 dt = 0.001
 n_samples = int((duration/2) / dt)
 
@@ -103,12 +108,13 @@ neurons_per_dim = 5
 n_neurons = dim * neurons_per_dim
 n_cconv_neurons = neurons_per_dim * 2
 
-# preferred_locations = hilbert_2d(pc_limit_low, pc_limit_high, n_neurons, rng, p=8, N=2, normal_std=3)
-preferred_locations = hilbert_2d(pc_limit_low, pc_limit_high, n_neurons, rng, p=10, N=2, normal_std=3)
+preferred_locations = hilbert_2d(pc_limit_low, pc_limit_high, n_neurons, rng, p=8, N=2, normal_std=3)
+# preferred_locations = hilbert_2d(pc_limit_low, pc_limit_high, n_neurons, rng, p=10, N=2, normal_std=3)
 
 
 # item_sp = nengo.spa.SemanticPointer(dim)
-item_sp = make_good_unitary(dim)
+item_sp = make_good_unitary(dim, rng=rng)
+item_sp_2 = make_good_unitary(dim, rng=rng)
 # item_sp = encode_point(1, 1, X, Y)
 
 
@@ -118,21 +124,19 @@ def input_func(t):
     pos_ssp = encode_point(pos[0], pos[1], X, Y)
     # item = item_sp
 
-    if diff_axis:
-        bound = encode_point(pos[0], pos[1], X_new, Y_new)
-    else:
-        bound = item_sp * pos_ssp
+    bound_first = item_sp * pos_ssp
+    bound_second = item_sp_2 * pos_ssp
 
     if index > n_samples - 1:
-        return np.concatenate([pos, bound.v])
+        return np.concatenate([pos, bound_second.v])
     else:
-        return np.concatenate([pos, pos_ssp.v])
+        return np.concatenate([pos, bound_first.v])
 
 encoders_place_cell = np.zeros((n_neurons, dim))
 encoders_band_cell = np.zeros((n_neurons, dim))
 encoders_grid_cell = np.zeros((n_neurons, dim))
 for n in range(n_neurons):
-    encoders_place_cell[n, :] = to_ssp(preferred_locations[n, :])
+    encoders_place_cell[n, :] = to_bound_ssp(preferred_locations[n, :], item_sp)
     encoders_band_cell[n, :] = band_region_ssp(preferred_locations[n, :], angle=rng.uniform(0, 2*np.pi))
     encoders_grid_cell[n, :] = to_hex_region_ssp(preferred_locations[n, :], spacing=spacing)
 
@@ -219,11 +223,8 @@ if __name__ == '__main__':
     sim = nengo.Simulator(model, dt=dt)
     sim.run(duration)
 
-    # fname = 'output_pc_remap_difflimit_{}_{}s.npz'.format(encoder_type, duration)
-    if diff_axis:
-        fname = '{}/pc_remap_diff_axis_dim{}_limit{}_{}_{}s.npz'.format(path_prefix, dim, limit_high, encoder_type, duration)
-    else:
-        fname = '{}/pc_remap_intercept_dim{}_limit{}_{}_{}s.npz'.format(path_prefix, dim, limit_high, encoder_type, duration)
+
+    fname = '{}/pc_remap_bound_dim{}_limit{}_{}_{}s.npz'.format(path_prefix, dim, limit_high, encoder_type, duration)
 
     # np.savez(
     #     fname,
@@ -238,7 +239,7 @@ if __name__ == '__main__':
     spikes = sim.data[spikes_p][:int((duration / dt) / 2)]
     bound_spikes = sim.data[spikes_p][int((duration / dt) / 2):]
 
-    res = 64#128
+    res = 32#64#128
     xs = np.linspace(limit_low, limit_high, res)
     ys = np.linspace(limit_low, limit_high, res)
     diff = xs[1] - xs[0]
