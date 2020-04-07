@@ -256,7 +256,7 @@ class ExpRunner:
     def callback(self, e):
         self.n_workers -= 1
         if e.exception() is not None:
-            print("got exception: %s" % e.exception())
+            print("got exception: {}".format(e.exception()))
         else:
             print("Finished process for: {}".format(e.result()))
 
