@@ -145,7 +145,7 @@ def experiment(dataset, exp_args):
                                         test_X_scaled, dim=dim, seed=seed, scale=scale, style='simplex'
                                     )
                                     encoding_name = 'Combined Simplex SSP Normalized'
-                                elif enc_type in ['one-hot', 'tile-code', 'pc-gauss', 'pc-gauss-tiled']:
+                                elif enc_type in ['one-hot', 'tile-code', 'pc-gauss', 'pc-gauss-tiled', 'legendre']:
                                     train_X_enc_scaled = encode_comparison_dataset(
                                         train_X_scaled, encoding=enc_type, seed=seed, dim=dim, **params
                                     )
@@ -160,6 +160,8 @@ def experiment(dataset, exp_args):
                                         encoding_name = 'RBF'
                                     elif enc_type == 'pc-gauss-tiled':
                                         encoding_name = 'RBF Tiled'
+                                    elif enc_type == 'legendre':
+                                        encoding_name = 'Legendre'
                                 else:
                                     raise NotImplementedError('unknown encoding type: {}'.format(enc_type))
 
