@@ -21,7 +21,10 @@ parser = argparse.ArgumentParser('Encoding experiment on PMLB')
 parser.add_argument('--debug', action='store_true', help='if set, just try on a few datasets and variants')
 parser.add_argument(
     '--encoding-type', type=str, default='all',
-    choices=['independent-ssp', 'combined-ssp', 'combined-simplex-ssp', 'all', 'pc-gauss', 'one-hot', 'tile-code'],
+    choices=[
+        'independent-ssp', 'combined-ssp', 'combined-simplex-ssp',
+        'all', 'pc-gauss', 'pc-gauss-tiled', 'one-hot', 'tile-code', 'legendre',
+    ],
     help='type of ssp encoding to use'
 )
 parser.add_argument('--sigma', type=float, default=0.5)
@@ -32,6 +35,7 @@ parser.add_argument('--limit-high', type=float, default=3)
 parser.add_argument('--max-workers', type=int, default=10)
 parser.add_argument('--folder', type=str, default='process_output')
 parser.add_argument('--regression', action='store_true', help='Use the regression datasets instead of classification')
+parser.add_argument('--only-encoding', action='store_true', help='only run the encodings and not the base normalized')
 args = parser.parse_args()
 
 params = vars(args)
@@ -81,11 +85,11 @@ def experiment(dataset, exp_args):
     dims = [256]
 
     if exp_args.encoding_type == 'all':
-        enc_types = ['independent-ssp', 'combined-ssp', 'combined-simplex-ssp', 'one-hot', 'tile-code', 'pc-gauss']
+        enc_types = ['independent-ssp', 'combined-ssp', 'combined-simplex-ssp', 'one-hot', 'tile-code', 'pc-gauss', 'pc-gauss-tiled']
     elif exp_args.encoding_type == 'all-ssp':
         enc_types = ['independent-ssp', 'combined-ssp', 'combined-simplex-ssp']
     elif exp_args.encoding_type == 'all-other':
-        enc_types = ['one-hot', 'tile-code', 'pc-gauss']
+        enc_types = ['one-hot', 'tile-code', 'pc-gauss', 'pc-gauss-tiled']
     else:
         enc_types = [exp_args.encoding_type]
 
@@ -141,7 +145,7 @@ def experiment(dataset, exp_args):
                                         test_X_scaled, dim=dim, seed=seed, scale=scale, style='simplex'
                                     )
                                     encoding_name = 'Combined Simplex SSP Normalized'
-                                elif enc_type in ['one-hot', 'tile-code', 'pc-gauss']:
+                                elif enc_type in ['one-hot', 'tile-code', 'pc-gauss', 'pc-gauss-tiled', 'legendre']:
                                     train_X_enc_scaled = encode_comparison_dataset(
                                         train_X_scaled, encoding=enc_type, seed=seed, dim=dim, **params
                                     )
@@ -154,6 +158,10 @@ def experiment(dataset, exp_args):
                                         encoding_name = 'Tile Coding'
                                     elif enc_type == 'pc-gauss':
                                         encoding_name = 'RBF'
+                                    elif enc_type == 'pc-gauss-tiled':
+                                        encoding_name = 'RBF Tiled'
+                                    elif enc_type == 'legendre':
+                                        encoding_name = 'Legendre'
                                 else:
                                     raise NotImplementedError('unknown encoding type: {}'.format(enc_type))
 
@@ -176,7 +184,7 @@ def experiment(dataset, exp_args):
                                         'Seed': seed,
                                         'Scale': scale if 'ssp' in enc_type else 0,
                                         'N-Tiles': exp_args.n_tiles if enc_type == 'tile-coding' else 0,
-                                        'Sigma': exp_args.sigma if enc_type == 'pc-guass' else 0,
+                                        'Sigma': exp_args.sigma if ((enc_type == 'pc-guass') or (enc_type == 'pc-guass-tiled')) else 0,
                                         'Encoding': encoding_name,
                                         'Dataset': dataset,
                                         'Model': 'MLP - {}'.format(hidden_layer_sizes),
@@ -187,35 +195,37 @@ def experiment(dataset, exp_args):
                                     ignore_index=True,
                                 )
 
-                    mlp = MLP(
-                        hidden_layer_sizes=hidden_layer_sizes,
-                        activation='relu',
-                        solver=solver,
-                        max_iter=max_iter,
-                        random_state=seed,
-                        early_stopping=True,
-                        validation_fraction=0.1,
-                    )
+                    if not args.only_encoding:
 
-                    mlp.fit(train_X_scaled, train_y)
-                    acc = mlp.score(test_X_scaled, test_y)
+                        mlp = MLP(
+                            hidden_layer_sizes=hidden_layer_sizes,
+                            activation='relu',
+                            solver=solver,
+                            max_iter=max_iter,
+                            random_state=seed,
+                            early_stopping=True,
+                            validation_fraction=0.1,
+                        )
 
-                    df = df.append(
-                        {
-                            'Dim': 0,
-                            'Seed': seed,
-                            'Scale': 0,
-                            'N-Tiles': 0,
-                            'Sigma': 0,
-                            'Encoding': 'Normalized',
-                            'Dataset': dataset,
-                            'Model': 'MLP - {}'.format(hidden_layer_sizes),
-                            'Accuracy': acc,
-                            'Solver': solver,
-                            'Max Iter': max_iter,
-                        },
-                        ignore_index=True,
-                    )
+                        mlp.fit(train_X_scaled, train_y)
+                        acc = mlp.score(test_X_scaled, test_y)
+
+                        df = df.append(
+                            {
+                                'Dim': 0,
+                                'Seed': seed,
+                                'Scale': 0,
+                                'N-Tiles': 0,
+                                'Sigma': 0,
+                                'Encoding': 'Normalized',
+                                'Dataset': dataset,
+                                'Model': 'MLP - {}'.format(hidden_layer_sizes),
+                                'Accuracy': acc,
+                                'Solver': solver,
+                                'Max Iter': max_iter,
+                            },
+                            ignore_index=True,
+                        )
         # save each dataset individually, in case the run crashes and needs to be restarted
         df.to_csv(inter_fname)
 
