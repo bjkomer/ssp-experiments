@@ -1,5 +1,6 @@
 import numpy as np
 from spatial_semantic_pointers.utils import make_good_unitary, power
+from scipy.special import legendre
 
 
 # Note: this is extremely slow, may want to 'cache' the result on real experiments
@@ -219,6 +220,31 @@ def get_ssp_encoding_func(dim, scale, seed, **_):
     return encoding_func
 
 
+def get_legendre_encoding_func(dim, limit_low=-1, limit_high=1, **_):
+    """
+    Encoding a ND point by expanding the dimensionality through the legendre polynomials
+    (starting with order 1, ignoring the constant)
+    """
+
+    # set up legendre polynomial functions
+    poly = []
+    for i in range(dim):
+        poly.append(legendre(i + 1))
+
+    domain = limit_high - limit_low
+
+    def encoding_func(feature):
+
+        # shift the feature to be between -1 and 1 before going through the polynomials
+        fn = ((feature - limit_low) / domain) * 2 - 1
+        ret = np.zeros((dim,))
+        for i in range(dim):
+            ret[i] = poly[i](fn)
+
+        return ret
+
+    return encoding_func
+
 def encode_comparison_dataset(data, encoding, dim, **params):
 
     if encoding == 'one-hot':
@@ -229,6 +255,8 @@ def encode_comparison_dataset(data, encoding, dim, **params):
         enc_func = get_rbf_encoding_func(dim=dim, random_centers=True, **params)
     elif encoding == 'pc-gauss-tiled':
         enc_func = get_rbf_encoding_func(dim=dim, random_centers=False, **params)
+    elif encoding == 'legendre':
+        enc_func = get_legendre_encoding_func(dim=dim, **params)
     elif encoding == 'ssp':
         enc_func = get_ssp_encoding_func(dim=dim, **params)
     else:
