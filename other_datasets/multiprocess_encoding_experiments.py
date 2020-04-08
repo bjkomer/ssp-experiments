@@ -37,6 +37,7 @@ parser.add_argument('--max-workers', type=int, default=10)
 parser.add_argument('--folder', type=str, default='process_output')
 parser.add_argument('--regression', action='store_true', help='Use the regression datasets instead of classification')
 parser.add_argument('--only-encoding', action='store_true', help='only run the encodings and not the base normalized')
+parser.add_argument('--less-hidden-layers', action='store_true', help='only run a few different hidden layer variations')
 args = parser.parse_args()
 
 params = vars(args)
@@ -102,8 +103,10 @@ def experiment(dataset, exp_args):
         )
     else:
         seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-        # hidden_layers = [(512, 512), (1024,)]
-        hidden_layers = [(256,), (512,), (1024,), (256, 256), (512, 512), (1024, 1024)]
+        if args.less_hidden_layers:
+            hidden_layers = [(512, 512), (1024,)]
+        else:
+            hidden_layers = [(256,), (512,), (1024,), (256, 256), (512, 512), (1024, 1024)]
         inter_fname = '{}/enc_{}_results_{}iters_{}.csv'.format(
             exp_args.folder, exp_args.encoding_type, exp_args.max_iters, dataset
         )
