@@ -147,10 +147,10 @@ def experiment(dataset, exp_args):
                                     encoding_name = 'Combined Simplex SSP Normalized'
                                 elif enc_type in ['one-hot', 'tile-code', 'pc-gauss', 'pc-gauss-tiled', 'legendre', 'ssp-proj']:
                                     train_X_enc_scaled = encode_comparison_dataset(
-                                        train_X_scaled, encoding=enc_type, seed=seed, dim=dim, **params
+                                        train_X_scaled, encoding=enc_type, seed=seed, dim=dim, scale=scale, **params
                                     )
                                     test_X_enc_scaled = encode_comparison_dataset(
-                                        test_X_scaled, encoding=enc_type, seed=seed, dim=dim, **params
+                                        test_X_scaled, encoding=enc_type, seed=seed, dim=dim, scale=scale, **params
                                     )
                                     if enc_type == 'one-hot':
                                         encoding_name = 'One Hot'
