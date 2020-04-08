@@ -30,6 +30,7 @@ parser.add_argument(
 parser.add_argument('--sigma', type=float, default=0.5)
 parser.add_argument('--n-tiles', type=int, default=8)
 parser.add_argument('--max-iters', type=int, default=600)
+parser.add_argument('--dim', type=int, default=256)
 parser.add_argument('--limit-low', type=float, default=-3)
 parser.add_argument('--limit-high', type=float, default=3)
 parser.add_argument('--max-workers', type=int, default=10)
@@ -82,7 +83,7 @@ def experiment(dataset, exp_args):
 
     max_iters = [args.max_iters]
     scales = [0.25]
-    dims = [256]
+    dims = [args.dim]
 
     if exp_args.encoding_type == 'all':
         enc_types = ['independent-ssp', 'combined-ssp', 'combined-simplex-ssp', 'one-hot', 'tile-code', 'pc-gauss', 'pc-gauss-tiled']
