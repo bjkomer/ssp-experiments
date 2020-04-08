@@ -1,5 +1,5 @@
 import numpy as np
-from spatial_semantic_pointers.utils import make_good_unitary, power
+from spatial_semantic_pointers.utils import make_good_unitary, power, get_axes
 from scipy.special import legendre
 
 
@@ -220,6 +220,60 @@ def get_ssp_encoding_func(dim, scale, seed, **_):
     return encoding_func
 
 
+def get_axes_and_scale(dim=256, n=3, seed=13, apply_scaling=True):
+    """
+    Get X and Y axis vectors based on an n dimensional projection.
+    Also return the correct scaling so the size of the bump in the heatmap is consistent
+    """
+    rng = np.random.RandomState(seed=seed)
+
+    points_nd = np.eye(n) * np.sqrt(n)
+    # points in 2D that will correspond to each axis, plus one at zero
+    points_2d = np.zeros((n, 2))
+    thetas = np.linspace(0, 2 * np.pi, n + 1)[:-1]
+    # TODO: will want a scaling here, or along the high dim axes
+    for i, theta in enumerate(thetas):
+        points_2d[i, 0] = np.cos(theta)
+        points_2d[i, 1] = np.sin(theta)
+
+    transform_mat = np.linalg.lstsq(points_2d, points_nd)
+
+    x_axis = transform_mat[0][0, :]
+    y_axis = transform_mat[0][1, :]
+
+    if apply_scaling:
+        x_axis /= transform_mat[3][0]
+        y_axis /= transform_mat[3][1]
+
+    axis_sps = []
+    for i in range(n):
+        # random unitary vector
+        axis_sps.append(
+            make_good_unitary(dim, rng=rng)
+        )
+
+    X = power(axis_sps[0], x_axis[0])
+    Y = power(axis_sps[0], y_axis[0])
+    for i in range(1, n):
+        X *= power(axis_sps[i], x_axis[i])
+        Y *= power(axis_sps[i], y_axis[i])
+
+    return X, Y, transform_mat[3][0]
+
+
+def get_ssp_proj_encoding_func(dim, scale, seed, **_):
+    """
+    Use ND projection, but grab just one resulting axis
+    """
+
+    axis_vec, _, axis_scaling = get_axes_and_scale(dim, seed=seed)
+
+    def encoding_func(feature):
+        return power(axis_vec, feature * scale * axis_scaling).v
+
+    return encoding_func
+
+
 def get_legendre_encoding_func(dim, limit_low=-1, limit_high=1, **_):
     """
     Encoding a ND point by expanding the dimensionality through the legendre polynomials
@@ -259,6 +313,8 @@ def encode_comparison_dataset(data, encoding, dim, **params):
         enc_func = get_legendre_encoding_func(dim=dim, **params)
     elif encoding == 'ssp':
         enc_func = get_ssp_encoding_func(dim=dim, **params)
+    elif encoding == 'ssp-proj':
+        enc_func = get_ssp_proj_encoding_func(dim=dim, **params)
     else:
         raise NotImplementedError('unknown encoding: {}'.format(encoding))
 

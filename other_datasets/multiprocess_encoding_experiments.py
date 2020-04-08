@@ -22,7 +22,7 @@ parser.add_argument('--debug', action='store_true', help='if set, just try on a 
 parser.add_argument(
     '--encoding-type', type=str, default='all',
     choices=[
-        'independent-ssp', 'combined-ssp', 'combined-simplex-ssp',
+        'independent-ssp', 'combined-ssp', 'combined-simplex-ssp', 'ssp-proj',
         'all', 'pc-gauss', 'pc-gauss-tiled', 'one-hot', 'tile-code', 'legendre',
     ],
     help='type of ssp encoding to use'
@@ -145,7 +145,7 @@ def experiment(dataset, exp_args):
                                         test_X_scaled, dim=dim, seed=seed, scale=scale, style='simplex'
                                     )
                                     encoding_name = 'Combined Simplex SSP Normalized'
-                                elif enc_type in ['one-hot', 'tile-code', 'pc-gauss', 'pc-gauss-tiled', 'legendre']:
+                                elif enc_type in ['one-hot', 'tile-code', 'pc-gauss', 'pc-gauss-tiled', 'legendre', 'ssp-proj']:
                                     train_X_enc_scaled = encode_comparison_dataset(
                                         train_X_scaled, encoding=enc_type, seed=seed, dim=dim, **params
                                     )
@@ -162,6 +162,8 @@ def experiment(dataset, exp_args):
                                         encoding_name = 'RBF Tiled'
                                     elif enc_type == 'legendre':
                                         encoding_name = 'Legendre'
+                                    elif enc_type == 'ssp-proj':
+                                        encoding_name = 'SSP Projected Axis'
                                 else:
                                     raise NotImplementedError('unknown encoding type: {}'.format(enc_type))
 
