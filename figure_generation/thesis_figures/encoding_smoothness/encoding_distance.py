@@ -21,6 +21,15 @@ encodings = [
     # 'tile-coding'
 ]
 
+labels = {
+    'ssp': 'SSP',
+    'hex-ssp': 'Hex SSP',
+    'one-hot': 'One-Hot',
+    'tile-coding': 'Tile-Code',
+    'pc-gauss': 'RBF',
+    'random': 'Random',
+}
+
 limit = 5
 res = 256
 xs = np.linspace(-5, 5, res)
@@ -41,6 +50,7 @@ for ei, e in enumerate(encodings):
     args.dim = 512#256
     args.n_tiles = 8
     args.n_bins = 8
+    args.hilbert_points = 1#0
 
     encoding_func, repr_dim = get_encoding_function(args, limit_low=-limit, limit_high=limit)
 
@@ -52,13 +62,27 @@ for ei, e in enumerate(encodings):
         dists[ei, i] = np.linalg.norm(zero - pt)
         cosine_dists[ei, i] = cosine(zero, pt)
 
-plt.figure()
-plt.plot(xs, dists.T)
-plt.title("Euclidean Distances")
-plt.legend(encodings)
-plt.figure()
-plt.plot(xs, cosine_dists.T)
-plt.title("Cosine Distances")
-plt.legend(encodings)
+legend = []
+for e in encodings:
+    if e in labels.keys():
+        legend.append(labels[e])
+    else:
+        legend.append(e)
+
+fig, ax = plt.subplots(1, 2, figsize=(8, 4), tight_layout=True)
+
+ax[0].plot(xs, dists.T)
+ax[0].set_title("Euclidean Distances")
+ax[0].legend(legend)
+ax[0].set_xlabel('Position')
+ax[0].set_ylabel('Distance')
+
+ax[1].plot(xs, cosine_dists.T)
+ax[1].set_title("Cosine Distances")
+ax[1].legend(legend)
+ax[1].set_xlabel('Position')
+ax[1].set_ylabel('Distance')
+
+sns.despine()
 
 plt.show()
