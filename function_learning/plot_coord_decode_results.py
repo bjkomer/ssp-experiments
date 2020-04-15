@@ -39,7 +39,7 @@ limit = 5.
 n_samples = 20000
 fname = "coord_decode_results.csv"
 if os.path.exists(fname):
-    pd = pd.read_csv(fname)
+    df = pd.read_csv(fname)
 else:
     df = pd.DataFrame()
 
@@ -51,11 +51,11 @@ else:
                 seed,
             )
             print(os.getcwd() + "/" + path + "/*/events*")
-            fname = glob.glob(os.getcwd() + "/" + path + "/*/events*")[0]
+            summary_name = glob.glob(os.getcwd() + "/" + path + "/*/events*")[0]
             train_loss = -1
             test_loss = -1
             # go through and get the value from the last epoch for each loss
-            for e in summary_iterator(fname):
+            for e in summary_iterator(summary_name):
                 for v in e.summary.value:
                     if v.tag == 'avg_loss':
                         train_loss = v.simple_value
@@ -73,10 +73,14 @@ else:
 
     df.to_csv(fname)
 
-fig, ax = plt.subplots(1, 1, figsize=(4, 4), tight_layout=True)
+df_top = df[(df['Encoding'] == 'SSP') | (df['Encoding'] == 'Hex SSP') | (df['Encoding'] == 'RBF')]
 
-sns.barplot(x='Encoding', y='Test Loss', data=df, ax=ax)
-ax.set_title('Learning to Decode')
+fig, ax = plt.subplots(1, 2, figsize=(8.5, 4), tight_layout=True, gridspec_kw={'width_ratios': [6, 3]})
+
+sns.barplot(x='Encoding', y='Test Loss', data=df, ax=ax[0])
+sns.barplot(x='Encoding', y='Test Loss', data=df_top, ax=ax[1])
+
+# fig.suptitle('Learning to Decode')
 
 sns.despine()
 
