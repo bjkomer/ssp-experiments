@@ -67,16 +67,17 @@ def train(args, trainloader, testloader, input_size, output_size=2):
 
                 if args.logdir != '':
 
-                    if output_size == 2:
-                        fig_pred, ax_pred = plt.subplots()
-                        plot_predictions_v(
-                            predictions=outputs, coords=coord,
-                            ax=ax_pred,
-                            min_val=-args.limit*1.1,
-                            max_val=args.limit*1.1,
-                            fixed_axes=False,
-                        )
-                        writer.add_figure('test set predictions', fig_pred, e)
+                    if not args.no_viz:
+                        if output_size == 2:
+                            fig_pred, ax_pred = plt.subplots()
+                            plot_predictions_v(
+                                predictions=outputs, coords=coord,
+                                ax=ax_pred,
+                                min_val=-args.limit*1.1,
+                                max_val=args.limit*1.1,
+                                fixed_axes=False,
+                            )
+                            writer.add_figure('test set predictions', fig_pred, e)
                     writer.add_scalar('test_loss', loss.data.item(), e)
 
         avg_loss = 0
@@ -125,25 +126,26 @@ def train(args, trainloader, testloader, input_size, output_size=2):
 
         if args.logdir != '':
 
-            if output_size == 2:
-                fig_pred, ax_pred = plt.subplots()
-                fig_truth, ax_truth = plt.subplots()
-                plot_predictions_v(
-                    predictions=outputs, coords=coord,
-                    ax=ax_pred,
-                    min_val=-args.limit*1.1,
-                    max_val=args.limit*1.1,
-                    fixed_axes=False,
-                )
-                writer.add_figure('test set predictions', fig_pred, args.epochs)
-                plot_predictions_v(
-                    predictions=coord, coords=coord,
-                    ax=ax_truth,
-                    min_val=-args.limit*1.1,
-                    max_val=args.limit*1.1,
-                    fixed_axes=False,
-                )
-                writer.add_figure('ground truth', fig_truth)
+            if not args.no_viz:
+                if output_size == 2:
+                    fig_pred, ax_pred = plt.subplots()
+                    fig_truth, ax_truth = plt.subplots()
+                    plot_predictions_v(
+                        predictions=outputs, coords=coord,
+                        ax=ax_pred,
+                        min_val=-args.limit*1.1,
+                        max_val=args.limit*1.1,
+                        fixed_axes=False,
+                    )
+                    writer.add_figure('test set predictions', fig_pred, args.epochs)
+                    plot_predictions_v(
+                        predictions=coord, coords=coord,
+                        ax=ax_truth,
+                        min_val=-args.limit*1.1,
+                        max_val=args.limit*1.1,
+                        fixed_axes=False,
+                    )
+                    writer.add_figure('ground truth', fig_truth)
             # fig_hist = plot_histogram(predictions=outputs, coords=coord)
             # writer.add_figure('test set histogram', fig_hist)
             writer.add_scalar('test_loss', loss.data.item(), args.epochs)

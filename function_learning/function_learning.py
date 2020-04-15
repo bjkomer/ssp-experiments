@@ -21,6 +21,7 @@ parser.add_argument('--logdir', type=str, default='',
 parser.add_argument('--concatenate', type=int, default=0,
                     help='if 0, sum the two input points together, if 1, concatenate them into a larger vector instead')
 parser.add_argument('--function', type=str, choices=['distance', 'direction', 'displacement', 'centroid'])
+parser.add_argument('--no-viz', action='store_true', help='do not create visualizations')
 args = parser.parse_args()
 
 # modify logdir based on the parameters
