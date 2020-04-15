@@ -20,6 +20,7 @@ def add_training_params(parser):
     parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--val-period', type=int, default=5, help='number of epochs before a test/validation set run')
 
     return parser
