@@ -48,6 +48,7 @@ else:
     MLP = MLPClassifier
 
 
+@ignore_warnings(category=FutureWarning)
 @ignore_warnings(category=ConvergenceWarning)
 def experiment(dataset, exp_args):
     X, y = fetch_data(dataset, return_X_y=True, local_cache_dir='cache')
