@@ -15,10 +15,11 @@ encodings = [
     # '2d-normalized',
     'one-hot',
     # 'hex-trig',
-    #'trig', 'random-trig', 'random-rotated-trig', 'random-proj', 'legendre',
+    #'trig', 'random-trig', 'random-rotated-trig', 'random-proj',
+    # 'legendre',
     'pc-gauss',
     # 'pc-dog',
-    # 'tile-coding'
+    'tile-coding'
 ]
 
 labels = {
@@ -28,11 +29,12 @@ labels = {
     'tile-coding': 'Tile-Code',
     'pc-gauss': 'RBF',
     'random': 'Random',
+    'legendre': 'Legendre',
 }
 
 limit = 5
-res = 256
-xs = np.linspace(-5, 5, res)
+res = 512#256
+xs = np.linspace(-limit, limit, res)
 
 
 
@@ -47,8 +49,8 @@ for ei, e in enumerate(encodings):
     # overwrite specific values
     args.spatial_encoding = e
     args.limit = limit
-    args.dim = 512#256
-    args.n_tiles = 8
+    args.dim = 256#512#256
+    args.n_tiles = 4#8
     args.n_bins = 8
     args.hilbert_points = 1#0
 
@@ -62,6 +64,10 @@ for ei, e in enumerate(encodings):
         dists[ei, i] = np.linalg.norm(zero - pt)
         cosine_dists[ei, i] = cosine(zero, pt)
 
+    # scale tile-coding so that it can be viewed relative to the other encodings
+    if e == 'tile-coding':
+        dists[ei, :] /= np.sqrt(args.n_tiles)
+
 legend = []
 for e in encodings:
     if e in labels.keys():
@@ -71,17 +77,17 @@ for e in encodings:
 
 fig, ax = plt.subplots(1, 2, figsize=(8, 4), tight_layout=True)
 
-ax[0].plot(xs, dists.T)
-ax[0].set_title("Euclidean Distances")
+ax[1].plot(xs, dists.T)
+ax[1].set_title("Euclidean Distances")
+# ax[1].legend(legend)
+ax[1].set_xlabel('Position')
+ax[1].set_ylabel('Distance')
+
+ax[0].plot(xs, cosine_dists.T)
+ax[0].set_title("Cosine Distances")
 ax[0].legend(legend)
 ax[0].set_xlabel('Position')
 ax[0].set_ylabel('Distance')
-
-ax[1].plot(xs, cosine_dists.T)
-ax[1].set_title("Cosine Distances")
-ax[1].legend(legend)
-ax[1].set_xlabel('Position')
-ax[1].set_ylabel('Distance')
 
 sns.despine()
 
