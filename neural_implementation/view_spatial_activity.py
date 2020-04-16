@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import sys
 
 limit_low = -5
 limit_high = 5
@@ -12,8 +13,11 @@ ys = np.linspace(limit_low, limit_high, res + 1)
 
 diff = xs[1] - xs[0]
 
+fname = sys.argv[1]
+data = np.load(fname)
+
 # data = np.load('output_70s.npz')
-data = np.load('output_grid_cell_70s.npz')
+# data = np.load('/media/ctnuser/53f2c4b3-4b3b-4768-ba69-f0a3da30c237/ctnuser/data/neural_implementation_output/output_grid_cell_70s.npz')
 # data = np.load('output_band_70s.npz')
 
 spikes = data['spikes']
@@ -40,6 +44,16 @@ for i, x in enumerate(xs[:-1]):
 # plt.plot(pos[:, 0], pos[:, 1])
 # plt.show()
 
-for i in range(n_neurons):
-    plt.imshow(img[i, :, :])
-    plt.show()
+
+
+# for i in range(n_neurons):
+#     plt.imshow(img[i, :, :])
+#     plt.show()
+
+
+fig, ax = plt.subplots(10, 10)
+
+for i in range(100):
+    ax[i // 10, i % 10].imshow(img[i, 1:-1, 1:-1])
+
+plt.show()
