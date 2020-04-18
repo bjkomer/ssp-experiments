@@ -25,7 +25,7 @@ def unitary(phi_a, phi_b, sign=1):
 
 
 def random_sphere_points(n_samples=1000):
-    xyz = np.random.uniform(-1, 1, size=(n_samples, 3))
+    xyz = np.random.uniform(-1, 1, size=(n_samples, 5))
 
     for i in range(n_samples):
         xyz[i, :] /= np.linalg.norm(xyz[i, :])
@@ -47,7 +47,7 @@ palette = sns.color_palette("hls", n_samples)
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
-res = 32#256#64
+res = 256#32#256#64
 # xs = np.linspace(-5, 5, res)
 xs = np.linspace(0, 24, res)
 xs = np.linspace(0, 24, res)
@@ -61,7 +61,7 @@ palette = sns.color_palette("hls", len(phis)**2)
 
 # if True:
 #     xyz = random_sphere_points(n_samples=1000)
-#     ax.scatter(xyz[:, 0], xyz[:, 1], xyz[:, 2], color='blue', alpha=0.01)
+#     ax.scatter(xyz[:, 0], xyz[:, 1], xyz[:, 2], color='blue', alpha=0.1)
 #
 # if True:
 #     ax.plot([0, 1], [0, 0], [0, 0], color='green')
@@ -69,7 +69,7 @@ palette = sns.color_palette("hls", len(phis)**2)
 #     ax.plot([0, 0], [0, 0], [0, 1], color='green')
 
 ssp_manifold = 1
-ssp_manifold = 2
+# ssp_manifold = 2
 
 if ssp_manifold == 1:
     # for i, phi_a in enumerate(phis):
