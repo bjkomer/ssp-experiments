@@ -47,7 +47,7 @@ palette = sns.color_palette("hls", n_samples)
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
-res = 256#32#256#64
+res = 32#256#32#256#64
 # xs = np.linspace(-5, 5, res)
 xs = np.linspace(0, 24, res)
 xs = np.linspace(0, 24, res)
@@ -68,7 +68,7 @@ palette = sns.color_palette("hls", len(phis)**2)
 #     ax.plot([0, 0], [0, 1], [0, 0], color='green')
 #     ax.plot([0, 0], [0, 0], [0, 1], color='green')
 
-ssp_manifold = 1
+ssp_manifold = 2
 # ssp_manifold = 2
 
 if ssp_manifold == 1:
@@ -98,7 +98,7 @@ else:
     for i, x in enumerate(xs):
         for j, y in enumerate(xs):
             ux = np.fft.ifft(np.fft.fft(u) ** x * np.fft.fft(v) ** y).real
-            # ax.scatter(ux[0], ux[1], ux[2], color=palette[i])
-            ax.scatter(ux[0], ux[1], ux[2], color=hsv_to_rgb([x/xs[-1], 1, 1]))
+            # ax.scatter(ux[0], ux[1], ux[2], color=palette[i], alpha=0.2)
+            ax.scatter(ux[0], ux[1], ux[2], color=hsv_to_rgb([x/xs[-1], 1, 1]), alpha=0.2)
 
 plt.show()
