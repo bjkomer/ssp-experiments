@@ -36,6 +36,7 @@ def get_coord_rot_matrix(dim=4):
 
     new_axes[3, :2] = 1. / np.sqrt(dim)
     new_axes[3, 2:] = -1. / np.sqrt(dim)
+    new_axes[3, :] = new_axes[3, :] / np.linalg.norm(new_axes[3, :])
 
     print(np.linalg.det(new_axes))
 
@@ -86,8 +87,10 @@ if True:
     surface2 = surface.copy()
     surface += np.array([[1/4., 1/4., 1/4., 1/4.]])
     surface2 -= np.array([[1 / 4., 1 / 4., 1 / 4., 1 / 4.]])
-    ax.scatter(surface[:, 0], surface[:, 1], surface[:, 2], color='green', alpha=0.1)
-    ax.scatter(surface2[:, 0], surface2[:, 1], surface2[:, 2], color='green', alpha=0.1)
+    # ax.scatter(surface[:, 0], surface[:, 1], surface[:, 2], color='green', alpha=0.1)
+    # ax.scatter(surface2[:, 0], surface2[:, 1], surface2[:, 2], color='green', alpha=0.1)
+    ax.scatter(surface[:, 1], surface[:, 2], surface[:, 3], color='green', alpha=0.1)
+    ax.scatter(surface2[:, 1], surface2[:, 2], surface2[:, 3], color='green', alpha=0.1)
 
     print(np.linalg.norm(surface2, axis=1))
     print(np.sum(surface2, axis=1))
