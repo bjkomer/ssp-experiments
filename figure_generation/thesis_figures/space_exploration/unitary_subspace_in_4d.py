@@ -6,12 +6,12 @@ import numpy as np
 from matplotlib.colors import hsv_to_rgb
 
 
-def unitary(phi_a, phi_b, sign=1):
+def unitary(phi_a, phi_b, sign=1, sign2=1):
 
     fv = np.zeros(4, dtype='complex64')
     fv[0] = sign
     fv[1] = np.exp(1.j*phi_a)
-    fv[2] = 1
+    fv[2] = sign2
     fv[3] = np.conj(fv[1])
 
     # fv[0] = np.exp(1.j*np.pi/30)
@@ -121,6 +121,7 @@ if ssp_manifold == 1:
     #     for j, phi_b in enumerate([np.pi/3.]):
             for sign in signs:
                 u = unitary(phi_a, phi_b, sign)
+                # u = unitary(phi_a, phi_b, sign=-1, sign2=-1)
                 # v = unitary(np.pi/3., sign)
                 # for x in xs:
                 #     for y in xs:

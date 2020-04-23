@@ -7,6 +7,7 @@ from nengo.dists import UniformHypersphere
 import nengo.spa as spa
 import nengo_spa
 from spatial_semantic_pointers.utils import make_good_unitary
+from scipy.linalg import circulant
 
 
 def random_sphere_points(n_samples=1000, dim=4):
@@ -65,6 +66,13 @@ for i in range(n_samples):
 
     points[i, :] = sp.v
 
+    # print(np.linalg.det(circulant(points[i, :])))
+    # print(np.sum(points[i, :]))
+    # print(np.fft.fft(points[i, :])[[0, 2]])
+    # print("")
+    # assert np.allclose(np.sum(points[i, :]), np.linalg.det(circulant(points[i, :])))
+# print(np.mean(np.sum(points, axis=1)))
+# assert False
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
