@@ -39,6 +39,7 @@ def calc_circle_axes(dim):
     # the starting point on the circle is the same in all cases
     arc_origin = np.zeros((dim, ))
     arc_origin[0] = 1
+    print("Radii")
     for index in range(n_indices):
         u_cross = orthogonal_unitary(dim, index + 1, np.pi)
         u_angle = orthogonal_unitary(dim, index + 1, np.pi/2.)
@@ -58,11 +59,17 @@ def calc_circle_axes(dim):
         assert np.abs(np.dot(cross_vectors[index, :], angle_vectors[index, :])) < 0.0000001
 
     all_vectors = np.vstack([cross_vectors, angle_vectors])
-
+    print("")
+    print("Origin offsets")
     print(np.linalg.norm(origin_points, axis=1))
     print(origin_points)
 
     print(all_vectors.shape)
+
+    print("opposite points")
+    print(u_crosses)
+    print("angle points")
+    print(u_angles)
 
     for i in range(n_indices*2):
         for j in range(i+1, n_indices*2):
@@ -76,5 +83,5 @@ def calc_circle_axes(dim):
     #         print(np.dot(u_angles[i, :], u_angles[j, :]))
     #         assert np.abs(np.dot(u_angles[i, :], u_angles[j, :])) < 0.0000001
 
-dim = 5
+dim = 7
 calc_circle_axes(dim=dim)
