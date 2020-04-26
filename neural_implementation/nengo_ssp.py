@@ -51,7 +51,7 @@ encoder_type = [
     'place_cell',
     'band',
     'grid_cell'
-][3]
+][0]
 
 
 model = nengo.Network(seed=13)
