@@ -32,11 +32,17 @@ for e in summary_iterator(summary_path):
 mse_loss = np.array(mse_loss_list)
 cosine_loss = np.array(cosine_loss_list)
 
-fix, ax = plt.subplots(1, 2)
+fix, ax = plt.subplots(1, 2, figsize=(8.5, 4), tight_layout=True)
 
 ax[0].plot(mse_loss)
 ax[0].set_title("MSE Loss")
+ax[0].set_xlabel("Epoch")
+ax[0].set_ylabel("Loss")
 ax[1].plot(cosine_loss)
 ax[1].set_title("Cosine Loss")
+ax[1].set_xlabel("Epoch")
+ax[1].set_ylabel("Loss")
+
+sns.despine()
 
 plt.show()

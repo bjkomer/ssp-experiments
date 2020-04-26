@@ -38,17 +38,55 @@ max_val = np.max(img)
 # img[:, :, :, -1] = border_val
 
 
-view_n_neurons = 5
-view_n_envs = 5
+# view_n_neurons = 5
+# view_n_envs = 5
+#
+# fix, ax = plt.subplots(view_n_envs, view_n_neurons)
+#
+# for e in range(view_n_envs):
+#     for n in range(view_n_neurons):
+#         ax[e, n].imshow(img[e, n, :, :])
+#         ax[e, n].set_title("Env {}, Neuron {}".format(e, n))
+#
+# plt.show()
 
-fix, ax = plt.subplots(view_n_envs, view_n_neurons)
+# picking examples neurons that show firing in the envs chosen
+# neuron 27 showed multiple fields in environment 2.
+view_neurons = [0, 15, 38]
+view_envs = [0, 2, 8]
 
-for e in range(view_n_envs):
-    for n in range(view_n_neurons):
-        ax[e, n].imshow(img[e, n, :, :])
-        ax[e, n].set_title("Env {}, Neuron {}".format(e, n))
+fig, ax = plt.subplots(len(view_envs), len(view_neurons), tight_layout=True)
+
+env_name = {
+    0: 'A',
+    1: 'B',
+    2: 'C',
+}
+
+for i, e in enumerate(view_envs):
+    for j, n in enumerate(view_neurons):
+        im = ax[i, j].imshow(img[e, n, :, :], vmin=0, vmax=145)
+        # ax[i, j].set_title("Env {}, Neuron {}".format(e, n))
+
+        # remove the numbers
+        # ax[i, j].set_axis_off()
+        ax[i, j].set_xticks([])
+        ax[i, j].set_yticks([])
+
+        # label the top and left
+        if i == 0:
+            ax[i, j].set_title("Neuron {}".format(j + 1), fontsize=16)
+
+        if j == 0:
+            ax[i, j].set_ylabel("{}     ".format(env_name[i]), rotation=0, fontsize=18, position=(0, .4))
+
+# cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+# add_axes([left, bottom, width, height])
+cbar_ax = fig.add_axes([0.85, 0.05, 0.05, 0.85])
+fig.colorbar(im, cax=cbar_ax)
 
 plt.show()
+
 
 
 # # print(pos)
