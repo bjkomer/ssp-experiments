@@ -6,7 +6,12 @@ import os
 import numpy as np
 from constants import full_continuous, small_continuous_regression
 
+# this just determines whether the label is accuracy or R2
 regression = False
+
+data_to_plot = 'all'
+# data_to_plot = 'regression'
+# data_to_plot = 'classification'
 
 meta_df = pd.read_csv('metadata.csv')
 
@@ -53,6 +58,16 @@ if regression:
     )
 else:
     metric = 'Accuracy'
+
+# optionally trim the dataframe
+if data_to_plot == 'classification':
+    df = df[df['Dataset'].isin(full_continuous)]
+elif data_to_plot == 'regression':
+    df = df[df['Dataset'].isin(small_continuous_regression)]
+
+
+# # removing original SSP, for debugging
+# df = df[df['Encoding'] != 'SSP']
 
 
 ####################
@@ -139,13 +154,21 @@ for ei, encoding in enumerate(encodings):
     colour_dict[encoding] = default_palette[ei]
 
 pairs = [
-    ['SSP', 'Normalized'],
-    ['SSP', 'Tile Coding'],
-    ['SSP', 'One Hot'],
-    ['SSP', 'RBF'],
+    # ['SSP', 'Normalized'],
+    # ['SSP', 'Tile Coding'],
+    # ['SSP', 'One Hot'],
+    # ['SSP', 'RBF'],
+
     # ['SSP', 'RBF Tiled'],
     # ['Combined SSP', 'Normalized'],
     # ['Simplex SSP', 'Normalized'],
+
+    ['SSP Projected Axis', 'Normalized'],
+    ['SSP Projected Axis', 'Tile Coding'],
+    ['SSP Projected Axis', 'One Hot'],
+    ['SSP Projected Axis', 'RBF'],
+    ['SSP Projected Axis', 'SSP'],
+
 ]
 
 df_bests = []

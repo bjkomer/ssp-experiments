@@ -23,7 +23,9 @@ if len(sys.argv) > 1:
     for fname in fnames:
         df = df.append(pd.read_csv(fname))
 
-df = df.merge(meta_df, on='Dataset')
+# df = df.merge(meta_df, on='Dataset')
+
+print(df)
 
 # df_ssp = df[df['Encoding'] == 'SSP Normalized']
 # df_normal = df[df['Encoding'] == 'Normalized']
@@ -47,12 +49,12 @@ plt.figure()
 sns.barplot(data=df, x='Encoding', y='Accuracy', hue='Model')
 
 
-plt.figure()
-sns.barplot(data=df, x='Float Features', y='Accuracy', hue='Encoding')
-plt.figure()
-sns.barplot(data=df, x='Imbalance Metric', y='Accuracy', hue='Encoding')
-plt.figure()
-sns.barplot(data=df, x='Number of Samples', y='Accuracy', hue='Encoding')
+# plt.figure()
+# sns.barplot(data=df, x='Float Features', y='Accuracy', hue='Encoding')
+# plt.figure()
+# sns.barplot(data=df, x='Imbalance Metric', y='Accuracy', hue='Encoding')
+# plt.figure()
+# sns.barplot(data=df, x='Number of Samples', y='Accuracy', hue='Encoding')
 
 
 # for plot_df in [df_ssp, df_normal]:
