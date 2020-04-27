@@ -119,7 +119,9 @@ res = 256
 xs = np.linspace(-limit, limit, res)
 ys = np.linspace(-limit, limit, res)
 
-dim = 5
+# dim = 5
+# dim = 7
+dim = 'many'
 
 gs = GridSpec(1, 41, left=0.02, right=0.96)#, left=0.05, right=0.48, wspace=0.05)
 fig = plt.figure(figsize=(41/3., 10/3.))#, tight_layout=True)
@@ -174,6 +176,21 @@ elif dim == 7:
         hmv = get_heatmap_vectors(xs*sv, ys*sv, X, Y)
         im = ax[i].imshow(hmv[:, :, 0], origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1]), vmin=None, vmax=1)
         ax[i].set_title(titles[i], fontsize=fontsize)
+        ax[i].xaxis.set_major_locator(loc)
+        ax[i].yaxis.set_major_locator(loc)
+
+    fig.colorbar(im, cax=ax[-1])
+elif dim == 'many':
+    dims = [7, 16, 33, 64]
+    rng = np.random.RandomState(seed=13)
+
+    loc = plticker.MultipleLocator(base=5)  # this locator puts ticks at regular intervals
+    for i, dim in enumerate(dims):
+        X = make_good_unitary(dim=dim, rng=rng)
+        Y = make_good_unitary(dim=dim, rng=rng)
+        hmv = get_heatmap_vectors(xs, ys, X, Y)
+        im = ax[i].imshow(hmv[:, :, 0], origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1]), vmin=None, vmax=1)
+        ax[i].set_title('Dim = {}'.format(dim), fontsize=fontsize)
         ax[i].xaxis.set_major_locator(loc)
         ax[i].yaxis.set_major_locator(loc)
 
