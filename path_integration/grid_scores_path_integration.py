@@ -64,7 +64,7 @@ parser.add_argument('--allow-cache', action='store_true',
 parser.add_argument('--trajectory-length', type=int, default=100)
 parser.add_argument('--minibatch-size', type=int, default=10)
 
-parser.add_argument('--n-bins', type=int, default=20)
+parser.add_argument('--n-image-bins', type=int, default=20)
 
 parser.add_argument('--n-hd-cells', type=int, default=0, help='If non-zero, use linear and angular velocity as well as HD cell output')
 parser.add_argument('--sin-cos-ang', type=int, default=1, choices=[0, 1],
@@ -245,7 +245,7 @@ starts = [0.2] * 10
 ends = np.linspace(0.4, 1.0, num=10)
 masks_parameters = zip(starts, ends.tolist())
 latest_epoch_scorer = scores.GridScorer(
-    nbins=args.n_bins,
+    nbins=args.n_image_bins,
     coords_range=((0, 2.2), (0, 2.2)),  # data_reader.get_coord_range(),
     mask_parameters=masks_parameters,
 )
