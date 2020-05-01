@@ -38,14 +38,21 @@ parser.add_argument('--use-localization', action='store_true')
 parser.add_argument('--dataset', type=str, default='')
 parser.add_argument('--model', type=str, default='')
 parser.add_argument('--fname-prefix', type=str, default='sac')
-parser.add_argument('--ssp-scaling', type=float, default=1.0)
+
 parser.add_argument('--spatial-encoding', type=str, default='ssp',
-                    choices=['ssp', '2d', 'frozen-learned', 'pc-gauss', 'pc-dog', 'pc-gauss-softmax', 'hex-trig', 'hex-trig-all-freq'])
+                    choices=[
+                        'ssp', 'hex-ssp', 'random', '2d', '2d-normalized', 'one-hot', 'hex-trig',
+                        'trig', 'random-trig', 'random-proj', 'learned', 'frozen-learned',
+                        'pc-gauss', 'pc-dog', 'tile-coding'
+                    ])
+                    # choices=['ssp', '2d', 'frozen-learned', 'pc-gauss', 'pc-dog', 'pc-gauss-softmax', 'hex-trig', 'hex-trig-all-freq'])
 parser.add_argument('--frozen-model', type=str, default='', help='model to use frozen encoding weights from')
 parser.add_argument('--pc-gauss-sigma', type=float, default=0.25)
 parser.add_argument('--pc-diff-sigma', type=float, default=0.5)
 parser.add_argument('--hex-freq-coef', type=float, default=2.5, help='constant to scale frequencies by')
-
+parser.add_argument('--n-tiles', type=int, default=8, help='number of layers for tile coding')
+parser.add_argument('--n-bins', type=int, default=8, help='number of bins for tile coding')
+parser.add_argument('--ssp-scaling', type=float, default=1.0)
 
 parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--dropout-p', type=float, default=0.5)
