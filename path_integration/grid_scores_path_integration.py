@@ -148,7 +148,7 @@ model.eval()
 
 # encoding specific cache string
 encoding_specific = ''
-if args.spatial_encoding == 'ssp':
+if 'ssp' in args.spatial_encoding:
     encoding_specific = args.ssp_scaling
 elif args.spatial_encoding == 'frozen-learned':
     encoding_specific = args.frozen_model
