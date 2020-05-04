@@ -251,6 +251,7 @@ else:
                 hd_encoding_func=hd_encoding_func,
                 sin_cos_ang=args.sin_cos_ang,
                 pin_memory=pin_memory,
+                device=device,
             )
         else:
             trainloader, testloader = train_test_loaders(
@@ -264,6 +265,7 @@ else:
                 encoding_dim=args.dim,
                 train_split=args.train_split,
                 pin_memory=pin_memory,
+                device=device,
             )
 
     if args.allow_cache:
@@ -320,9 +322,9 @@ for epoch in range(n_epochs):
             # Everything is in one batch, so this loop will only happen once
             for i, data in enumerate(testloader):
                 velocity_inputs, ssp_inputs, ssp_outputs = data
-                velocity_inputs = velocity_inputs.to(device)
-                ssp_inputs = ssp_inputs.to(device)
-                ssp_outputs = ssp_outputs.to(device)
+                # velocity_inputs = velocity_inputs.to(device)
+                # ssp_inputs = ssp_inputs.to(device)
+                # ssp_outputs = ssp_outputs.to(device)
 
                 ssp_pred = model(velocity_inputs, ssp_inputs)
 
@@ -454,9 +456,9 @@ for epoch in range(n_epochs):
     n_batches = 0
     for i, data in enumerate(trainloader):
         velocity_inputs, ssp_inputs, ssp_outputs = data
-        velocity_inputs = velocity_inputs.to(device)
-        ssp_inputs = ssp_inputs.to(device)
-        ssp_outputs = ssp_outputs.to(device)
+        # velocity_inputs = velocity_inputs.to(device)
+        # ssp_inputs = ssp_inputs.to(device)
+        # ssp_outputs = ssp_outputs.to(device)
 
         if ssp_inputs.size()[0] != batch_size:
             continue  # Drop data, not enough for a batch

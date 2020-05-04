@@ -5,11 +5,13 @@ import torch
 
 class SSPTrajectoryDataset(data.Dataset):
 
-    def __init__(self, velocity_inputs, ssp_inputs, ssp_outputs, return_velocity_list=True):
+    def __init__(self, velocity_inputs, ssp_inputs, ssp_outputs, return_velocity_list=True, device=torch.device('cpu:0')):
 
-        self.velocity_inputs = velocity_inputs.astype(np.float32)
-        self.ssp_inputs = ssp_inputs.astype(np.float32)
-        self.ssp_outputs = ssp_outputs.astype(np.float32)
+        self.device = device
+
+        self.velocity_inputs = torch.Tensor(velocity_inputs.astype(np.float32)).to(self.device)
+        self.ssp_inputs = torch.Tensor(ssp_inputs.astype(np.float32)).to(self.device)
+        self.ssp_outputs = torch.Tensor(ssp_outputs.astype(np.float32)).to(self.device)
 
         # flag for whether the velocities returned are a single tensor or a list of tensors
         self.return_velocity_list = return_velocity_list
@@ -31,6 +33,7 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
                        hd_encoding_func=None, hd_dim=0,
                        train_split=0.8,
                        pin_memory=False,
+                       device='cpu',
                        ):
     # Option to use SSPs or the 2D location directly
     # assert encoding in ['ssp', '2d', 'pc', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig', 'hex-trig-all-freq']
@@ -92,10 +95,11 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
 
             velocity_inputs[i, :, :] = cartesian_vels[traj_ind, step_ind:step_ind_final, :]
 
-            # ssp output is shifted by one timestep (since it is a prediction of the future by one step)
-            ssp_outputs[i, :, :] = ssps[traj_ind, step_ind + 1:step_ind_final + 1, :]
-            # initial state of the LSTM is a linear transform of the ground truth ssp
-            ssp_inputs[i, :] = ssps[traj_ind, step_ind]
+            if encoding != '2d':
+                # ssp output is shifted by one timestep (since it is a prediction of the future by one step)
+                ssp_outputs[i, :, :] = ssps[traj_ind, step_ind + 1:step_ind_final + 1, :]
+                # initial state of the LSTM is a linear transform of the ground truth ssp
+                ssp_inputs[i, :] = ssps[traj_ind, step_ind]
 
             # for the 2D encoding method
             pos_outputs[i, :, :] = positions[traj_ind, step_ind + 1:step_ind_final + 1, :]
@@ -106,12 +110,14 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
                 velocity_inputs=velocity_inputs,
                 ssp_inputs=pos_inputs,
                 ssp_outputs=pos_outputs,
+                device=device,
             )
         else:
             dataset = SSPTrajectoryDataset(
                 velocity_inputs=velocity_inputs,
                 ssp_inputs=ssp_inputs,
                 ssp_outputs=ssp_outputs,
+                device=device,
             )
 
         if test_set == 0:
@@ -132,6 +138,7 @@ def angular_train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, 
                        train_split=0.8,
                        sin_cos_ang=True,
                        pin_memory=False,
+                       device='cpu',
                        ):
     # Option to use SSPs or the 2D location directly
     # assert encoding in ['ssp', '2d', 'pc', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig', 'hex-trig-all-freq']
@@ -235,12 +242,14 @@ def angular_train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, 
                 velocity_inputs=velocity_inputs,
                 ssp_inputs=np.concatenate([pos_inputs, hd_rep_inputs], axis=1),
                 ssp_outputs=np.concatenate([pos_outputs, hd_rep_outputs], axis=2),
+                device=device,
             )
         else:
             dataset = SSPTrajectoryDataset(
                 velocity_inputs=velocity_inputs,
                 ssp_inputs=np.concatenate([ssp_inputs, hd_rep_inputs], axis=1),
                 ssp_outputs=np.concatenate([ssp_outputs, hd_rep_outputs], axis=2),
+                device=device,
             )
 
         if test_set == 0:
