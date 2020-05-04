@@ -282,7 +282,7 @@ class NonNegativeWeights(object):
 
     def __call__(self, module):
         if hasattr(module, 'weight'):
-            print("has weight attribute")
+            # print("has weight attribute")
             w = module.weight.data
             w = w.clamp(min=0)
             module.weight.data = w
