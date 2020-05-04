@@ -86,6 +86,9 @@ parser.add_argument('--all-non-negative', action='store_true', help='Restrict al
 
 parser.add_argument('--optimizer', type=str, default='rmsprop', choices=['rmsprop', 'adam'])
 
+parser.add_argument('--gpu', type=int, default=-1,
+                    help="set to an integer corresponding to the gpu to use. Set to -1 to use the CPU")
+
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
@@ -96,6 +99,13 @@ save_dir = os.path.join(args.logdir, current_time)
 writer = SummaryWriter(log_dir=save_dir)
 
 data = np.load(args.dataset)
+
+if args.gpu == -1:
+    device = torch.device('cpu:0')
+    pin_memory = False
+else:
+    device = torch.device('cuda:{}'.format(int(args.gpu)))
+    pin_memory = True
 
 # only used for frozen-learned and other custom encoding functions
 # encoding_func = None
@@ -163,6 +173,7 @@ else:
 if args.load_saved_model:
     model.load_state_dict(torch.load(args.load_saved_model), strict=False)
 
+model.to(device)
 
 # trying out cosine similarity here as well, it works better than MSE as a loss for SSP cleanup
 cosine_criterion = nn.CosineEmbeddingLoss()
@@ -239,6 +250,7 @@ else:
                 hd_dim=args.n_hd_cells,
                 hd_encoding_func=hd_encoding_func,
                 sin_cos_ang=args.sin_cos_ang,
+                pin_memory=pin_memory,
             )
         else:
             trainloader, testloader = train_test_loaders(
@@ -251,6 +263,7 @@ else:
                 encoding_func=encoding_func,
                 encoding_dim=args.dim,
                 train_split=args.train_split,
+                pin_memory=pin_memory,
             )
 
     if args.allow_cache:
@@ -307,6 +320,9 @@ for epoch in range(n_epochs):
             # Everything is in one batch, so this loop will only happen once
             for i, data in enumerate(testloader):
                 velocity_inputs, ssp_inputs, ssp_outputs = data
+                velocity_inputs = velocity_inputs.to(device)
+                ssp_inputs = ssp_inputs.to(device)
+                ssp_outputs = ssp_outputs.to(device)
 
                 ssp_pred = model(velocity_inputs, ssp_inputs)
 
@@ -316,7 +332,7 @@ for epoch in range(n_epochs):
                 cosine_loss = cosine_criterion(
                     ssp_pred.reshape(ssp_pred.shape[0] * ssp_pred.shape[1], ssp_pred.shape[2]),
                     ssp_outputs.permute(1, 0, 2).reshape(ssp_pred.shape[0] * ssp_pred.shape[1], ssp_pred.shape[2]),
-                    torch.ones(ssp_pred.shape[0] * ssp_pred.shape[1])
+                    torch.ones(ssp_pred.shape[0] * ssp_pred.shape[1]).to(device)
                 )
                 mse_loss = mse_criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
 
@@ -438,6 +454,9 @@ for epoch in range(n_epochs):
     n_batches = 0
     for i, data in enumerate(trainloader):
         velocity_inputs, ssp_inputs, ssp_outputs = data
+        velocity_inputs = velocity_inputs.to(device)
+        ssp_inputs = ssp_inputs.to(device)
+        ssp_outputs = ssp_outputs.to(device)
 
         if ssp_inputs.size()[0] != batch_size:
             continue  # Drop data, not enough for a batch
@@ -452,7 +471,7 @@ for epoch in range(n_epochs):
         cosine_loss = cosine_criterion(
             ssp_pred.reshape(ssp_pred.shape[0] * ssp_pred.shape[1], ssp_pred.shape[2]),
             ssp_outputs.permute(1, 0, 2).reshape(ssp_pred.shape[0] * ssp_pred.shape[1], ssp_pred.shape[2]),
-            torch.ones(ssp_pred.shape[0] * ssp_pred.shape[1])
+            torch.ones(ssp_pred.shape[0] * ssp_pred.shape[1]).to(device)
         )
         mse_loss = mse_criterion(ssp_pred, ssp_outputs.permute(1, 0, 2))
         loss = cosine_loss + mse_loss

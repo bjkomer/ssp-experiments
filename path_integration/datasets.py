@@ -30,6 +30,7 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
                        batch_size=10, encoding='ssp', encoding_func=None, encoding_dim=512,
                        hd_encoding_func=None, hd_dim=0,
                        train_split=0.8,
+                       pin_memory=False,
                        ):
     # Option to use SSPs or the 2D location directly
     # assert encoding in ['ssp', '2d', 'pc', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig', 'hex-trig-all-freq']
@@ -115,11 +116,11 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
 
         if test_set == 0:
             trainloader = torch.utils.data.DataLoader(
-                dataset, batch_size=batch_size, shuffle=True, num_workers=0,
+                dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=pin_memory
             )
         elif test_set == 1:
             testloader = torch.utils.data.DataLoader(
-                dataset, batch_size=n_samples, shuffle=True, num_workers=0,
+                dataset, batch_size=n_samples, shuffle=True, num_workers=0, pin_memory=pin_memory
             )
 
     return trainloader, testloader
@@ -130,6 +131,7 @@ def angular_train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, 
                        hd_encoding_func=None, hd_dim=0,
                        train_split=0.8,
                        sin_cos_ang=True,
+                       pin_memory=False,
                        ):
     # Option to use SSPs or the 2D location directly
     # assert encoding in ['ssp', '2d', 'pc', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig', 'hex-trig-all-freq']
@@ -243,11 +245,11 @@ def angular_train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, 
 
         if test_set == 0:
             trainloader = torch.utils.data.DataLoader(
-                dataset, batch_size=batch_size, shuffle=True, num_workers=0,
+                dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=pin_memory
             )
         elif test_set == 1:
             testloader = torch.utils.data.DataLoader(
-                dataset, batch_size=n_samples, shuffle=True, num_workers=0,
+                dataset, batch_size=n_samples, shuffle=True, num_workers=0, pin_memory=pin_memory
             )
 
     return trainloader, testloader
