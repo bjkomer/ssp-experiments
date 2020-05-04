@@ -250,7 +250,7 @@ else:
                 hd_dim=args.n_hd_cells,
                 hd_encoding_func=hd_encoding_func,
                 sin_cos_ang=args.sin_cos_ang,
-                pin_memory=pin_memory,
+                pin_memory=False,#pin_memory,
                 device=device,
             )
         else:
@@ -264,7 +264,7 @@ else:
                 encoding_func=encoding_func,
                 encoding_dim=args.dim,
                 train_split=args.train_split,
-                pin_memory=pin_memory,
+                pin_memory=False,#pin_memory,
                 device=device,
             )
 
