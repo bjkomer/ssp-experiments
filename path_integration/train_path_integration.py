@@ -433,16 +433,17 @@ for epoch in range(n_epochs):
             print("plotting predicted locations")
             plot_predictions_v(predictions_start, coords_start, ax_pred_start, min_val=0, max_val=2.2, fixed_axes=True)
             plot_predictions_v(predictions_end, coords_end, ax_pred_end, min_val=0, max_val=2.2, fixed_axes=True)
-            print("plotting ground truth locations")
-            plot_predictions_v(coords_start, coords_start, ax_truth_start, min_val=0, max_val=2.2, fixed_axes=True)
-            plot_predictions_v(coords_end, coords_end, ax_truth_end, min_val=0, max_val=2.2, fixed_axes=True)
+            # only plot ground truth once at the start
+            if epoch == 0:
+                print("plotting ground truth locations")
+                plot_predictions_v(coords_start, coords_start, ax_truth_start, min_val=0, max_val=2.2, fixed_axes=True)
+                plot_predictions_v(coords_end, coords_end, ax_truth_end, min_val=0, max_val=2.2, fixed_axes=True)
+                writer.add_figure("ground truth start", fig_truth_start, epoch)
+                writer.add_figure("ground truth end", fig_truth_end, epoch)
 
             writer.add_figure("predictions start", fig_pred_start, epoch)
-            writer.add_figure("ground truth start", fig_truth_start, epoch)
-
             writer.add_figure("predictions end", fig_pred_end, epoch)
-            writer.add_figure("ground truth end", fig_truth_end, epoch)
-
+            
             torch.save(
                 model.state_dict(),
                 os.path.join(save_dir, '{}_path_integration_model_epoch_{}.pt'.format(args.spatial_encoding, epoch))
