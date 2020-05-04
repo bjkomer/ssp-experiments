@@ -211,7 +211,7 @@ else:
 # if the file exists, load it from cache
 if os.path.exists(cache_fname):
     print("Generating Train and Test Loaders from Cache")
-    trainloader, testloader = load_from_cache(cache_fname, batch_size=batch_size, n_samples=n_samples)
+    trainloader, testloader = load_from_cache(cache_fname, batch_size=batch_size, n_samples=n_samples, device=device)
 else:
     print("Generating Train and Test Loaders")
 
@@ -275,12 +275,12 @@ else:
 
         np.savez(
             cache_fname,
-            train_velocity_inputs=trainloader.dataset.velocity_inputs,
-            train_ssp_inputs=trainloader.dataset.ssp_inputs,
-            train_ssp_outputs=trainloader.dataset.ssp_outputs,
-            test_velocity_inputs=testloader.dataset.velocity_inputs,
-            test_ssp_inputs=testloader.dataset.ssp_inputs,
-            test_ssp_outputs=testloader.dataset.ssp_outputs,
+            train_velocity_inputs=trainloader.dataset.velocity_inputs.cpu().numpy(),
+            train_ssp_inputs=trainloader.dataset.ssp_inputs.cpu().numpy(),
+            train_ssp_outputs=trainloader.dataset.ssp_outputs.cpu().numpy(),
+            test_velocity_inputs=testloader.dataset.velocity_inputs.cpu().numpy(),
+            test_ssp_inputs=testloader.dataset.ssp_inputs.cpu().numpy(),
+            test_ssp_outputs=testloader.dataset.ssp_outputs.cpu().numpy(),
         )
 
 print("Train and Test Loaders Generation Complete")

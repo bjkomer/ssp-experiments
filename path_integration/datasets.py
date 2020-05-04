@@ -349,7 +349,7 @@ def tf_train_test_loaders(data, n_train_samples=500000, n_test_samples=500000, r
     return trainloader, testloader
 
 
-def load_from_cache(fname, batch_size=10, n_samples=1000):
+def load_from_cache(fname, batch_size=10, n_samples=1000, device='cpu'):
 
     data = np.load(fname)
 
@@ -357,12 +357,14 @@ def load_from_cache(fname, batch_size=10, n_samples=1000):
         velocity_inputs=data['train_velocity_inputs'],
         ssp_inputs=data['train_ssp_inputs'],
         ssp_outputs=data['train_ssp_outputs'],
+        device=device,
     )
 
     dataset_test = SSPTrajectoryDataset(
         velocity_inputs=data['test_velocity_inputs'],
         ssp_inputs=data['test_ssp_inputs'],
         ssp_outputs=data['test_ssp_outputs'],
+        device=device,
     )
 
     trainloader = torch.utils.data.DataLoader(
