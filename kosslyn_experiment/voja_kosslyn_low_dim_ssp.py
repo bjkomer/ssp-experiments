@@ -1,6 +1,6 @@
 # This version quickly adds in SSPs instead of the 'surface'
 from spatial_semantic_pointers.utils import encode_point, make_good_unitary, ssp_to_loc, get_heatmap_vectors
-from utils import orthogonal_hex_dir_7dim
+from utils import orthogonal_hex_dir_7dim, orthogonal_hex_dir
 import os
 
 # Associate place and item using the Voja learning rule
@@ -36,6 +36,7 @@ if __name__ == "__main__":
     parser.add_argument('--num-test-pairs', type=int, default=50)
     parser.add_argument('--time-per-item', type=float, default=2.)
     parser.add_argument('--dimensionality', type=int, default=7)
+    parser.add_argument('--ssp-dim', type=int, default=7, choices=[7, 13, 19, 25])
     parser.add_argument('--phi', type=float, default=0.2)
     parser.add_argument('--randomize_vectors', action='store_true')
     parser.add_argument('--file-name', type=str, default="output/exp_data_kosslyn_low_dim_hex")
@@ -49,6 +50,7 @@ if __name__ == "__main__":
     D = args.dimensionality
     file_name = args.file_name
     phi = np.pi * args.phi
+    dim = args.ssp_dim
 else:
     seed = 13
     num_test_pairs = 50
@@ -58,7 +60,7 @@ else:
     file_name = "output/exp_data_kosslyn_low_dim_hex"
     phi = np.pi * 0.2
 
-dim = 7
+    dim = 7
 
 
 random_inputs = False
@@ -115,7 +117,24 @@ rstate = np.random.RandomState(seed=seed)
 # x_axis_sp = make_good_unitary(dim=dim, rng=rstate)
 # y_axis_sp = make_good_unitary(dim=dim, rng=rstate)
 
-x_axis_sp, y_axis_sp, sv = orthogonal_hex_dir_7dim(phi=phi)
+if dim == 7:
+    x_axis_sp, y_axis_sp, sv = orthogonal_hex_dir_7dim(phi=phi)
+elif dim == 13:
+    x_axis_sp, y_axis_sp = orthogonal_hex_dir(
+        phis=(np.pi / 2., np.pi/5.),
+        angles=(0, np.pi/3.)
+    )
+elif dim == 19:
+    x_axis_sp, y_axis_sp = orthogonal_hex_dir(
+        phis=(np.pi / 2., np.pi/5., np.pi/3.),
+        angles=(0, np.pi/4., np.pi/8.)
+    )
+elif dim == 25:
+    x_axis_sp, y_axis_sp = orthogonal_hex_dir(
+        phis=(np.pi / 2., np.pi/5., np.pi/3., np.pi/7.),
+        angles=(0, np.pi/3., np.pi/6., np.pi/3. + np.pi/6.)
+    )
+
 
 # TODO: use full limit eventually
 xs = np.linspace(0, 10, 256)

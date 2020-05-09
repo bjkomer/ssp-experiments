@@ -85,6 +85,39 @@ def orthogonal_hex_dir_7dim(phi=np.pi / 2., angle=0):
     return X, Y, sv
 
 
+def orthogonal_hex_dir(phis=(np.pi / 2., np.pi/10.), angles=(0, np.pi/3.)):
+    n_scales = len(phis)
+    dim = 6*n_scales + 1
+
+    xf = np.zeros((dim,), dtype='Complex64')
+    xf[0] = 1
+
+    yf = np.zeros((dim,), dtype='Complex64')
+    yf[0] = 1
+
+    for i in range(n_scales):
+        phi_xs, phi_ys = get_sub_phi(phis[i], angles[i])
+        xf[i * 3:(i + 1) * 3] = phi_xs
+        yf[i * 3:(i + 1) * 3] = phi_ys
+
+    xf[-1:dim // 2:-1] = np.conj(xf[1:(dim + 1) // 2])
+    yf[-1:dim // 2:-1] = np.conj(yf[1:(dim + 1) // 2])
+
+    X = np.fft.ifft(xf).real
+    Y = np.fft.ifft(yf).real
+
+    return spa.SemanticPointer(data=X), spa.SemanticPointer(data=Y)
+
+
+def get_sub_phi(phi, angle):
+    X, Y, sv = orthogonal_hex_dir_7dim(phi=phi, angle=angle)
+
+    xf = np.fft.fft(X.v)
+    yf = np.fft.fft(Y.v)
+
+    return xf[1:4], yf[1:4]
+
+
 class EncoderPlot(nengo.Node):
 
     def __init__(self, connection, scaling='max'):
