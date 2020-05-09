@@ -41,8 +41,11 @@ parser.add_argument('--fname-prefix', type=str, default='sac')
 
 parser.add_argument('--spatial-encoding', type=str, default='ssp',
                     choices=[
-                        'ssp', 'hex-ssp', 'random', '2d', '2d-normalized', 'one-hot', 'hex-trig',
-                        'trig', 'random-trig', 'random-proj', 'learned', 'frozen-learned',
+                        'ssp', 'hex-ssp', 'periodic-hex-ssp', 'grid-ssp', 'ind-ssp', 'orth-proj-ssp',
+                        'rec-ssp', 'rec-hex-ssp', 'rec-ind-ssp',
+                        'random', '2d', '2d-normalized', 'one-hot', 'hex-trig',
+                        'trig', 'random-trig', 'random-rotated-trig', 'random-proj', 'legendre',
+                        'learned', 'learned-normalized', 'frozen-learned', 'frozen-learned-normalized',
                         'pc-gauss', 'pc-dog', 'tile-coding'
                     ])
                     # choices=['ssp', '2d', 'frozen-learned', 'pc-gauss', 'pc-dog', 'pc-gauss-softmax', 'hex-trig', 'hex-trig-all-freq'])
@@ -53,6 +56,11 @@ parser.add_argument('--hex-freq-coef', type=float, default=2.5, help='constant t
 parser.add_argument('--n-tiles', type=int, default=8, help='number of layers for tile coding')
 parser.add_argument('--n-bins', type=int, default=8, help='number of bins for tile coding')
 parser.add_argument('--ssp-scaling', type=float, default=1.0)
+parser.add_argument('--grid-ssp-min', type=float, default=0.25, help='minimum plane wave scale')
+parser.add_argument('--grid-ssp-max', type=float, default=2.0, help='maximum plane wave scale')
+parser.add_argument('--phi', type=float, default=0.5, help='phi as a fraction of pi for orth-proj-ssp')
+parser.add_argument('--hilbert-points', type=int, default=1, choices=[0, 1, 2, 3],
+                    help='pc centers. 0: random uniform. 1: hilbert curve. 2: evenly spaced grid. 3: hex grid')
 
 parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--dropout-p', type=float, default=0.5)
