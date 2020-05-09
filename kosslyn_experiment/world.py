@@ -263,7 +263,11 @@ class ExperimentControl(object):
 
         # Construct the return vector here and index into it rather than concatenating other vectors
         if self.ssp_dir:
-            self.ret_vec = np.zeros((2 * self.dim,))
+            # also includes an input to the memory, to initialize it at the correct location
+            self.ret_vec = np.zeros((3 * self.dim,))
+            # initialize to the origin (movement and visualized location)
+            self.ret_vec[2 * self.dim] = 1
+            self.ret_vec[self.dim] = 1
         else:
             self.ret_vec = np.zeros((2 + self.dim,))
 
@@ -272,6 +276,11 @@ class ExperimentControl(object):
 
         self.done = False
 
+
+        # self.build_html_string()
+        #
+        # self._nengo_html_ = self.base_html.format(self.x, self.y, self.th)
+
     @staticmethod
     def vectors_close(v1, v2, threshold=0.85):
         """
@@ -279,6 +288,44 @@ class ExperimentControl(object):
         """
         # return cosine_similarity(v1, v2) > threshold
         return cosine_similarity(v1.reshape(1, -1), v2.reshape(1, -1)) > threshold
+
+    def build_html_string(self):
+
+        # Used to display HTML plot
+        self.base_html = '''<svg width="100%" height="100%" viewbox="0 0 100 100">'''
+
+        # Draw the outer rectangle
+        self.base_html += '<rect width="100" height="100" stroke-width="2.0" stroke="black" fill="white" />'
+
+        # Draw circles for each item
+        # for i, loc in enumerate(self.items.itervalues()):
+        for i, loc in enumerate(self.items.values()):
+            self.base_html += '<circle cx="{0}" cy="{1}" r="{2}" stroke-width="1.0" stroke="{3}" fill="{3}" />'.format(
+                loc[0] * self.scale_x, 100 - loc[1] * self.scale_y, self.item_rad * self.scale_x,
+                self.colour_list[i % self.num_colours])
+
+        # Set up the agent to be filled in later with 'format()'
+        self.base_html += '<polygon points="{0}" stroke="black" fill="black" />'
+
+        # Close the svg
+        self.base_html += '</svg>'
+
+
+    def update_html(self, body_scale=0.5):
+        # Define points of the triangular agent based on x, y, and th
+        x1 = (self.x + body_scale * 0.5 * np.cos(self.th - 2 * np.pi / 3)) * self.scale_x
+        y1 = 100 - (self.y + body_scale * 0.5 * np.sin(self.th - 2 * np.pi / 3)) * self.scale_y
+
+        x2 = (self.x + body_scale * np.cos(self.th)) * self.scale_x
+        y2 = 100 - (self.y + body_scale * np.sin(self.th)) * self.scale_y
+
+        x3 = (self.x + body_scale * 0.5 * np.cos(self.th + 2 * np.pi / 3)) * self.scale_x
+        y3 = 100 - (self.y + body_scale * 0.5 * np.sin(self.th + 2 * np.pi / 3)) * self.scale_y
+
+        points = "{0},{1} {2},{3} {4},{5}".format(x1, y1, x2, y2, x3, y3)
+
+        # Update the html plot
+        self._nengo_html_ = self.base_html.format(points)
 
     def __call__(self, t, x):
         """
@@ -330,12 +377,15 @@ class ExperimentControl(object):
 
                     if self.ssp_dir:
                         # Set the item vector output to be the target item
-                        self.ret_vec[self.dim:] = self.vectors[self.item_index]  # self.vocab.parse(self.keys[self.item_index]).v
+                        self.ret_vec[self.dim:2*self.dim] = self.vectors[self.item_index]  # self.vocab.parse(self.keys[self.item_index]).v
 
                         displacement = self.coords[self.item_index] - self.decode_func(cur_coord)
                         displacement = displacement / np.linalg.norm(displacement)
                         # set the direction to move to get there
                         self.ret_vec[:self.dim] = self.encode_func(displacement)
+
+                        # stop driving the memory to the start location
+                        self.ret_vec[2 * self.dim:] = 0
                     else:
                         # Set the item vector output to be the target item
                         self.ret_vec[2:] = self.vectors[
@@ -365,6 +415,8 @@ class ExperimentControl(object):
                     # at target, don't need to move (setting displacement to origin)
                     self.ret_vec[:self.dim] = 0
                     self.ret_vec[0] = 1
+                    # modify the memory to start at the last target
+                    self.ret_vec[2*self.dim:] = self.encode_func(self.coords[self.item_index])
                 else:
                     # at target, don't need to move
                     self.ret_vec[:2] = 0
