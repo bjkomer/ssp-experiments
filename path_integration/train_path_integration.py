@@ -37,8 +37,11 @@ parser.add_argument('--n-epochs', type=int, default=20)
 parser.add_argument('--n-samples', type=int, default=1000)
 parser.add_argument('--spatial-encoding', type=str, default='ssp',
                     choices=[
-                        'ssp', 'hex-ssp', 'random', '2d', '2d-normalized', 'one-hot', 'hex-trig',
-                        'trig', 'random-trig', 'random-proj', 'learned', 'frozen-learned',
+                        'ssp', 'hex-ssp', 'periodic-hex-ssp', 'grid-ssp', 'ind-ssp', 'orth-proj-ssp',
+                        'rec-ssp', 'rec-hex-ssp', 'rec-ind-ssp',
+                        'random', '2d', '2d-normalized', 'one-hot', 'hex-trig',
+                        'trig', 'random-trig', 'random-rotated-trig', 'random-proj', 'legendre',
+                        'learned', 'learned-normalized', 'frozen-learned', 'frozen-learned-normalized',
                         'pc-gauss', 'pc-dog', 'tile-coding'
                     ])
                     # choices=['ssp', '2d', 'frozen-learned', 'pc-gauss', 'pc-gauss-softmax', 'hex-trig', 'hex-trig-all-freq'])
@@ -443,7 +446,7 @@ for epoch in range(n_epochs):
 
             writer.add_figure("predictions start", fig_pred_start, epoch)
             writer.add_figure("predictions end", fig_pred_end, epoch)
-            
+
             torch.save(
                 model.state_dict(),
                 os.path.join(save_dir, '{}_path_integration_model_epoch_{}.pt'.format(args.spatial_encoding, epoch))
