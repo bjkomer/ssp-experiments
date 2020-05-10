@@ -6,7 +6,7 @@ import os
 from stable_baselines3 import PPO
 from stable_baselines3.ppo import MlpPolicy
 
-from envs import create_env
+from envs import create_env, get_max_dist
 
 import argparse
 
@@ -22,6 +22,7 @@ parser.add_argument('--continuous', type=int, default=1, choices=[1, 0])
 parser.add_argument('--fname', type=str, default='')
 parser.add_argument('--env-size', type=str, default='tiny', choices=['miniscule', 'tiny', 'small', 'medium', 'large'])
 parser.add_argument('--seed', type=int, default=13, help='seed for the SSP axis vectors')
+parser.add_argument('--curriculum', action='store_true', help='gradually increase goal distance during training')
 
 args = parser.parse_args()
 
@@ -45,18 +46,35 @@ else:
     # policy_kwargs = dict(layers=[args.ssp_dim])
     policy_kwargs = dict(net_arch=[args.hidden_size])
     model = PPO('MlpPolicy', env, verbose=1, policy_kwargs=policy_kwargs)
-    model.learn(total_timesteps=args.n_steps)
+
+    if args.curriculum:
+        max_dist = get_max_dist(args.env_size)
+        steps_per_dist = args.n_steps // (max_dist + 1)
+        total_steps = 0
+        for goal_distance in range(1, max_dist):
+            env = create_env(goal_distance=goal_distance, args=args)
+            model.set_env(env)
+            model.learn(total_timesteps=steps_per_dist)
+            total_steps += steps_per_dist
+        # learn on the remaining steps, making more learning happen on the full system
+        remaining_steps = args.n_steps - total_steps
+        model.learn(total_timesteps=remaining_steps)
+    else:
+        model.learn(total_timesteps=args.n_steps)
 
     model.save(fname)
+
 
 display = os.environ.get('DISPLAY')
 if display is None or 'localhost' in display:
     print("No Display detected, skipping demo view")
 else:
+    env = create_env(args)
     # demo model
     obs = env.reset()
     for i in range(args.n_demo_steps):
         action, _states = model.predict(obs, deterministic=True)
+        # action, _states = model.predict(obs, deterministic=False)
         obs, reward, done, info = env.step(action)
         env.render()
         if done:
