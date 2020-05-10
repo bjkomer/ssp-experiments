@@ -23,10 +23,13 @@ parser.add_argument('--fname', type=str, default='')
 parser.add_argument('--env-size', type=str, default='tiny', choices=['miniscule', 'tiny', 'small', 'medium', 'large'])
 parser.add_argument('--seed', type=int, default=13, help='seed for the SSP axis vectors')
 parser.add_argument('--curriculum', action='store_true', help='gradually increase goal distance during training')
+parser.add_argument('--regular-coordinates', action='store_true', help='use 2D coordinates instead of SSP')
+parser.add_argument('--demo-goal-distance', type=int, default=0, help='goal distance used for demo. 0 means any distance')
+parser.add_argument('--train-goal-distance', type=int, default=0, help='goal distance to use during training')
 
 args = parser.parse_args()
 
-env = create_env(args)
+env = create_env(goal_distance=args.train_goal_distance, args=args)
 
 if not os.path.exists('models'):
     os.makedirs('models')
@@ -69,7 +72,7 @@ display = os.environ.get('DISPLAY')
 if display is None or 'localhost' in display:
     print("No Display detected, skipping demo view")
 else:
-    env = create_env(args)
+    env = create_env(goal_distance=args.demo_goal_distance, args=args)
     # demo model
     obs = env.reset()
     for i in range(args.n_demo_steps):

@@ -100,6 +100,10 @@ def create_env(args, goal_distance=0):
         'y_axis_vec':Y,
     }
 
+    if args.regular_coordinates:
+        specific_params['location'] = 'normalized'
+        specific_params['goal_loc'] = 'normalized'
+
 
     # Merge dictionaries, replacing base params with specific params
     params = {**base_params, **specific_params}
