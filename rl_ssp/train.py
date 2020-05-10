@@ -16,6 +16,7 @@ parser.add_argument('--n-steps', type=int, default=100000, help='total timesteps
 parser.add_argument('--n-demo-steps', type=int, default=1000, help='total timesteps to view demo for')
 parser.add_argument('--movement-type', type=str, default='holonomic', choices=['holonomic', 'directional'])
 parser.add_argument('--ssp-dim', type=int, default=256)
+parser.add_argument('--hidden-size', type=int, default=256)
 parser.add_argument('--n-sensors', type=int, default=0)
 parser.add_argument('--continuous', type=int, default=1, choices=[1, 0])
 parser.add_argument('--fname', type=str, default='')
@@ -31,8 +32,8 @@ if not os.path.exists('models'):
 
 # If no model name specified, generate based on parameters
 if args.fname == '':
-    fname = 'models/{}_{}dim_{}sensors_{}seed_{}steps'.format(
-        args.env_size, args.ssp_dim, args.n_sensors, args.seed, args.n_steps
+    fname = 'models/{}_{}dim_{}hs_{}sensors_{}seed_{}steps'.format(
+        args.env_size, args.ssp_dim, args.hidden_size, args.n_sensors, args.seed, args.n_steps
     )
 else:
     fname = args.fname
@@ -41,8 +42,9 @@ else:
 if os.path.exists(fname + '.zip'):
     model = PPO.load(fname)
 else:
-
-    model = PPO('MlpPolicy', env, verbose=1)
+    # policy_kwargs = dict(layers=[args.ssp_dim])
+    policy_kwargs = dict(net_arch=[args.hidden_size])
+    model = PPO('MlpPolicy', env, verbose=1, policy_kwargs=policy_kwargs)
     model.learn(total_timesteps=args.n_steps)
 
     model.save(fname)
