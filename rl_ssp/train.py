@@ -47,15 +47,18 @@ else:
 
     model.save(fname)
 
-
-# demo model
-obs = env.reset()
-for i in range(args.n_demo_steps):
-    action, _states = model.predict(obs, deterministic=True)
-    obs, reward, done, info = env.step(action)
-    env.render()
-    if done:
-        obs = env.reset()
-    time.sleep(0.001)
+display = os.environ.get('DISPLAY')
+if display is None or 'localhost' in display:
+    print("No Display detected, skipping demo view")
+else:
+    # demo model
+    obs = env.reset()
+    for i in range(args.n_demo_steps):
+        action, _states = model.predict(obs, deterministic=True)
+        obs, reward, done, info = env.step(action)
+        env.render()
+        if done:
+            obs = env.reset()
+        time.sleep(0.001)
 
 env.close()
