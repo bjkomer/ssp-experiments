@@ -94,7 +94,7 @@ else:
                 # del env
                 # env = create_env(goal_distance=goal_distance, args=args)
                 # model.set_env(env)
-                model.set_env(cur_envs[min(goal_distance-1, max_dist-1)])
+                model.set_env(cur_envs[min(goal_distance-1, max_dist-2)])
 
     mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=args.n_eval_episodes)
     eval_data[-1, 0] = mean_reward
