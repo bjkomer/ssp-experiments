@@ -42,9 +42,11 @@ if not os.path.exists('models'):
 
 # If no model name specified, generate based on parameters
 if args.fname == '':
-    fname = 'models/{}_{}dim_{}hs_{}sensors_{}seed_{}steps'.format(
-        args.env_size, args.ssp_dim, args.hidden_size, args.n_sensors, args.seed, args.n_steps
+    fname = 'models/{}_{}dim_{}hs_{}sensors_{}seed_{}steps_{}gd'.format(
+        args.env_size, args.ssp_dim, args.hidden_size, args.n_sensors, args.seed, args.n_steps, args.train_goal_distance
     )
+    if args.curriculum:
+        fname += '_cur'
 else:
     fname = args.fname
 
