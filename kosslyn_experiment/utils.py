@@ -97,8 +97,8 @@ def orthogonal_hex_dir(phis=(np.pi / 2., np.pi/10.), angles=(0, np.pi/3.)):
 
     for i in range(n_scales):
         phi_xs, phi_ys = get_sub_phi(phis[i], angles[i])
-        xf[i * 3:(i + 1) * 3] = phi_xs
-        yf[i * 3:(i + 1) * 3] = phi_ys
+        xf[1 + i * 3:1 + (i + 1) * 3] = phi_xs
+        yf[1 + i * 3:1 + (i + 1) * 3] = phi_ys
 
     xf[-1:dim // 2:-1] = np.conj(xf[1:(dim + 1) // 2])
     yf[-1:dim // 2:-1] = np.conj(yf[1:(dim + 1) // 2])
