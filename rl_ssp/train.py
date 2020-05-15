@@ -19,6 +19,7 @@ parser.add_argument('--n-demo-steps', type=int, default=1000, help='total timest
 parser.add_argument('--movement-type', type=str, default='holonomic', choices=['holonomic', 'directional'])
 parser.add_argument('--ssp-dim', type=int, default=256)
 parser.add_argument('--hidden-size', type=int, default=256)
+parser.add_argument('--hidden-layers', type=int, default=1)
 parser.add_argument('--n-sensors', type=int, default=0)
 parser.add_argument('--continuous', type=int, default=1, choices=[1, 0])
 parser.add_argument('--fname', type=str, default='')
@@ -42,8 +43,8 @@ if not os.path.exists('models'):
 
 # If no model name specified, generate based on parameters
 if args.fname == '':
-    fname = 'models/{}_{}dim_{}hs_{}sensors_{}seed_{}steps_{}gd'.format(
-        args.env_size, args.ssp_dim, args.hidden_size, args.n_sensors, args.seed, args.n_steps, args.train_goal_distance
+    fname = 'models/{}_{}dim_{}x{}_{}sensors_{}seed_{}steps_{}gd'.format(
+        args.env_size, args.ssp_dim, args.hidden_size, args.hidden_layers, args.n_sensors, args.seed, args.n_steps, args.train_goal_distance
     )
     if args.curriculum:
         fname += '_cur'
@@ -55,7 +56,7 @@ if os.path.exists(fname + '.zip'):
     model = PPO.load(fname)
 else:
     # policy_kwargs = dict(layers=[args.ssp_dim])
-    policy_kwargs = dict(net_arch=[args.hidden_size])
+    policy_kwargs = dict(net_arch=[args.hidden_size]*args.hidden_layers)
     model = PPO('MlpPolicy', env, verbose=args.verbose, policy_kwargs=policy_kwargs)
 
     n_evals = int(args.n_steps // args.eval_freq)
