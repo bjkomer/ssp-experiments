@@ -38,7 +38,7 @@ def to_band_region_ssp(v, angle, X, Y):
     return ret
 
 
-def grid_cell_encoder(dim, phases=(0, 0, 0), toroid_index=0):
+def grid_cell_encoder_old(dim, phases=(0, 0, 0), toroid_index=0):
     # vector from the center of all other rings, to the specific point on this set of rings
     n_toroids = (dim - 1)//2
 
@@ -72,21 +72,110 @@ def grid_cell_encoder(dim, phases=(0, 0, 0), toroid_index=0):
     pole[-1:dim // 2:-1] = np.conj(pole[1:(dim + 1) // 2])
 
     # midpoint of the origin and the pole
-    encoder = (origin + pole) / 2.
-    # encoder = origin
-    print('origin and pole')
-    print(origin)
-    print(pole)
+    return (np.fft.ifft(origin).real + np.fft.ifft(pole).real) / 2.
 
-    print('encoder')
-    print(encoder)
+    # # midpoint of the origin and the pole
+    # # encoder = (origin + pole) / 2.
+    # encoder = ((origin + pole) / 2.) #+ np.ones((dim,)) * 1./dim
+    # # encoder = origin
+    # # print('origin and pole')
+    # # print(origin)
+    # # print(pole)
+    # #
+    # # print('encoder')
+    # # print(encoder)
+    #
+    # # encoder = np.zeros((dim, ))
+    # # for n in range(n_toroids):
+    # #     if n != toroid_index:
+    # #         encoder +=
+    #
+    # return np.fft.ifft(encoder).real
 
-    # encoder = np.zeros((dim, ))
-    # for n in range(n_toroids):
-    #     if n != toroid_index:
-    #         encoder +=
+def grid_cell_encoder_other_old(dim, phases=(0, 0, 0), toroid_index=0):
+    # vector from the center of all other rings, to the specific point on this set of rings
+    n_toroids = (dim - 1)//2
 
-    return np.fft.ifft(encoder).real
+    encoder = np.zeros((dim,))
+
+    n_offsets = 40
+    offsets = np.linspace(0, 1, n_offsets+1)[:-1]
+
+    for offset in offsets:
+
+        origin = np.zeros(dim, dtype='Complex64')
+        origin[:] = np.exp(1.j*2*np.pi*offset)
+        origin[0] = 1
+
+        phi_xs, phi_ys = get_sub_phi(phi=phases, angle=0, multi_phi=True)
+
+        # modify the toroid of interest to point to the correct location
+        for i in range(3):
+            # origin[1+toroid_index*3+i] = phases[i]
+            origin[1 + toroid_index * 3 + i] = phi_xs[i]*phi_ys[i]
+
+        # set all conjugates
+        origin[-1:dim // 2:-1] = np.conj(origin[1:(dim + 1) // 2])
+
+        pole = np.zeros(dim, dtype='Complex64')
+        pole[:] = np.exp(1.j * (2 * np.pi * offset + np.pi))
+        pole[0] = 1
+
+        # fix the nyquist frequency if required
+        if dim % 2 == 0:
+            pole[dim // 2] = 1
+
+        # modify the toroid of interest to point to the correct location
+        for i in range(3):
+            # pole[1+toroid_index*3+i] = phases[i]
+            pole[1 + toroid_index * 3 + i] = phi_xs[i] * phi_ys[i]
+
+        # set all conjugates
+        pole[-1:dim // 2:-1] = np.conj(pole[1:(dim + 1) // 2])
+
+        # midpoint of the origin and the pole
+        encoder += (np.fft.ifft(origin).real + np.fft.ifft(pole).real) / 2.
+
+    encoder /= n_offsets
+
+    return encoder
+
+
+def grid_cell_encoder(dim, phi, angle, location=(0, 0), toroid_index=0):
+    # vector from the center of all other rings, to the specific point on this set of rings
+    n_toroids = (dim - 1)//2
+
+    origin = np.zeros(dim, dtype='Complex64')
+    origin[:] = 1
+
+    phi_xs, phi_ys = get_sub_phi_for_loc(location=location, phi=phi, angle=angle)
+
+    # modify the toroid of interest to point to the correct location
+    for i in range(3):
+        # origin[1+toroid_index*3+i] = phases[i]
+        origin[1 + toroid_index * 3 + i] = phi_xs[i]*phi_ys[i]
+
+    # set all conjugates
+    origin[-1:dim // 2:-1] = np.conj(origin[1:(dim + 1) // 2])
+
+    pole = np.zeros(dim, dtype='Complex64')
+    pole[:] = -1
+    pole[0] = 1
+
+    # fix the nyquist frequency if required
+    if dim % 2 == 0:
+        pole[dim // 2] = 1
+
+    # modify the toroid of interest to point to the correct location
+    for i in range(3):
+        # pole[1+toroid_index*3+i] = phases[i]
+        pole[1 + toroid_index * 3 + i] = phi_xs[i] * phi_ys[i]
+
+    # set all conjugates
+    pole[-1:dim // 2:-1] = np.conj(pole[1:(dim + 1) // 2])
+
+    # midpoint of the origin and the pole
+    return (np.fft.ifft(origin).real + np.fft.ifft(pole).real) / 2.
 
 
 def band_cell_encoder(dim, phase=0, toroid_index=0, band_index=0):
@@ -95,8 +184,10 @@ def band_cell_encoder(dim, phase=0, toroid_index=0, band_index=0):
     origin = np.zeros(dim, dtype='complex64')
     origin[:] = 1
 
+    phi_xs, phi_ys = get_sub_phi(phi=phase, angle=0)
+
     # modify the toroid of interest to point to the correct location
-    origin[1 + toroid_index * 3 + band_index] = phase
+    origin[1 + toroid_index * 3 + band_index] = phi_xs[band_index]*phi_ys[band_index]#phase
 
     # set all conjugates
     origin[-1:dim // 2:-1] = np.conj(origin[1:(dim + 1) // 2])
@@ -109,7 +200,7 @@ def band_cell_encoder(dim, phase=0, toroid_index=0, band_index=0):
         pole[dim // 2] = 1
 
     # modify the toroid of interest to point to the correct location
-    pole[1 + toroid_index * 3 + band_index] = phase
+    pole[1 + toroid_index * 3 + band_index] = phi_xs[band_index]*phi_ys[band_index]#phase
 
     # set all conjugates
     pole[-1:dim // 2:-1] = np.conj(pole[1:(dim + 1) // 2])
@@ -230,5 +321,20 @@ def get_sub_phi(phi, angle, multi_phi=False):
 
     xf = np.fft.fft(X.v)
     yf = np.fft.fft(Y.v)
+
+    # xf = np.fft.fft(X.v)**(1./sv)
+    # yf = np.fft.fft(Y.v)**(1./sv)
+
+    # xf = np.fft.fft(X.v)**(sv)
+    # yf = np.fft.fft(Y.v)**(sv)
+
+    return xf[1:4], yf[1:4]
+
+
+def get_sub_phi_for_loc(location=(0, 0), phi=2*np.pi, angle=0):
+    X, Y, sv = orthogonal_hex_dir_7dim(phi=phi, angle=angle, multi_phi=False)
+
+    xf = np.fft.fft(X.v)**location[0]
+    yf = np.fft.fft(Y.v)**location[1]
 
     return xf[1:4], yf[1:4]
