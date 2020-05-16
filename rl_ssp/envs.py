@@ -121,6 +121,7 @@ def create_env(args, goal_distance=0):
         'movement_cost':-.01,
         'goal_reward':10.,
         'goal_distance': goal_distance,
+        'normalize_actions': True,
     }
 
     env = GridWorldEnv(**config)

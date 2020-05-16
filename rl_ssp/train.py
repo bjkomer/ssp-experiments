@@ -4,7 +4,7 @@ import gridworlds
 import os
 import numpy as np
 
-from stable_baselines3 import PPO
+from stable_baselines3 import PPO, A2C
 from stable_baselines3.ppo import MlpPolicy
 from stable_baselines3.common.evaluation import evaluate_policy
 
@@ -17,6 +17,7 @@ parser = argparse.ArgumentParser('Train and RL agent on a gridworld task')
 parser.add_argument('--n-steps', type=int, default=1000000, help='total timesteps to train for')
 parser.add_argument('--n-demo-steps', type=int, default=1000, help='total timesteps to view demo for')
 parser.add_argument('--movement-type', type=str, default='holonomic', choices=['holonomic', 'directional'])
+parser.add_argument('--algo', type=str, default='ppo', choices=['ppo', 'a2c'])
 parser.add_argument('--ssp-dim', type=int, default=256)
 parser.add_argument('--hidden-size', type=int, default=256)
 parser.add_argument('--hidden-layers', type=int, default=1)
@@ -38,13 +39,23 @@ args = parser.parse_args()
 env = create_env(goal_distance=args.train_goal_distance, args=args)
 eval_env = create_env(goal_distance=args.train_goal_distance, args=args)
 
+if args.algo == 'ppo':
+    Algo = PPO
+elif args.algo == 'a2c':
+    Algoo = A2C
+else:
+    raise NotImplementedError
+
+
 if not os.path.exists('models'):
     os.makedirs('models')
 
 # If no model name specified, generate based on parameters
 if args.fname == '':
-    fname = 'models/{}_{}dim_{}x{}_{}sensors_{}seed_{}steps_{}gd'.format(
-        args.env_size, args.ssp_dim, args.hidden_size, args.hidden_layers, args.n_sensors, args.seed, args.n_steps, args.train_goal_distance
+    fname = 'models/{}_{}_{}dim_{}x{}_{}sensors_{}seed_{}steps_{}gd'.format(
+        args.env_size, args.algo, args.ssp_dim,
+        args.hidden_size, args.hidden_layers,
+        args.n_sensors, args.seed, args.n_steps, args.train_goal_distance
     )
     if args.curriculum:
         fname += '_cur'
