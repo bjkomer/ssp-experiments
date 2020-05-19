@@ -4,13 +4,14 @@ import numpy as np
 import pandas as pd
 import os
 from itertools import product
+from scipy.stats import ttest_ind
 
 # fname = '/home/bjkomer/ssp-navigation/ssp_navigation/eval_data_tt/med_dim_adam_exps/combined_data.csv'
 # fname = '/home/bjkomer/ssp-navigation/ssp_navigation/eval_data_tt/bounds_exps/combined_data.csv'
 
-bounds = True#False
-label_fontsize = 20
-tick_fontsize = 16
+bounds = False#True#False
+label_fontsize = 15#20
+tick_fontsize = 12#16
 
 if bounds:
     folder = 'data/bounds_exps'
@@ -138,19 +139,39 @@ print(df)
 for i in range(len(old_names)):
     df = df.replace(old_names[i], order[i])
 
-plt.figure()
+plt.figure(figsize=(8, 5), tight_layout=True)
 ax = sns.barplot(data=df, x='Encoding', y='Angular RMSE', hue='Number of Mazes', order=order)
 ax.set_xlabel('Encoding', fontsize=label_fontsize)
 ax.set_ylabel('RMSE', fontsize=label_fontsize)
 ax.tick_params(labelsize=tick_fontsize)
 sns.despine()
 
-plt.figure()
+plt.figure(figsize=(8, 5), tight_layout=True)
 ax = sns.barplot(data=df, x='Encoding', y='Angular RMSE', order=order)
 ax.set_xlabel('Encoding', fontsize=label_fontsize)
 ax.set_ylabel('RMSE', fontsize=label_fontsize)
 ax.tick_params(labelsize=tick_fontsize)
 sns.despine()
 
+
+# df_test = df[df['Number of Mazes'] == 25]
+df_test = df[df['Number of Mazes'] == 50]
+
+data1 = df_test[df_test['Encoding'] == 'Hex SSP']['Angular RMSE']
+# data1 = df_test[df_test['Encoding'] == 'RBF']['Angular RMSE']
+data2 = df_test[df_test['Encoding'] == 'SSP']['Angular RMSE']
+
+# data1 = df_test[df_test['Encoding'] == 'Learned']['Angular RMSE']
+# data2 = df_test[df_test['Encoding'] == 'Tile-Code']['Angular RMSE']
+
+print(data1)
+print(data2)
+
+stat, p = ttest_ind(data1, data2)
+print('stat=%.3f, p=%.5f' % (stat, p))
+if p > 0.05:
+    print('Probably the same distribution')
+else:
+    print('Probably different distributions')
 
 plt.show()
