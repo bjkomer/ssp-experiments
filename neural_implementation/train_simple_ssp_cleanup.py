@@ -190,7 +190,7 @@ def main():
     repr_dim = len(X.v)
 
     dataset_name = 'data/simple_ssp_cleanup_dataset_dim{}_seed{}_items{}_samples{}.npz'.format(
-        args.dim, args.seed, args.n_items, args.n_samples
+        repr_dim, args.seed, args.n_items, args.n_samples
     )
 
     if not os.path.exists('data'):
@@ -218,7 +218,7 @@ def main():
             # y_axis_sp=y_axis_sp,
             encoding_func=encoding_func,
             n_samples=args.n_samples,
-            dim=args.dim,
+            dim=repr_dim,
             n_items=args.n_items,
             limits=args.limits,
             seed=args.seed,
@@ -260,7 +260,7 @@ def main():
         dataset_test, batch_size=len(dataset_test), shuffle=False, num_workers=0,
     )
 
-    model = FeedForward(input_size=args.dim, hidden_size=args.hidden_size, output_size=args.dim)
+    model = FeedForward(input_size=repr_dim, hidden_size=args.hidden_size, output_size=repr_dim)
 
     # Open a tensorboard writer if a logging directory is given
     if args.logdir != '':
