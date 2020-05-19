@@ -160,8 +160,8 @@ def main():
     parser.add_argument('--n-items', type=int, default=12, help='number of items in memory. Proxy for noisiness')
     parser.add_argument('--dim', type=int, default=512, help='Dimensionality of the semantic pointers')
     parser.add_argument('--hidden-size', type=int, default=512, help='Hidden size of the cleanup network')
-    parser.add_argument('--limits', type=str, default="0,13,0,13", help='The limits of the space')
-    # parser.add_argument('--limits', type=str, default="-5,5,-5,5", help='The limits of the space')
+    # parser.add_argument('--limits', type=str, default="0,13,0,13", help='The limits of the space')
+    parser.add_argument('--limits', type=str, default="-5,5,-5,5", help='The limits of the space')
     parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--lr', type=float, default=0.001)
@@ -182,15 +182,13 @@ def main():
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
-
-
     phis = (np.pi * .75, np.pi / 2., np.pi / 3., np.pi / 5., np.pi * .4, np.pi * .6)
     # angles = rng.uniform(0, 2*np.pi, size=len(phis))#(0, np.pi/3., np.pi/5.)
     angles = (0, np.pi * .3, np.pi * .2, np.pi * .4, np.pi * .1, np.pi * .5)
     X, Y = orthogonal_hex_dir(phis=phis, angles=angles)
 
     repr_dim = len(X.v)
-    
+
     dataset_name = 'data/simple_ssp_cleanup_dataset_dim{}_seed{}_items{}_samples{}.npz'.format(
         args.dim, args.seed, args.n_items, args.n_samples
     )
@@ -200,7 +198,7 @@ def main():
 
 
     def encoding_func(x, y):
-        return encode_point(x, y, X, Y)
+        return encode_point(x, y, X, Y).v
 
     limit_low = args.limits[0]
     limit_high = args.limits[1]
