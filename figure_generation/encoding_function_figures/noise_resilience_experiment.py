@@ -140,7 +140,7 @@ else:
 
         # fixed number of points to test
         xs_coarse = xs[::limit]
-        ys_coarse = xs[::limit]
+        ys_coarse = ys[::limit]
 
         encoding_func, repr_dim = get_encoding_function(config, limit_low=-limit, limit_high=limit)
 
@@ -158,7 +158,7 @@ else:
 
         for i, x in enumerate(xs_coarse):
             for j, y in enumerate(ys_coarse):
-                flat_heatmap_vectors[i * len(ys_coarse) + j, :] = heatmap_vectors[i, j, :].copy()
+                flat_heatmap_vectors[i * len(ys_coarse) + j, :] = encoding_func(x, y)
                 true_pos[i * len(ys_coarse) + j, 0] = x
                 true_pos[i * len(ys_coarse) + j, 1] = y
 
