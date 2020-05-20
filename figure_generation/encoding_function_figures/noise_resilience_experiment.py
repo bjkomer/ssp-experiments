@@ -23,13 +23,15 @@ args = parser.parse_args()
 
 res_base = 32
 # limits = [1, 2, 5, 10, 20, 50, 100]
-limits = [1, 2, 4, 8, 16, 32, 64]
+limits = [1, 2, 4, 8, 16, 32, 64, 128]
 
 dim = 256
 
-noise_levels = [0, 0.00001, 0.0001, 0.001, 0.01, 0.1, 1.0, 10.0]
+# noise_levels = [0, 0.00001, 0.0001, 0.001, 0.01, 0.1, 1.0, 10.0]
 
-seeds = [0, 1, 2]
+noise_levels = [0.0001, 0.001, 0.005, 0.01, 0.05, 0.1, 1.0]
+
+seeds = [0, 1, 2, 3, 4]
 
 configs = []
 
@@ -120,7 +122,8 @@ def ssp_to_loc_v_low_mem(sps, heatmap_vectors, xs, ys):
 
     return locs
 
-fname_csv = 'noise_resilience_results.csv'
+
+fname_csv = 'noise_resilience_results_{}seeds.csv'.format(len(seeds))
 
 if os.path.exists(fname_csv) and not args.overwrite_output:
     df = pd.read_csv(fname_csv)
@@ -133,7 +136,7 @@ else:
 
         limit = config.limit_high
 
-        res = res_base*limit
+        res = int(res_base*limit)
 
         xs = np.linspace(-limit, limit, res)
         ys = np.linspace(-limit, limit, res)
@@ -187,6 +190,7 @@ else:
                     'Dimensions': repr_dim,
                     'Noise Level': noise_level,
                     'Limit': config.limit_high,
+                    'Size': config.limit_high * 2,  # full size of the environment
                     'Encoding': config.spatial_encoding,
                     'RMSE': rmse,
                     'Seed': config.seed
@@ -205,9 +209,10 @@ display = os.environ.get('DISPLAY')
 if display is None or 'localhost' in display:
     print("No Display detected, skipping plot")
 else:
-    # ax = sns.lineplot(data=df, x='Limit', y='RMSE', hue='Encoding')
-    df = df[df['Limit'] == 8]
-    ax = sns.lineplot(data=df, x='Noise Level', y='RMSE', hue='Encoding')
+    # df = df[df['Noise Level'] == 0.001]
+    ax = sns.lineplot(data=df, x='Limit', y='RMSE', hue='Encoding')
+    # df = df[df['Limit'] == 8]
+    # ax = sns.lineplot(data=df, x='Noise Level', y='RMSE', hue='Encoding')
     ax.set_xscale('log')
 
     plt.show()
