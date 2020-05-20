@@ -18,6 +18,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dim', type=int, default=256)
 parser.add_argument('--ssp-scaling', type=int, default=0.5)
 parser.add_argument('--overwrite-output', action='store_true')
+parser.add_argument('--include-discrete-methods', action='store_true')
 args = parser.parse_args()
 
 res_base = 32
@@ -70,7 +71,10 @@ for limit in limits:
         ) for seed in seeds
     ]
 
-    configs += ssp_configs + pcgauss_configs + onehot_configs + tilecoding_configs
+    if args.include_discrete_methods:
+        configs += ssp_configs + pcgauss_configs + onehot_configs + tilecoding_configs
+    else:
+        configs += ssp_configs + pcgauss_configs
 
 
 def ssp_to_loc_v_low_mem(sps, heatmap_vectors, xs, ys):
