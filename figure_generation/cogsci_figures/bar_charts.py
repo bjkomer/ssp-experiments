@@ -9,7 +9,7 @@ from scipy.stats import ttest_ind
 # fname = '/home/bjkomer/ssp-navigation/ssp_navigation/eval_data_tt/med_dim_adam_exps/combined_data.csv'
 # fname = '/home/bjkomer/ssp-navigation/ssp_navigation/eval_data_tt/bounds_exps/combined_data.csv'
 
-bounds = False#True#False
+bounds = False
 label_fontsize = 15#20
 tick_fontsize = 12#16
 
@@ -146,6 +146,7 @@ ax.set_ylabel('RMSE', fontsize=label_fontsize)
 ax.tick_params(labelsize=tick_fontsize)
 sns.despine()
 
+plt.legend(title='Number of Mazes', fontsize='x-large', title_fontsize='14')
 plt.figure(figsize=(8, 5), tight_layout=True)
 ax = sns.barplot(data=df, x='Encoding', y='Angular RMSE', order=order)
 ax.set_xlabel('Encoding', fontsize=label_fontsize)
@@ -153,6 +154,18 @@ ax.set_ylabel('RMSE', fontsize=label_fontsize)
 ax.tick_params(labelsize=tick_fontsize)
 sns.despine()
 
+
+# computing some stats:
+for mazes in [10, 25, 50]:
+    print('{} Mazes'.format(mazes))
+    for encoding in order:
+        df_tmp = df[df['Encoding'] == encoding]
+        df_tmp = df_tmp[df_tmp['Number of Mazes'] == mazes]
+
+        mean = df_tmp['Angular RMSE'].mean()
+        std = df_tmp['Angular RMSE'].std()
+
+        print("{}\n\t Mean: {}\n\tStd: {}".format(encoding, mean, std))
 
 # df_test = df[df['Number of Mazes'] == 25]
 df_test = df[df['Number of Mazes'] == 50]
