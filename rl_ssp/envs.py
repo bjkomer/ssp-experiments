@@ -2,27 +2,23 @@ from gridworlds.envs import GridWorldEnv, generate_obs_dict
 from spatial_semantic_pointers.utils import make_good_unitary
 import numpy as np
 
-def create_env(args):
-
-    if args.env_size == 'miniscule':
-        map_array = np.array([
+env_sizes = {
+    'miniscule': np.array([
             [1, 1, 1, 1, 1],
             [1, 0, 0, 0, 1],
             [1, 0, 0, 0, 1],
             [1, 0, 0, 0, 1],
             [1, 1, 1, 1, 1],
-        ])
-    elif args.env_size == 'tiny':
-        map_array = np.array([
+        ]),
+    'tiny': np.array([
             [1, 1, 1, 1, 1, 1],
             [1, 0, 1, 0, 0, 1],
             [1, 0, 0, 0, 0, 1],
             [1, 0, 1, 0, 0, 1],
             [1, 1, 0, 0, 0, 1],
             [1, 1, 1, 1, 1, 1],
-        ])
-    elif args.env_size == 'small':
-        map_array = np.array([
+        ]),
+    'small': np.array([
             [1, 1, 1, 1, 1, 1, 1, 1],
             [1, 0, 1, 1, 0, 0, 0, 1],
             [1, 0, 0, 0, 1, 1, 0, 1],
@@ -31,9 +27,8 @@ def create_env(args):
             [1, 1, 1, 0, 1, 1, 0, 1],
             [1, 1, 0, 0, 1, 0, 0, 1],
             [1, 1, 1, 1, 1, 1, 1, 1],
-        ])
-    elif args.env_size == 'medium':
-        map_array = np.array([
+        ]),
+    'medium': np.array([
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
             [1, 0, 1, 0, 0, 1, 0, 0, 0, 1],
             [1, 0, 1, 1, 0, 0, 0, 0, 0, 1],
@@ -44,23 +39,26 @@ def create_env(args):
             [1, 1, 1, 0, 0, 0, 1, 1, 0, 1],
             [1, 1, 0, 0, 0, 0, 1, 0, 0, 1],
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        ])
-    elif args.env_size == 'large':
-        map_array = np.array([
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 0, 1, 0, 0, 1, 0, 0, 0, 1],
-            [1, 0, 1, 1, 0, 0, 0, 0, 0, 1],
-            [1, 0, 0, 1, 0, 0, 1, 1, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 1, 0, 1],
-            [1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
-            [1, 0, 1, 0, 1, 0, 0, 0, 0, 1],
-            [1, 1, 1, 0, 0, 0, 1, 1, 0, 1],
-            [1, 1, 0, 0, 0, 0, 1, 0, 0, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        ])
-    else:
-        raise NotImplementedError
+        ]),
+    'large': np.array([
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+            [1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1],
+            [1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1],
+            [1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 1],
+            [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        ]),
+}
 
+
+def create_env(args, goal_distance=0):
+
+    map_array = env_sizes[args.env_size]
 
     base_params = {
         'full_map_obs': False,
@@ -102,6 +100,10 @@ def create_env(args):
         'y_axis_vec':Y,
     }
 
+    if args.regular_coordinates:
+        specific_params['location'] = 'normalized'
+        specific_params['goal_loc'] = 'normalized'
+
 
     # Merge dictionaries, replacing base params with specific params
     params = {**base_params, **specific_params}
@@ -118,8 +120,15 @@ def create_env(args):
         'wall_penalty':-.01,#-1.,
         'movement_cost':-.01,
         'goal_reward':10.,
+        'goal_distance': goal_distance,
+        'normalize_actions': True,
     }
 
     env = GridWorldEnv(**config)
 
     return env
+
+
+def get_max_dist(env_size):
+    map_array = env_sizes[env_size]
+    return map_array.shape[0] - 2

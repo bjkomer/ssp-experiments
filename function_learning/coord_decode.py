@@ -33,7 +33,7 @@ def main():
     parser.add_argument('--spatial-encoding', type=str, default='hex-ssp',
                         choices=[
                             'ssp', 'hex-ssp', 'periodic-hex-ssp', 'grid-ssp', 'ind-ssp',
-                            'random', '2d', '2d-normalized', 'one-hot', 'hex-trig',
+                            'random', '2d', '2d-normalized', 'one-hot', 'hex-trig', 'sub-toroid-ssp', 'proj-ssp',
                             'trig', 'random-trig', 'random-rotated-trig', 'random-proj', 'legendre',
                             'learned', 'learned-normalized', 'frozen-learned', 'frozen-learned-normalized',
                             'pc-gauss', 'pc-dog', 'tile-coding'
@@ -52,6 +52,8 @@ def main():
     parser.add_argument('--ssp-scaling', type=float, default=1.0)
     parser.add_argument('--grid-ssp-min', type=float, default=0.25, help='minimum plane wave scale')
     parser.add_argument('--grid-ssp-max', type=float, default=2.0, help='maximum plane wave scale')
+    parser.add_argument('--n-proj', type=int, default=3, help='projection dimension for sub toroids')
+    parser.add_argument('--scale-ratio', type=float, default=(1 + 5 ** 0.5) / 2, help='ratio between sub toroid scales')
     parser.add_argument('--hidden-size', type=int, default=512)
 
     parser.add_argument('--optimizer', type=str, default='adam', choices=['rmsprop', 'adam', 'sgd'])

@@ -4,61 +4,47 @@ import numpy as np
 import pandas as pd
 import os
 from itertools import product
-from scipy.stats import ttest_ind
 
 # fname = '/home/bjkomer/ssp-navigation/ssp_navigation/eval_data_tt/med_dim_adam_exps/combined_data.csv'
 # fname = '/home/bjkomer/ssp-navigation/ssp_navigation/eval_data_tt/bounds_exps/combined_data.csv'
 
-bounds = False
+bounds = False#True#False
 label_fontsize = 15#20
 tick_fontsize = 12#16
 
-if bounds:
-    folder = 'data/bounds_exps'
-    old_names = ['hex-ssp', 'ssp', 'pc-gauss', 'tile-coding', 'one-hot']
-    order = ['Hex SSP', 'SSP', 'RBF', 'Tile-Code', 'One-Hot']
-else:
-    folder = 'data/med_dim_adam_exps'
-    old_names = ['hex-ssp', 'ssp', 'pc-gauss', 'tile-coding', 'one-hot', 'learned', '2d', 'random']
-    order = ['Hex SSP', 'SSP', 'RBF', 'Tile-Code', 'One-Hot', 'Learned', '2D', 'Random']
+folder_bounds = 'data/bounds_exps'
+folder_other = 'data/med_dim_adam_exps'
+old_names = ['hex-ssp', 'ssp', 'pc-gauss', 'tile-coding', 'one-hot', 'learned', '2d', 'random']
+order = ['Hex SSP', 'SSP', 'RBF', 'Tile-Code', 'One-Hot', 'Learned', '2D', 'Random']
 
 fname = 'combined_data.csv'
 
-combined_fname = os.path.join(folder, fname)
 
 best_epoch = False
 
+df = pd.DataFrame()
 
-if os.path.isfile(combined_fname) and False:
-    # combined file already exists, load it
-    df = pd.read_csv(combined_fname)
-else:
-    # combined file does not exist, create it
+for folder in [folder_bounds, folder_other]:
     files = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
 
-    df = pd.DataFrame()
-
     for file in files:
-        if file == fname:
+        if 'combined' in file:
             continue
         df_temp = pd.read_csv(os.path.join(folder, file))
 
-        # if 'SSP Scaling' not in df_temp:
-        #     df_temp['SSP Scaling'] = 0.5
-
-        # only want to look at the correct sigma results in this case
         if 'bounds_exps' in folder:
-            # if np.any(df_temp['Encoding'] == 'pc-gauss') and np.any(df_temp['Sigma'] != 0.375):
+            # only want to look at the correct sigma results in this case
             if ('pc-gauss' in file) and ('scaling' in file):
                 continue
             else:
                 df = df.append(df_temp)
+        elif 'med_dim_adam_exps' in folder:
+            # only want the ones not originally included in bounds exps
+            if ('learned' in file) or ('2d' in file) or ('random' in file):
+                df = df.append(df_temp)
         else:
 
             df = df.append(df_temp)
-
-    df.to_csv(combined_fname)
-
 
 if best_epoch:
     # Consider only the number of epochs trained for that result in the best test RMSE
@@ -146,7 +132,6 @@ ax.set_ylabel('RMSE', fontsize=label_fontsize)
 ax.tick_params(labelsize=tick_fontsize)
 sns.despine()
 
-plt.legend(title='Number of Mazes', fontsize='x-large', title_fontsize='14')
 plt.figure(figsize=(8, 5), tight_layout=True)
 ax = sns.barplot(data=df, x='Encoding', y='Angular RMSE', order=order)
 ax.set_xlabel('Encoding', fontsize=label_fontsize)
@@ -154,37 +139,5 @@ ax.set_ylabel('RMSE', fontsize=label_fontsize)
 ax.tick_params(labelsize=tick_fontsize)
 sns.despine()
 
-
-# computing some stats:
-for mazes in [10, 25, 50]:
-    print('{} Mazes'.format(mazes))
-    for encoding in order:
-        df_tmp = df[df['Encoding'] == encoding]
-        df_tmp = df_tmp[df_tmp['Number of Mazes'] == mazes]
-
-        mean = df_tmp['Angular RMSE'].mean()
-        std = df_tmp['Angular RMSE'].std()
-
-        print("{}\n\t Mean: {}\n\tStd: {}".format(encoding, mean, std))
-
-# df_test = df[df['Number of Mazes'] == 25]
-df_test = df[df['Number of Mazes'] == 50]
-
-data1 = df_test[df_test['Encoding'] == 'Hex SSP']['Angular RMSE']
-# data1 = df_test[df_test['Encoding'] == 'RBF']['Angular RMSE']
-data2 = df_test[df_test['Encoding'] == 'SSP']['Angular RMSE']
-
-# data1 = df_test[df_test['Encoding'] == 'Learned']['Angular RMSE']
-# data2 = df_test[df_test['Encoding'] == 'Tile-Code']['Angular RMSE']
-
-print(data1)
-print(data2)
-
-stat, p = ttest_ind(data1, data2)
-print('stat=%.3f, p=%.5f' % (stat, p))
-if p > 0.05:
-    print('Probably the same distribution')
-else:
-    print('Probably different distributions')
 
 plt.show()

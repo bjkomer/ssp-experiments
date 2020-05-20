@@ -26,7 +26,7 @@ seeds = [1, 2, 3, 4, 5]
 encodings = [
     'hex-ssp',
     'one-hot',
-    # 'tile-coding',
+    'tile-coding',
     'pc-gauss',
     'random',
     'ssp',
@@ -90,9 +90,11 @@ for nmaze in n_mazes:
                     }, ignore_index=True
                 )
 
+fig, ax = plt.subplots(1, 1, tight_layout=True, figsize=(6, 4))
+
 # sns.barplot('Encoding', 'Test MSE Loss', hue='Mazes', data=df, order=order)
 # sns.barplot('Encoding', 'Test RMSE', hue='Mazes', data=df, order=order)
-sns.barplot('Encoding', 'Test RMSE', data=df, order=order)
+sns.barplot('Encoding', 'Test RMSE', data=df, order=order, ax=ax)
 sns.despine()
 
 plt.title("Localization Results")
