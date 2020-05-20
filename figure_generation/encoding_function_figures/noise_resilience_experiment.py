@@ -165,7 +165,9 @@ else:
         for noise_level in noise_levels:
 
             rng = np.random.RandomState(seed=config.seed)
-            noisy_encodings = flat_heatmap_vectors + rng.normal(0, noise_level, size=(len(xs)*len(ys), repr_dim))
+            noisy_encodings = flat_heatmap_vectors + rng.normal(
+                0, noise_level, size=(len(xs_coarse)*len(ys_coarse), repr_dim)
+            )
 
             predictions = ssp_to_loc_v(
                 noisy_encodings,
