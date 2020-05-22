@@ -15,6 +15,7 @@ import seaborn as sns
 
 parser = argparse.ArgumentParser()
 # parser = add_encoding_params(parser)
+parser.add_argument('--dim', type=int, default=256)
 parser.add_argument('--ssp-scaling', type=int, default=0.5)
 parser.add_argument('--overwrite-output', action='store_true')
 args = parser.parse_args()
@@ -57,14 +58,14 @@ for limit in limits:
     # Seed has no effect on one-hot encoding or legendre
     onehot_configs = [
         argparse.Namespace(
-            spatial_encoding='one-hot', dim=4096,
+            spatial_encoding='one-hot', dim=args.dim*16,  # 4096
             seed=0,
             limit_low=-limit, limit_high=limit,
         )
     ]
     legendre_configs = [
         argparse.Namespace(
-            spatial_encoding='legendre', dim=256,
+            spatial_encoding='legendre', dim=args.dim,
             seed=0,
             limit_low=-limit, limit_high=limit,
         )
@@ -72,7 +73,7 @@ for limit in limits:
 
     tilecoding_configs = [
         argparse.Namespace(
-            spatial_encoding='tile-coding', dim=4096,
+            spatial_encoding='tile-coding', dim=args.dim*16,  # 4096
             seed=seed,
             limit_low=-limit, limit_high=limit,
             # n_bins=8, n_tiles=4,
