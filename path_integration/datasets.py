@@ -132,6 +132,99 @@ def train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_
     return trainloader, testloader
 
 
+def train_test_loaders_jit(data, n_train_samples=1000, n_test_samples=1000, rollout_length=100,
+                       batch_size=10, encoding='ssp', encoding_func=None, encoding_dim=512,
+                       hd_encoding_func=None, hd_dim=0,
+                       train_split=0.8,
+                       pin_memory=False,
+                       device='cpu',
+                       rng=np.random
+                       ):
+    # this version doesn't precompute all encodings, just encodes as needed
+
+    positions = data['positions']
+
+    cartesian_vels = data['cartesian_vels']
+
+    n_trajectories = positions.shape[0]
+    trajectory_length = positions.shape[1]
+
+    # Split training and testing to be independent
+    n_train_trajectories = int(train_split * n_trajectories)
+
+    for test_set, n_samples in enumerate([n_train_samples, n_test_samples]):
+
+        velocity_inputs = np.zeros((n_samples, rollout_length, 2))
+
+        # these include outputs for every time-step
+        ssp_outputs = np.zeros((n_samples, rollout_length, encoding_dim))
+
+        ssp_inputs = np.zeros((n_samples, encoding_dim))
+
+        # for the 2D encoding method
+        pos_outputs = np.zeros((n_samples, rollout_length, 2))
+
+        pos_inputs = np.zeros((n_samples, 2))
+
+        for i in range(n_samples):
+            # choose random trajectory
+            if test_set == 0:
+                traj_ind = rng.randint(low=n_train_trajectories, high=n_trajectories)
+            else:
+                traj_ind = rng.randint(low=0, high=n_train_trajectories)
+            # choose random segment of trajectory
+            step_ind = rng.randint(low=0, high=trajectory_length - rollout_length - 1)
+
+            # index of final step of the trajectory
+            step_ind_final = step_ind + rollout_length
+
+            velocity_inputs[i, :, :] = cartesian_vels[traj_ind, step_ind:step_ind_final, :]
+
+            if encoding != '2d':
+                # ssp output is shifted by one timestep (since it is a prediction of the future by one step)
+                # ssp_outputs[i, :, :] = ssps[traj_ind, step_ind + 1:step_ind_final + 1, :]
+                for ji, j in enumerate(range(step_ind + 1, step_ind_final + 1)):
+                    ssp_outputs[i, ji, :] = encoding_func(
+                        x=positions[traj_ind, j, 0],
+                        y=positions[traj_ind, j, 1]
+                    )
+                # initial state of the LSTM is a linear transform of the ground truth ssp
+                # ssp_inputs[i, :] = ssps[traj_ind, step_ind]
+                ssp_inputs[i, :] = encoding_func(
+                    x=positions[traj_ind, step_ind, 0],
+                    y=positions[traj_ind, step_ind, 1]
+                )
+
+            # for the 2D encoding method
+            pos_outputs[i, :, :] = positions[traj_ind, step_ind + 1:step_ind_final + 1, :]
+            pos_inputs[i, :] = positions[traj_ind, step_ind]
+
+        if encoding == '2d':
+            dataset = SSPTrajectoryDataset(
+                velocity_inputs=velocity_inputs,
+                ssp_inputs=pos_inputs,
+                ssp_outputs=pos_outputs,
+                device=device,
+            )
+        else:
+            dataset = SSPTrajectoryDataset(
+                velocity_inputs=velocity_inputs,
+                ssp_inputs=ssp_inputs,
+                ssp_outputs=ssp_outputs,
+                device=device,
+            )
+
+        if test_set == 0:
+            trainloader = torch.utils.data.DataLoader(
+                dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=pin_memory
+            )
+        elif test_set == 1:
+            testloader = torch.utils.data.DataLoader(
+                dataset, batch_size=n_samples, shuffle=True, num_workers=0, pin_memory=pin_memory
+            )
+
+    return trainloader, testloader
+
 def angular_train_test_loaders(data, n_train_samples=1000, n_test_samples=1000, rollout_length=100,
                        batch_size=10, encoding='ssp', encoding_func=None, encoding_dim=512,
                        hd_encoding_func=None, hd_dim=0,

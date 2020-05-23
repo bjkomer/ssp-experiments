@@ -9,6 +9,75 @@ from nengolib.signal import Identity, cont2discrete
 from nengolib.synapses import LegendreDelay
 
 
+def cconv_f(a, bf):
+    af = np.fft.fft(a)
+    return np.fft.ifft(af*bf).real
+
+
+class CircConvPathIntegrationModel(object):
+
+    def __init__(self, x_axis_vec, y_axis_vec, unroll_length=100, dt=0.02, scaling=0.5):
+
+        self.x_axis_vec = x_axis_vec
+        self.y_axis_vec = y_axis_vec
+        self.xf = np.fft.fft(self.x_axis_vec)
+        self.yf = np.fft.fft(self.y_axis_vec)
+        self.unroll_length = unroll_length
+        self.dim = len(self.x_axis_vec)
+        self.dt = dt
+        # self.dt = dt/scaling
+        # self.dt = dt*scaling
+
+    def forward(self, velocity_inputs, initial_ssp):
+
+        batch_size = velocity_inputs[0].shape[0]
+
+        output = np.zeros((self.unroll_length+1, batch_size, self.dim))
+
+        # vel = velocity_inputs.detach().numpy()
+        init_ssp = initial_ssp.detach().numpy()
+
+        # TODO: improve efficiency by vectorizing
+        for bi in range(batch_size):
+            # output[0, bi, :] = initial_ssp[bi, :]
+            output[0, bi, :] = init_ssp[bi, :]
+            for ri in range(self.unroll_length):
+                # vel_ssp = encode_point(velocity_inputs[ri][bi, 0], velocity_inputs[ri][bi, 1])
+                # vel_f = (self.xf**velocity_inputs[ri][bi, 0])*(self.yf**velocity_inputs[ri][bi, 1])
+                # vel_f = (self.xf ** vel[ri][bi, 0]) * (self.yf ** vel[ri][bi, 1])
+                vel = velocity_inputs[ri].detach().numpy()*self.dt
+                vel_f = (self.xf ** vel[bi, 0]) * (self.yf ** vel[bi, 1])
+                output[ri + 1, bi, :] = cconv_f(output[ri, bi, :], vel_f)
+
+        return torch.Tensor(output[1:, :, :])
+
+
+class Simple2DPathIntegrationModel(object):
+
+    def __init__(self, unroll_length=100, dt=0.02):
+        self.unroll_length = unroll_length
+        self.dt = dt
+
+    def forward(self, velocity_inputs, initial_ssp):
+
+        batch_size = velocity_inputs[0].shape[0]
+
+        output = np.zeros((self.unroll_length + 1, batch_size, 2))
+
+        # vel = velocity_inputs.detach().numpy()
+        init_ssp = initial_ssp.detach().numpy()
+
+        # TODO: improve efficiency by vectorizing
+        for bi in range(batch_size):
+            # output[0, bi, :] = initial_ssp[bi, :]
+            output[0, bi, :] = init_ssp[bi, :]
+            for ri in range(self.unroll_length):
+                vel = velocity_inputs[ri].detach().numpy()*self.dt
+                output[ri + 1, bi, :] = output[ri, bi, :] + vel[bi, :]
+
+        return torch.Tensor(output[1:, :, :])
+
+
 class SSPPathIntegrationModel(nn.Module):
 
     def __init__(self, input_size=2, lstm_hidden_size=128, linear_hidden_size=512,
