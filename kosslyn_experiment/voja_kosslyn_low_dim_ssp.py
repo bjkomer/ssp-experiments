@@ -40,6 +40,7 @@ if __name__ == "__main__":
     parser.add_argument('--phi', type=float, default=0.2)
     parser.add_argument('--randomize_vectors', action='store_true')
     parser.add_argument('--file-name', type=str, default="output/exp_data_kosslyn_low_dim_hex")
+    parser.add_argument('--item-seed', type=int, default=-1, help='Seed for random item locations')
 
     args = parser.parse_args()
 
@@ -68,14 +69,28 @@ random_inputs = False
 # if values are normalized before going into the voja rule
 normalize = True
 
-items = OrderedDict({"Tree": np.array([1, 2]),
-                     "Pond": np.array([4, 4]),
-                     "Well": np.array([6, 1]),
-                     "Rock": np.array([2, 7]),
-                     "Reed": np.array([9, 3]),
-                     "Lake": np.array([8, 8]),
-                     "Bush": np.array([1, 3]),
-                     })
+if args.item_seed == -1:
+    # fixed demo locations
+    items = OrderedDict({"Tree": np.array([1, 2]),
+                         "Pond": np.array([4, 4]),
+                         "Well": np.array([6, 1]),
+                         "Rock": np.array([2, 7]),
+                         "Reed": np.array([9, 3]),
+                         "Lake": np.array([8, 8]),
+                         "Bush": np.array([1, 3]),
+                         })
+else:
+    # random locations
+    rng_items = np.random.RandomState(seed=args.item_seed)
+    locs = rng_items.uniform(0, 10, size=(7, 2))
+    items = OrderedDict({"Tree": locs[0, :],
+                         "Pond": locs[1, :],
+                         "Well": locs[2, :],
+                         "Rock": locs[3, :],
+                         "Reed": locs[4, :],
+                         "Lake": locs[5, :],
+                         "Bush": locs[6, :]
+                         })
 
 shape = (10, 10)
 
