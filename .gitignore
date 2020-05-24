@@ -3,10 +3,17 @@
 *.npz
 *.old
 *.pyc
+*.csv
+*.cfg
+*.pdf
+*.png
 .idea
 __pycache__
 
 # output files
+
+*/output/*
+
 pytorch/maze_datasets/
 pytorch/maze_solve_function/
 pytorch/multi_maze_solve_function/
