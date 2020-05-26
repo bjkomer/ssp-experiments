@@ -23,8 +23,9 @@ parser.add_argument('--n-items', type=int, default=7)
 parser.add_argument('--duration', type=int, default=50)
 parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--env-size', type=int, default=10)
-parser.add_argument('--time-per-item', type=int, default=.5) #3
+parser.add_argument('--time-per-item', type=int, default=1.0) #3
 parser.add_argument('--sim-thresh', type=float, default=0.4)
+parser.add_argument('--dir-mag-limit', type=float, default=1.0)
 
 if not os.path.exists('output'):
     os.makedirs('output')
@@ -181,6 +182,7 @@ with model:
             time_per_item=args.time_per_item,
             num_test_pairs=50,
             sim_thresh=args.sim_thresh,
+            dir_mag_limit=args.dir_mag_limit,
             ssp_dir=True,
             encode_func=encode_func,
             decode_func=decode_func,

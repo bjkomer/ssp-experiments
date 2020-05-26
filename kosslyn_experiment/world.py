@@ -216,7 +216,7 @@ class ExperimentControl(object):
     """
 
     def __init__(self, items, vocab, file_name, time_per_item=3, num_test_pairs=50, sim_thresh=.8,
-                 ssp_dir=True, encode_func=None, decode_func=None):
+                 dir_mag_limit=1.0, ssp_dir=True, encode_func=None, decode_func=None):
 
         # Dictionary of {item: location}
         self.items = items
@@ -247,6 +247,8 @@ class ExperimentControl(object):
 
         # threshold for similarity
         self.sim_thresh = sim_thresh
+        # 'velocity' of the circular convolution
+        self.dir_mag_limit = dir_mag_limit
 
         # Copy of the item vocab used
         self.vocab = vocab
@@ -366,6 +368,7 @@ class ExperimentControl(object):
                 # 0.25 should be within hitting distance
                 if mag > 0.25:
                     displacement = displacement / mag
+                    displacement *= self.dir_mag_limit
                 self.ret_vec[:self.dim] = self.encode_func(displacement)
             else:
                 cur_coord = x[:2]
@@ -445,8 +448,8 @@ class ExperimentControl(object):
                 else:
                     # at target, don't need to move
                     self.ret_vec[:2] = 0
-            else:
-                print(np.dot(self.vectors[self.item_index], vis))
+            # else:
+            #     print(np.dot(self.vectors[self.item_index], vis))
 
         return self.ret_vec
 
