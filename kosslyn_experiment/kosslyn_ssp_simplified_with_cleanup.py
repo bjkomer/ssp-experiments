@@ -32,8 +32,11 @@ if not os.path.exists('output'):
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    fname = 'output/kosslyn_ssp_simplified_{}dim_{}seed_{}items_{}size_{}duration'.format(
-        args.dim, args.seed, args.n_items, args.env_size, args.duration
+    # fname = 'output/kosslyn_ssp_simplified_{}dim_{}seed_{}items_{}size_{}duration'.format(
+    #     args.dim, args.seed, args.n_items, args.env_size, args.duration
+    # )
+    fname = 'output/kosslyn_ssp_cconv_{}seed_tpi{}_thresh{}_vel{}_npd{}'.format(
+        args.seed, args.time_per_item, args.sim_thresh, args.dir_mag_limit, args.neurons_per_dim
     )
 else:
     args = parser.parse_args([])
