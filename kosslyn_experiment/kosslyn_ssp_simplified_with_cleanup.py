@@ -23,7 +23,7 @@ parser.add_argument('--n-items', type=int, default=7)
 parser.add_argument('--duration', type=int, default=50)
 parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--env-size', type=int, default=10)
-parser.add_argument('--time-per-item', type=int, default=1.0) #3
+parser.add_argument('--time-per-item', type=float, default=1.0) #3
 parser.add_argument('--sim-thresh', type=float, default=0.4)
 parser.add_argument('--dir-mag-limit', type=float, default=1.0)
 
