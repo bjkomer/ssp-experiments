@@ -3,14 +3,18 @@ import nengo
 import numpy as np
 from spatial_semantic_pointers.utils import make_good_unitary, encode_point_hex, get_heatmap_vectors_hex
 from spatial_semantic_pointers.plots import SpatialHeatmap
+# from ssp_navigation.utils.encoding import add_encoding_params
 from world import ItemMap, ExperimentControl
 from collections import OrderedDict
 import argparse
 import os
 import nengo_spa as spa
+# softlinked from neural_implementation
+from encoders import grid_cell_encoder, band_cell_encoder, orthogonal_hex_dir
 
 parser = argparse.ArgumentParser('Run a mental map task with Nengo')
 
+# parser = add_encoding_params(parser)
 parser.add_argument('--dim', type=int, default=128) #256
 parser.add_argument('--neurons-per-dim', type=int, default=5)
 parser.add_argument('--n-cconv-neurons', type=int, default=50)

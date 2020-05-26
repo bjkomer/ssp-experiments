@@ -215,7 +215,7 @@ class ExperimentControl(object):
     Records relevant outputs as well
     """
 
-    def __init__(self, items, vocab, file_name, time_per_item=3, num_test_pairs=50,
+    def __init__(self, items, vocab, file_name, time_per_item=3, num_test_pairs=50, sim_thresh=.8,
                  ssp_dir=True, encode_func=None, decode_func=None):
 
         # Dictionary of {item: location}
@@ -244,6 +244,9 @@ class ExperimentControl(object):
         self.current_recorded = False
 
         self.phase = 'learning'
+
+        # threshold for similarity
+        self.sim_thresh = sim_thresh
 
         # Copy of the item vocab used
         self.vocab = vocab
@@ -276,10 +279,22 @@ class ExperimentControl(object):
 
         self.done = False
 
+        # variables for the html plot
+        self.x = 0
+        self.y = 0
+        self.th = 0
+        # Scaling for positions on the HTML plot
+        self.scale_x = 100. / 10
+        self.scale_y = 100. / 10
+        self.item_rad = 0.5
 
-        # self.build_html_string()
-        #
-        # self._nengo_html_ = self.base_html.format(self.x, self.y, self.th)
+        # Colours to display each item as
+        self.colour_list = ['blue', 'green', 'red', 'magenta', 'cyan', 'yellow', 'purple', 'fuschia', 'grey', 'lime']
+        self.num_colours = len(self.colour_list)
+
+        self.build_html_string()
+
+        self._nengo_html_ = self.base_html.format(self.x, self.y, self.th)
 
     @staticmethod
     def vectors_close(v1, v2, threshold=0.85):
@@ -301,7 +316,7 @@ class ExperimentControl(object):
         # for i, loc in enumerate(self.items.itervalues()):
         for i, loc in enumerate(self.items.values()):
             self.base_html += '<circle cx="{0}" cy="{1}" r="{2}" stroke-width="1.0" stroke="{3}" fill="{3}" />'.format(
-                loc[0] * self.scale_x, 100 - loc[1] * self.scale_y, self.item_rad * self.scale_x,
+                (loc[0]+5) * self.scale_x, 100 - (loc[1]+5) * self.scale_y, self.item_rad * self.scale_x,
                 self.colour_list[i % self.num_colours])
 
         # Set up the agent to be filled in later with 'format()'
@@ -313,14 +328,14 @@ class ExperimentControl(object):
 
     def update_html(self, body_scale=0.5):
         # Define points of the triangular agent based on x, y, and th
-        x1 = (self.x + body_scale * 0.5 * np.cos(self.th - 2 * np.pi / 3)) * self.scale_x
-        y1 = 100 - (self.y + body_scale * 0.5 * np.sin(self.th - 2 * np.pi / 3)) * self.scale_y
+        x1 = (self.x+5 + body_scale * 0.5 * np.cos(self.th - 2 * np.pi / 3)) * self.scale_x
+        y1 = 100 - (self.y+5 + body_scale * 0.5 * np.sin(self.th - 2 * np.pi / 3)) * self.scale_y
 
-        x2 = (self.x + body_scale * np.cos(self.th)) * self.scale_x
-        y2 = 100 - (self.y + body_scale * np.sin(self.th)) * self.scale_y
+        x2 = (self.x+5 + body_scale * np.cos(self.th)) * self.scale_x
+        y2 = 100 - (self.y+5 + body_scale * np.sin(self.th)) * self.scale_y
 
-        x3 = (self.x + body_scale * 0.5 * np.cos(self.th + 2 * np.pi / 3)) * self.scale_x
-        y3 = 100 - (self.y + body_scale * 0.5 * np.sin(self.th + 2 * np.pi / 3)) * self.scale_y
+        x3 = (self.x+5 + body_scale * 0.5 * np.cos(self.th + 2 * np.pi / 3)) * self.scale_x
+        y3 = 100 - (self.y+5 + body_scale * 0.5 * np.sin(self.th + 2 * np.pi / 3)) * self.scale_y
 
         points = "{0},{1} {2},{3} {4},{5}".format(x1, y1, x2, y2, x3, y3)
 
@@ -340,8 +355,17 @@ class ExperimentControl(object):
                 vis = x[self.dim:]
 
                 # set the direction to move to get there
-                displacement = self.coords[self.item_index] - self.decode_func(cur_coord)
-                displacement = displacement / np.linalg.norm(displacement)
+                estim = self.decode_func(cur_coord)
+                # this is for updating the html plot
+                self.x = estim[0]
+                self.y = estim[1]
+                self.update_html()
+                displacement = self.coords[self.item_index] - estim
+                mag = np.linalg.norm(displacement)
+                # only normalize if far away, so when super close, it won't bounce around
+                # 0.25 should be within hitting distance
+                if mag > 0.25:
+                    displacement = displacement / mag
                 self.ret_vec[:self.dim] = self.encode_func(displacement)
             else:
                 cur_coord = x[:2]
@@ -397,7 +421,8 @@ class ExperimentControl(object):
 
                         # set the direction to move to get there
                         self.ret_vec[:2] = displacement
-            elif (not self.current_recorded) and self.vectors_close(self.vectors[self.item_index], vis):
+            # elif (not self.current_recorded) and self.vectors_close(self.vectors[self.item_index], vis):
+            elif (not self.current_recorded) and np.dot(self.vectors[self.item_index], vis) > self.sim_thresh:
                 # TODO: have a check here to see if the currently visualized item is close enough to the target item
                 #       if so, record how long it took using 'self.change_time', and set some flag so that this doesn't
                 #       get hit again until the next item. Could also move early, but the total time wouldn't be fixed
@@ -420,6 +445,8 @@ class ExperimentControl(object):
                 else:
                     # at target, don't need to move
                     self.ret_vec[:2] = 0
+            else:
+                print(np.dot(self.vectors[self.item_index], vis))
 
         return self.ret_vec
 
