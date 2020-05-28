@@ -23,20 +23,27 @@ args = parser.parse_args()
 # ground truth transform to learn
 phi_gt = np.pi/2.
 dim = args.ssp_dim
-if dim == 3:
-    u_gt_f = np.ones((dim//2+1, ), dtype='complex64')
-    u_gt_f[1] = np.exp(1.j*phi_gt)
+if dim == 4:
+    xf = np.ones((dim//2+2, ), dtype='complex64')
+    xf[1] = np.exp(1.j * phi_gt)
+    yf = np.ones((dim // 2 + 1,), dtype='complex64')
+    yf[1] = np.exp(1.j * phi_gt)
     phis = (phi_gt,)
-elif dim == 5:
-    u_gt_f = np.ones((dim // 2 + 1,), dtype='complex64')
-    u_gt_f[1] = np.exp(1.j * phi_gt)
-    u_gt_f[2] = np.exp(1.j * phi_gt/2.)
-    phis = (phi_gt, phi_gt/2.)
+elif dim == 6:
+    xf = np.ones((4,), dtype='complex64')
+    xf[1] = np.exp(1.j * phi_gt)
+    xf[2] = np.exp(1.j * 0)
+    yf = np.ones((4,), dtype='complex64')
+    yf[1] = np.exp(1.j * 0)
+    yf[2] = np.exp(1.j * phi_gt)
+    phis = ((phi_gt, 0), (0, phi_gt))
 else:
     n_phis = (dim-1)//2
-    phis = np.random.uniform(-np.pi+0.001, np.pi-0.001, size=(n_phis,))
-    u_gt_f = np.ones((dim // 2 + 1,), dtype='complex64')
-    u_gt_f[1:] = np.exp(1.j * phis)
+    phis = np.random.uniform(-np.pi+0.001, np.pi-0.001, size=(2, n_phis))
+    xf = np.ones((n_phis + 2,), dtype='complex64')
+    xf[1:-1] = np.exp(1.j * phis[0, :])
+    yf = np.ones((n_phis + 2,), dtype='complex64')
+    yf[1:-1] = np.exp(1.j * phis[1, :])
 # u_gt_f[2] = np.conj(u_gt_f[1])
 
 # u_gt = np.fft.ifft(u_gt_f).real
@@ -44,14 +51,15 @@ else:
 
 
 def encode_func(pos):
-    return np.fft.irfft(u_gt_f**pos, n=dim)
+    return np.fft.irfft((xf**pos[0])*(yf**pos[1]), n=dim)
 
 
-model = SSPTransform(coord_dim=1, ssp_dim=dim)
+model = SSPTransform(coord_dim=2, ssp_dim=dim)
 
 rng = np.random.RandomState(seed=13)
 trainloader, testloader = get_train_test_loaders(
-    encode_func, rng=rng, batch_size=args.batch_size, output_dim=dim,
+    encode_func, rng=rng, batch_size=args.batch_size,
+    input_dim=2, output_dim=dim,
     n_train_samples=args.n_train_samples, n_test_samples=args.n_test_samples,
     limit=args.limit
 )
