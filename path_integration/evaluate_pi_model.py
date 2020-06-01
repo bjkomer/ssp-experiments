@@ -25,6 +25,11 @@ parser.add_argument('--batch-size', type=int, default=10)
 parser.add_argument('--n-samples', type=int, default=1000)
 parser.add_argument('--res', type=int, default=128)
 parser.add_argument('--rollout-length', type=int, default=100)
+parser.add_argument('--no-plots', action='store_true', help='do not display plots at the end')
+parser.add_argument('--save-file', type=str, default='', help='if set, save rmse to file')
+
+parser.add_argument('--lstm-hidden-size', type=int, default=128)
+parser.add_argument('--linear-hidden-size', type=int, default=512)
 args = parser.parse_args()
 
 limit_low = 0.0
@@ -64,6 +69,7 @@ else:
     model = SSPPathIntegrationModel(
         input_size=2,
         unroll_length=args.rollout_length,
+        lstm_hidden_size=args.lstm_hidden_size, linear_hidden_size=args.linear_hidden_size,
         sp_dim=repr_dim, dropout_p=args.dropout_p, use_lmu=args.use_lmu, order=args.lmu_order
     )
     if args.load_saved_model:
@@ -83,6 +89,7 @@ trainloader, testloader = train_test_loaders_jit(
     rollout_length=args.rollout_length,
     batch_size=args.batch_size,
     encoding=args.spatial_encoding,
+    encoding_dim=repr_dim,
     encoding_func=encoding_func,
     rng=rng,
 )
@@ -126,54 +133,64 @@ with torch.no_grad():
                 heatmap_vectors, xs, ys
             )
 
-    fig, ax = plt.subplots(1, args.batch_size)
+    rmse = np.sqrt((np.linalg.norm(predictions - coords, axis=1)**2).mean())
+    print(args.spatial_encoding)
+    print(rmse)
+    print("")
 
-    if args.batch_size == 1:
-        # ax.scatter(
-        #     coords[:, 0],
-        #     coords[:, 1]
-        # )
+    if args.save_file:
+        np.savez(args.save_file, rmse=rmse)
 
-        ax.scatter(
-            predictions[:, 0],
-            predictions[:, 1],
-            color='blue',
-            label='predictions',
-        )
+    if not args.no_plots:
+        fig, ax = plt.subplots(1, args.batch_size)
 
-        # add a bit of jitter to the coords so they can be seed
-        ax.scatter(
-            coords[:, 0] + 0.001,
-            coords[:, 1] + 0.001,
-            color='green',
-            label='ground truth',
-        )
+        if args.batch_size == 1:
+            # ax.scatter(
+            #     coords[:, 0],
+            #     coords[:, 1]
+            # )
 
-        ax.set_xlim([0, 2.2])
-        ax.set_ylim([0, 2.2])
-        ax.set_aspect('equal')
-
-        ax.legend()
-    else:
-        for bi in range(args.batch_size):
-            ax[bi].scatter(
-                predictions[bi * args.rollout_length:(bi + 1) * args.rollout_length, 0],
-                predictions[bi * args.rollout_length:(bi + 1) * args.rollout_length, 1],
+            ax.scatter(
+                predictions[:, 0],
+                predictions[:, 1],
                 color='blue',
                 label='predictions',
             )
-            ax[bi].scatter(
-                coords[bi * args.rollout_length:(bi + 1) * args.rollout_length, 0],
-                coords[bi * args.rollout_length:(bi + 1) * args.rollout_length, 1],
+
+            # add a bit of jitter to the coords so they can be seed
+            ax.scatter(
+                coords[:, 0] + 0.001,
+                coords[:, 1] + 0.001,
                 color='green',
                 label='ground truth',
             )
 
-            ax[bi].set_xlim([0, 2.2])
-            ax[bi].set_ylim([0, 2.2])
-            ax[bi].set_aspect('equal')
+            ax.set_xlim([0, 2.2])
+            ax.set_ylim([0, 2.2])
+            ax.set_aspect('equal')
 
-            ax[bi].legend()
+            ax.legend()
+        else:
+            for bi in range(args.batch_size):
+                ax[bi].scatter(
+                    predictions[bi * args.rollout_length:(bi + 1) * args.rollout_length, 0],
+                    predictions[bi * args.rollout_length:(bi + 1) * args.rollout_length, 1],
+                    color='blue',
+                    label='predictions',
+                )
+                ax[bi].scatter(
+                    coords[bi * args.rollout_length:(bi + 1) * args.rollout_length, 0],
+                    coords[bi * args.rollout_length:(bi + 1) * args.rollout_length, 1],
+                    color='green',
+                    label='ground truth',
+                )
+
+                ax[bi].set_xlim([0, 2.2])
+                ax[bi].set_ylim([0, 2.2])
+                ax[bi].set_aspect('equal')
+
+                ax[bi].legend()
 
 
-    plt.show()
+
+        plt.show()
