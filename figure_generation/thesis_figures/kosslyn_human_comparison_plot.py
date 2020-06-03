@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import sys
 
 #  Human data from the paper, from webplot digitizer
 
@@ -29,27 +30,64 @@ human_data = np.array([
     [18.797192366747094, 1.8785567010309279],
 ])
 
-# TODO: link to the final data
-fname = "/home/ctnuser/spatial-cognition/prototyping/map_traversal/exp_data_kosslyn.npy"
-
-data = np.load(fname)
-
-# model of the delay in reporting unrelated to the task
-# calculated by aligning the 0 distance value (no delay due to task)
 reaction_time_offset = .962
 
-model_data = np.zeros((data.shape[0], 2))
-model_data[:, 0] = data[:, 3]
-model_data[:, 1] = data[:, 2] + reaction_time_offset
+if len(sys.argv) <= 1:
+    # # TODO: link to the final data
+    # fname = "/home/ctnuser/spatial-cognition/prototyping/map_traversal/exp_data_kosslyn.npy"
+    fname = "/home/ctnuser/ssp_navigation_sandbox/kosslyn_experiment/output/kosslyn_ssp_cconv_{}seed_tpi1.0_thresh0.4_vel{}_npd{}.npy"
+    eps = 0.002
+    reaction_time = []
+    distance = []
+    seeds = [1, 2, 3, 4, 5]
+    vel = '0.15'
+    seeds = [1, 2, 3, 4, 5]
+    vel = '0.125'
+    npd = 25
+    for seed in seeds:
+
+        data = np.load(fname.format(seed, vel, npd))
+
+        inds = data[:, 2] > eps
+        reaction_time += list(data[inds, 2])
+        distance += list(data[inds, 3])
+
+    distance_scaling = 2
+
+    model_data = np.zeros((len(reaction_time), 2))
+    model_data[:, 0] = distance
+    model_data[:, 0] *= distance_scaling
+    model_data[:, 1] = reaction_time
+    model_data[:, 1] += reaction_time_offset
+
+
+else:
+    fname = sys.argv[1]
+
+    data = np.load(fname)
+
+    # model of the delay in reporting unrelated to the task
+    # calculated by aligning the 0 distance value (no delay due to task)
+
+    distance_scaling = 2
+
+    model_data = np.zeros((data.shape[0], 2))
+    model_data[:, 0] = data[:, 3] * distance_scaling
+    model_data[:, 1] = data[:, 2] + reaction_time_offset
+
+# remove any corrupted data
+model_data = model_data[model_data[:, 0] != 0, :]
+eps = 0.01
+# model_data = model_data[model_data[:, 1] > reaction_time_offset + eps, :]
 
 fig, ax = plt.subplots(1, 1, figsize=(8, 4), tight_layout=True)
 
 palette = sns.color_palette(n_colors=2)
 
-ax.scatter(human_data[:, 0], human_data[:, 1], color=palette[0])
 ax.scatter(model_data[:, 0], model_data[:, 1], color=palette[1])
+ax.scatter(human_data[:, 0], human_data[:, 1], color=palette[0])
 
-ax.legend(['Human', 'Model'])
+ax.legend(['Model', 'Human'])
 
 # trendlines
 p_human = np.poly1d(np.polyfit(human_data[:, 0], human_data[:, 1], 1))
