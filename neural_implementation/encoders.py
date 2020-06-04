@@ -603,7 +603,7 @@ class SSPState(Network):
                 # rotate, shift, and slice out relevant dimensions
                 encoders_transformed = (encoders_grid_cell @ coord_rot_mat.T)[:, k*6:(k+1)*6].copy()
 
-                # self.state_ensembles.ea_ensembles[k].intercepts = nengo.dists.Uniform(0, 1)
+                self.state_ensembles.ea_ensembles[k].intercepts = nengo.dists.Uniform(0, 1)
                 # self.state_ensembles.ea_ensembles[k].encoders = encoders_transformed
                 # self.state_ensembles.ea_ensembles[k].eval_points = encoders_transformed
 
