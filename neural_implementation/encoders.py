@@ -428,6 +428,7 @@ def get_coord_rot_mat(dim=8):
     arc_origin = np.zeros((dim, ))
     arc_origin[0] = 1
 
+    all_vectors = np.zeros((n_indices * 2, dim))
     for index in range(n_indices):
         u_cross = orthogonal_unitary(dim, index + 1, np.pi)
         u_angle = orthogonal_unitary(dim, index + 1, np.pi/2.)
@@ -441,11 +442,13 @@ def get_coord_rot_mat(dim=8):
         cross_vectors[index, :] = arc_origin - origin_points[index, :]
         angle_vectors[index, :] = u_angle - origin_points[index, :]
 
+        # ensuring vectors from the same circle are next to each other in the mapping
+        all_vectors[index*2, :] = cross_vectors[index, :]
+        all_vectors[index*2+1, :] = angle_vectors[index, :]
+
         # print(np.dot(cross_vectors[index, :], angle_vectors[index, :]))
         # assert np.allclose(np.dot(cross_vectors[index, :], angle_vectors[index, :]), 0)
         assert np.abs(np.dot(cross_vectors[index, :], angle_vectors[index, :])) < 0.0000001
-
-    all_vectors = np.vstack([cross_vectors, angle_vectors])
 
     for i in range(n_indices*2):
         for j in range(i+1, n_indices*2):
@@ -583,7 +586,8 @@ class SSPState(Network):
                 self.neurons_per_dimension * self.subdimensions,
                 n_toroids,
                 ens_dimensions=self.subdimensions,
-                radius=2/dimensions,
+                # radius=2./dimensions,
+                radius=1.,
                 # eval_points=nengo.dists.CosineSimilarity(dimensions + 2),
                 # intercepts=nengo.dists.CosineSimilarity(dimensions + 2),
                 label="ssp state",
@@ -604,8 +608,10 @@ class SSPState(Network):
                 encoders_transformed = (encoders_grid_cell @ coord_rot_mat.T)[:, k*6:(k+1)*6].copy()
 
                 self.state_ensembles.ea_ensembles[k].intercepts = nengo.dists.Uniform(0, 1)
-                # self.state_ensembles.ea_ensembles[k].encoders = encoders_transformed
-                # self.state_ensembles.ea_ensembles[k].eval_points = encoders_transformed
+                self.state_ensembles.ea_ensembles[k].encoders = encoders_transformed * (dimensions / 2.)
+                # scaling eval points by the radius, so when they are rescaled later they are correct
+                self.state_ensembles.ea_ensembles[k].eval_points = encoders_transformed * (dimensions / 2.)
+                # self.state_ensembles.ea_ensembles[k].normalize_encoders = False
 
             if self.feedback is not None and self.feedback != 0.0:
                 nengo.Connection(
@@ -623,8 +629,8 @@ class SSPState(Network):
         # fixed offset to push the result back into the unitary space
         self.offset = nengo.Node(offset_vec)
 
-        nengo.Connection(self.input, self.state_ensembles.input, transform=coord_rot_mat)
-        nengo.Connection(self.state_ensembles.output, self.output, transform=inv_coord_rot_mat)
+        nengo.Connection(self.input, self.state_ensembles.input, transform=coord_rot_mat * (dimensions / 2.))
+        nengo.Connection(self.state_ensembles.output, self.output, transform=inv_coord_rot_mat / (dimensions / 2.))
         nengo.Connection(self.offset, self.output)
 
         # self.input = self.state_ensembles.input
