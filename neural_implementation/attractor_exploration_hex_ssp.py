@@ -4,8 +4,17 @@ import numpy as np
 from nengo.processes import Piecewise
 from spatial_semantic_pointers.plots import SpatialHeatmap
 from spatial_semantic_pointers.utils import encode_point, make_good_unitary, get_heatmap_vectors, get_fixed_dim_sub_toriod_axes
-from encoders import grid_cell_encoder, band_cell_encoder
+from encoders import grid_cell_encoder, band_cell_encoder, orthogonal_hex_dir
 from ssp_navigation.utils.encodings import hilbert_2d
+
+
+use_offset = False
+# use_offset = True
+
+# vmin = 0
+# vmax = 1
+vmin = None
+vmax = None
 
 
 def dv_dxy(dim, phis_x, phis_y, phase):
@@ -52,20 +61,52 @@ def unitary_by_phi(phis):
     return spa.SemanticPointer(v)
 
 
-dim = 7
+dim = 13#7
+# dim = 7
+# dim = 31
+dim = 19
+dim = 43
+dim = 25
 # phis_x = np.array([np.pi/2., 0])
 # phis_y = np.array([0, np.pi/2.])
 #
 # X = unitary_by_phi(phis_x)
 # Y = unitary_by_phi(phis_y)
 
-axis_rng = np.random.RandomState(seed=13)
-X, Y = get_fixed_dim_sub_toriod_axes(dim=7, scale_ratio=2, scale_start_index=1, rng=axis_rng)
+axis_rng = np.random.RandomState(seed=14)
+# scale_ratio = 0 #2
+# start_index = 0
+# X, Y = get_fixed_dim_sub_toriod_axes(dim=dim, scale_ratio=scale_ratio, scale_start_index=start_index, rng=axis_rng)
+
+# phis = (np.pi*.75, np.pi / 2., np.pi/3., np.pi/5., np.pi*.4, np.pi*.6, np.pi*.15)
+# angles = (0, np.pi*.3, np.pi*.2, np.pi*.4, np.pi*.1, np.pi*.5, np.pi*.7)
+
+T = (dim+1)//2
+n_toroid = T // 3
+# phis = axis_rng.uniform(-np.pi, np.pi, size=n_toroid)
+# angles = axis_rng.uniform(-np.pi, np.pi, size=n_toroid)
+
+if dim == 7:
+    phis = (np.pi*.5,)
+    angles = (0,)
+elif dim == 13:
+    phis = (np.pi*.5, np.pi*.3)
+    angles = (0, np.pi/6.)
+elif dim == 19:
+    phis = (np.pi*.5, np.pi*.3, np.pi*.75)
+    angles = (0, np.pi/6., np.pi/12.)
+else:
+    phis = axis_rng.uniform(-np.pi, np.pi, size=n_toroid)
+    angles = axis_rng.uniform(-np.pi, np.pi, size=n_toroid)
+
+X, Y = orthogonal_hex_dir(phis=phis, angles=angles)
+
+print(len(X.v))
 
 # retrieve phis from the axis vectors
 xf = np.fft.fft(X.v)
 yf = np.fft.fft(Y.v)
-T = (dim+1)//2
+
 phis_x = np.log(xf[1:T+1]).imag
 phis_y = np.log(yf[1:T+1]).imag
 
@@ -105,7 +146,9 @@ def get_heatmap_vectors_with_offset(xs, ys, x_axis_sp, y_axis_sp):
 # heatmap_vectors = get_heatmap_vectors(xs, ys, X, Y)
 heatmap_vectors = get_heatmap_vectors_with_offset(xs, ys, X, Y)
 
-n_neurons = 2500
+neurons_per_dim = 100#200
+n_neurons = neurons_per_dim * dim
+# n_neurons = 2500
 rng = np.random.RandomState(seed=13)
 
 
@@ -122,7 +165,10 @@ def to_ssp_with_offset(v):
 def input_ssp(v):
 
     if v[2] > .5:
-        return encode_point(v[0], v[1], X, Y).v - offset
+        if use_offset:
+            return encode_point(v[0], v[1], X, Y).v - offset
+        else:
+            return encode_point(v[0], v[1], X, Y).v
     else:
         return np.zeros((dim,))
 
@@ -130,20 +176,77 @@ def input_ssp(v):
 preferred_locations = hilbert_2d(-limit, limit, n_neurons, rng, p=8, N=2, normal_std=3)
 
 encoders_place_cell = np.zeros((n_neurons, dim))
-# encoders_band_cell = np.zeros((n_neurons, dim))
-# encoders_grid_cell = np.zeros((n_neurons, dim))
+encoders_band_cell = np.zeros((n_neurons, dim))
+encoders_grid_cell = np.zeros((n_neurons, dim))
+encoders_mixed = np.zeros((n_neurons, dim))
+mixed_intercepts = []
 for n in range(n_neurons):
     # encoders_place_cell[n, :] = to_ssp(preferred_locations[n, :])
-    encoders_place_cell[n, :] = to_ssp_with_offset(preferred_locations[n, :])
-    # encoders_band_cell[n, :] = band_region_ssp(preferred_locations[n, :], angle=rng.uniform(0, 2*np.pi))
-    # spacing = rng.choice(spacings)
-    # angle = rng.uniform(0, 2*np.pi)
-    # encoders_grid_cell[n, :] = to_hex_region_ssp(preferred_locations[n, :], spacing=spacing, angle=angle)
+    if use_offset:
+        encoders_place_cell[n, :] = to_ssp_with_offset(preferred_locations[n, :])
+    else:
+        encoders_place_cell[n, :] = to_ssp(preferred_locations[n, :])
+
+    ind = rng.randint(0, len(phis))
+    encoders_grid_cell[n, :] = grid_cell_encoder(
+        location=preferred_locations[n, :],
+        dim=dim, phi=phis[ind], angle=angles[ind],
+        toroid_index=ind
+    )
+
+    if use_offset:
+        encoders_grid_cell[n, :] -= offset
+
+    band_ind = rng.randint(0, 3)
+    encoders_band_cell[n, :] = band_cell_encoder(
+        location=preferred_locations[n, :],
+        dim=dim, phi=phis[ind], angle=angles[ind],
+        toroid_index=ind,
+        band_index=band_ind
+    )
+
+    if use_offset:
+        encoders_band_cell[n, :] -= offset
+
+    mix_ind = rng.randint(0, 3)
+    if mix_ind == 0:
+        encoders_mixed[n, :] = encoders_place_cell[n, :]
+        # mixed_intercepts.append(.4)
+        mixed_intercepts.append(.75)
+    elif mix_ind == 1:
+        encoders_mixed[n, :] = encoders_grid_cell[n, :]
+        # mixed_intercepts.append(.2)
+        mixed_intercepts.append(.5)
+    elif mix_ind == 2:
+        encoders_mixed[n, :] = encoders_band_cell[n, :]
+        # mixed_intercepts.append(0.)
+        mixed_intercepts.append(.25)
+
+    # metadata[n, 0] = ind
+    # metadata[n, 1] = band_ind
+    # metadata[n, 2] = mix_ind
+
+# place cell evaluation points
+n_eval_points = 5000
+eval_point_locations = rng.uniform(-limit, limit, size=(n_eval_points, 2))
+eval_points = np.zeros((n_eval_points, dim))
+eval_noise = rng.normal(0, 0.1/np.sqrt(dim), size=(n_eval_points, dim))
+for i in range(n_eval_points):
+    if use_offset:
+        eval_points[i, :] = to_ssp_with_offset(eval_point_locations[i, :])
+    else:
+        eval_points[i, :] = to_ssp(eval_point_locations[i, :])
+
+# add some noise to the points
+eval_points = eval_points + eval_noise
 
 
 def feedback_real(x):
     # calculate current phase for derivative
-    xf = np.fft.fft(x + offset)
+    if use_offset:
+        xf = np.fft.fft(x + offset)
+    else:
+        xf = np.fft.fft(x)
     phase = np.log(xf).imag
     deriv = dv_dxy(dim, phis_x, phis_y, phase=phase[1:])
 
@@ -152,7 +255,8 @@ def feedback_real(x):
     x_vel = 1
     y_vel = 1.5
     # return x * 1.1
-    return x*1.10 + tau * x_vel * deriv[:, 0] + tau * y_vel * deriv[:, 1]
+    return x * 1.01
+    # return x*1.10 + tau * x_vel * deriv[:, 0] + tau * y_vel * deriv[:, 1]
     
 
 model = nengo.Network(seed=15)
@@ -166,16 +270,24 @@ with model:
 
     # in real space
     ssp = nengo.Ensemble(n_neurons=n_neurons, dimensions=dim)
-    ssp.encoders = encoders_place_cell
-    ssp.eval_points = encoders_place_cell
+    # ssp.encoders = encoders_place_cell
+    # ssp.encoders = encoders_mixed
+    ssp.encoders = encoders_grid_cell
+    # ssp.eval_points = encoders_place_cell
+    # ssp.eval_points = np.vstack([encoders_place_cell, encoders_band_cell, encoders_grid_cell])
+    # ssp.eval_points = encoders_place_cell
+    ssp.eval_points = eval_points
     # ssp.intercepts = [0.25]*n_neurons
-    ssp.intercepts = [0.50] * n_neurons
+    # ssp.intercepts = [0.0] * n_neurons
+    ssp.intercepts = rng.uniform(0, .75, size=(n_neurons,))
+    # ssp.intercepts = mixed_intercepts
+    # ssp.intercepts = [0.50] * n_neurons
     nengo.Connection(ssp, ssp, function=feedback_real, synapse=tau)
 
     nengo.Connection(kick, ssp)
 
     heatmap_node = nengo.Node(
-        SpatialHeatmap(heatmap_vectors, xs, ys, cmap='plasma', vmin=None, vmax=None),
+        SpatialHeatmap(heatmap_vectors, xs, ys, cmap='plasma', vmin=vmin, vmax=vmax),
         size_in=dim, size_out=0,
     )
 
