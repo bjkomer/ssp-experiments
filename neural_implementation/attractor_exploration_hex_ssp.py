@@ -67,6 +67,7 @@ dim = 13#7
 dim = 19
 dim = 43
 dim = 25
+# dim = 13
 # phis_x = np.array([np.pi/2., 0])
 # phis_y = np.array([0, np.pi/2.])
 #
@@ -172,13 +173,25 @@ def input_ssp(v):
     else:
         return np.zeros((dim,))
 
+tiled_neurons = True
 
-preferred_locations = hilbert_2d(-limit, limit, n_neurons, rng, p=8, N=2, normal_std=3)
+if tiled_neurons:
+    n_neurons = int(np.sqrt(n_neurons))**2
+    sqrt_neurons = int(np.sqrt(n_neurons))
+    preferred_locations = np.zeros((n_neurons, 2))
+    xsn = np.linspace(-limit, limit, sqrt_neurons)
+    ysn = np.linspace(-limit, limit, sqrt_neurons)
+    for i, x in enumerate(xsn):
+        for j, y in enumerate(ysn):
+            preferred_locations[i*sqrt_neurons + j, :] = np.array([x, y])
+else:
+    preferred_locations = hilbert_2d(-limit, limit, n_neurons, rng, p=8, N=2, normal_std=3)
 
 encoders_place_cell = np.zeros((n_neurons, dim))
 encoders_band_cell = np.zeros((n_neurons, dim))
 encoders_grid_cell = np.zeros((n_neurons, dim))
 encoders_mixed = np.zeros((n_neurons, dim))
+grid_inds = np.zeros((n_neurons, ))
 mixed_intercepts = []
 for n in range(n_neurons):
     # encoders_place_cell[n, :] = to_ssp(preferred_locations[n, :])
@@ -188,6 +201,7 @@ for n in range(n_neurons):
         encoders_place_cell[n, :] = to_ssp(preferred_locations[n, :])
 
     ind = rng.randint(0, len(phis))
+    grid_inds[n] = ind
     encoders_grid_cell[n, :] = grid_cell_encoder(
         location=preferred_locations[n, :],
         dim=dim, phi=phis[ind], angle=angles[ind],
@@ -282,7 +296,13 @@ with model:
     ssp.intercepts = rng.uniform(0, .75, size=(n_neurons,))
     # ssp.intercepts = mixed_intercepts
     # ssp.intercepts = [0.50] * n_neurons
-    nengo.Connection(ssp, ssp, function=feedback_real, synapse=tau)
+    feedback_conn = nengo.Connection(
+        ssp,
+        ssp,
+        function=feedback_real,
+        synapse=tau,
+        solver=nengo.solvers.LstsqL2(weights=True),
+    )
 
     nengo.Connection(kick, ssp)
 
@@ -297,3 +317,35 @@ with model:
     ssp_input = nengo.Node([0, 0, 0])
 
     nengo.Connection(ssp_input, ssp, function=input_ssp)
+
+    p_weights = nengo.Probe(feedback_conn, 'weights')
+
+if __name__ == '__main__':
+    sim = nengo.Simulator(model)
+    sim.run(0.01)
+    weights = sim.data[p_weights][-1]
+    print(weights.shape)
+    import matplotlib.pyplot as plt
+
+    if weights.shape[0] == dim:
+        weights = ssp.encoders @ weights
+
+    plt.figure()
+    plt.imshow(weights)
+    plt.figure()
+    weights_grid0 = weights[0, :].copy()
+    weights_grid0[grid_inds==0] = 0
+    weights_grid1 = weights[0, :].copy()
+    weights_grid1[grid_inds==1] = 0
+    sqrt_neurons = int(np.sqrt(n_neurons))
+    plt.imshow(weights[0, :].reshape(sqrt_neurons, sqrt_neurons))
+
+    plt.figure()
+    plt.imshow(weights_grid0.reshape(sqrt_neurons, sqrt_neurons))
+
+    plt.figure()
+    plt.imshow(weights_grid1.reshape(sqrt_neurons, sqrt_neurons))
+
+
+
+    plt.show()
