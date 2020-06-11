@@ -191,6 +191,148 @@ def create_policy_train_test_sets(
     return train_input, train_output, test_input, test_output
 
 
+def create_policy_vis_set(
+        data,
+        args,
+        n_mazes,
+        encoding_func,
+        maze_indices,
+        goal_indices,
+        tile_mazes=False,
+        connected_tiles=False,
+        subsample=1,
+        split_seed=13):
+
+    rng = np.random.RandomState(seed=args.seed)
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+    id_size = args.maze_id_dim
+    if id_size > 0:
+        maze_sps = np.zeros((args.n_mazes, args.maze_id_dim))
+        # overwrite data
+        for mi in range(args.n_mazes):
+            maze_sps[mi, :] = spa.SemanticPointer(args.maze_id_dim).v
+    else:
+        maze_sps = None
+
+
+    # n_mazes by res by res
+    fine_mazes = data['fine_mazes']
+
+    # n_mazes by n_goals by res by res by 2
+    solved_mazes = data['solved_mazes']
+
+    # NOTE: this can be modified from the original dataset, so it is explicitly passed in
+    # n_mazes by dim
+    # maze_sps = data['maze_sps']
+
+    # n_mazes by n_goals by 2
+    goals = data['goals']
+
+    n_mazes = goals.shape[0]
+    n_goals = goals.shape[1]
+    # dim = data['goal_sps'].shape[2]
+
+    # NOTE: this code is assuming xs as ys are the same
+    assert (np.all(data['xs'] == data['ys']))
+    limit_low = data['xs'][0]
+    limit_high = data['xs'][1]
+
+    # # NOTE: only used for one-hot encoded location representation case
+    # xso = np.linspace(limit_low, limit_high, int(np.sqrt(dim)))
+    # yso = np.linspace(limit_low, limit_high, int(np.sqrt(dim)))
+
+    xs = data['xs']
+    ys = data['ys']
+
+    maze_indices = maze_indices
+    goal_indices = goal_indices
+    n_mazes = len(maze_indices)
+    n_goals = len(goal_indices)
+
+    res = fine_mazes.shape[1]
+
+    # spatial offsets used when tiling mazes
+    offsets = np.zeros((n_mazes, 2))
+
+    if tile_mazes:
+        length = int(np.ceil(np.sqrt(n_mazes)))
+        size = data['coarse_mazes'].shape[1]
+        for x in range(length):
+            for y in range(length):
+                ind = int(x * length + y)
+                if ind >= n_mazes:
+                    continue
+                else:
+                    offsets[int(x * length + y), 0] = x * size
+                    offsets[int(x * length + y), 1] = y * size
+
+
+    goal_sps = np.zeros((n_mazes, n_goals, args.dim))
+    for ni in range(goal_sps.shape[0]):
+        for gi in range(goal_sps.shape[1]):
+            goal_sps[ni, gi, :] = encoding_func(
+                x=goals[ni, gi, 0] + offsets[ni, 0],
+                y=goals[ni, gi, 1] + offsets[ni, 1]
+            )
+
+    n_samples = int(res / subsample) * int(res / subsample) * n_mazes * n_goals
+
+    # Visualization
+    viz_locs = np.zeros((n_samples, 2))
+    viz_goals = np.zeros((n_samples, 2))
+    viz_loc_sps = np.zeros((n_samples, goal_sps.shape[2]))
+    viz_goal_sps = np.zeros((n_samples, goal_sps.shape[2]))
+    viz_output_dirs = np.zeros((n_samples, 2))
+    if maze_sps is None:
+        viz_maze_sps = None
+    else:
+        viz_maze_sps = np.zeros((n_samples, maze_sps.shape[1]))
+
+    # Generate data so each batch contains a single maze and goal
+    si = 0  # sample index, increments each time
+    for mi in maze_indices:
+        for gi in goal_indices:
+            for xi in range(0, res, subsample):
+                for yi in range(0, res, subsample):
+                    loc_x = xs[xi] + offsets[mi, 0]
+                    loc_y = ys[yi] + offsets[mi, 1]
+
+                    viz_locs[si, 0] = loc_x
+                    viz_locs[si, 1] = loc_y
+                    viz_goals[si, :] = goals[mi, gi, :] + offsets[mi, :]
+
+                    viz_loc_sps[si, :] = encoding_func(x=loc_x, y=loc_y)
+
+                    viz_goal_sps[si, :] = goal_sps[mi, gi, :]
+
+                    viz_output_dirs[si, :] = solved_mazes[mi, gi, xi, yi, :]
+
+                    if maze_sps is not None:
+                        viz_maze_sps[si, :] = maze_sps[mi]
+
+                    si += 1
+
+    batch_size = int(si / (n_mazes * n_goals))
+
+    print("Visualization Data Generated")
+    print("Total Samples: {}".format(si))
+    print("Mazes: {}".format(n_mazes))
+    print("Goals: {}".format(n_goals))
+    print("Batch Size: {}".format(batch_size))
+    print("Batches: {}".format(n_mazes * n_goals))
+
+    if maze_sps is None:
+        viz_input = np.hstack([viz_loc_sps, viz_goal_sps])
+    else:
+        viz_input = np.hstack([viz_maze_sps, viz_loc_sps, viz_goal_sps])
+    viz_output = viz_output_dirs
+
+    return viz_input, viz_output, batch_size
+
+
+
+
 # def compute_angular_rmse(directions_pred, directions_true):
 #     """ Computes just the RMSE, without generating a figure """
 #
