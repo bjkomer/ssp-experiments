@@ -65,7 +65,7 @@ parser.add_argument('--grid-ssp-min', type=float, default=0.25, help='minimum pl
 parser.add_argument('--grid-ssp-max', type=float, default=2.0, help='maximum plane wave scale')
 parser.add_argument('--phi', type=float, default=0.5, help='phi as a fraction of pi for orth-proj-ssp')
 parser.add_argument('--n-proj', type=int, default=3, help='projection dimension for sub toroids')
-parser.add_argument('--scale-ratio', type=float, default=(1 + 5 ** 0.5) / 2, help='ratio between sub toroid scales')
+parser.add_argument('--scale-ratio', type=float, default=0, help='ratio between sub toroid scales')
 parser.add_argument('--hilbert-points', type=int, default=1, choices=[0, 1, 2, 3],
                     help='pc centers. 0: random uniform. 1: hilbert curve. 2: evenly spaced grid. 3: hex grid')
 
