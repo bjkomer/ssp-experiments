@@ -531,3 +531,88 @@ class ExperimentControl(object):
             pass  # TODO: do something here?
 
         return self.ret_vec
+
+
+def generate_cleanup_dataset(
+        encoding_func,
+        n_samples,
+        dim,
+        n_items,
+        item_set=None,
+        allow_duplicate_items=False,
+        limits=(-1, 1, -1, 1),
+        seed=13,
+        normalize_memory=True):
+    """
+    TODO: fix this description
+    Create a dataset of memories that contain items bound to coordinates
+
+    :param n_samples: number of memories to create
+    :param dim: dimensionality of the memories
+    :param n_items: number of items in each memory
+    :param item_set: optional list of possible item vectors. If not supplied they will be generated randomly
+    :param allow_duplicate_items: if an item set is given, this will allow the same item to be at multiple places
+    # :param x_axis_sp: optional x_axis semantic pointer. If not supplied, will be generated as a unitary vector
+    # :param y_axis_sp: optional y_axis semantic pointer. If not supplied, will be generated as a unitary vector
+    :param encoding_func: function for generating the encoding
+    :param limits: limits of the 2D space (x_low, x_high, y_low, y_high)
+    :param seed: random seed for the memories and axis vectors if not supplied
+    :param normalize_memory: if true, call normalize() on the memory semantic pointer after construction
+    :return: memory, items, coords, x_axis_sp, y_axis_sp, z_axis_sp
+    """
+    # This seed must match the one that was used to generate the model
+    np.random.seed(seed)
+
+    # Memory containing n_items of items bound to coordinates
+    memory = np.zeros((n_samples, dim))
+
+    # SP for the item of interest
+    items = np.zeros((n_samples, n_items, dim))
+
+    # Coordinate for the item of interest
+    coords = np.zeros((n_samples * n_items, 2))
+
+    # Clean ground truth SSP
+    clean_ssps = np.zeros((n_samples * n_items, dim))
+
+    # Noisy output SSP
+    noisy_ssps = np.zeros((n_samples * n_items, dim))
+
+    for i in range(n_samples):
+        memory_sp = nengo.spa.SemanticPointer(data=np.zeros((dim,)))
+
+        # If a set of items is given, choose a subset to use now
+        if item_set is not None:
+            items_used = np.random.choice(item_set, size=n_items, replace=allow_duplicate_items)
+        else:
+            items_used = None
+
+        for j in range(n_items):
+
+            x = np.random.uniform(low=limits[0], high=limits[1])
+            y = np.random.uniform(low=limits[2], high=limits[3])
+
+            # pos = encode_point(x, y, x_axis_sp=x_axis_sp, y_axis_sp=y_axis_sp)
+            pos = nengo.spa.SemanticPointer(data=encoding_func(x, y))
+
+            if items_used is None:
+                item = nengo.spa.SemanticPointer(dim)
+            else:
+                item = nengo.spa.SemanticPointer(data=items_used[j])
+
+            items[i, j, :] = item.v
+            coords[i * n_items + j, 0] = x
+            coords[i * n_items + j, 1] = y
+            clean_ssps[i * n_items + j, :] = pos.v
+            memory_sp += (pos * item)
+
+        if normalize_memory:
+            memory_sp.normalize()
+
+        memory[i, :] = memory_sp.v
+
+        # Query for each item to get the noisy SSPs
+        for j in range(n_items):
+            noisy_ssps[i * n_items + j, :] = (memory_sp * ~nengo.spa.SemanticPointer(data=items[i, j, :])).v
+
+    return clean_ssps, noisy_ssps, coords
