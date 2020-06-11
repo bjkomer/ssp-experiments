@@ -20,6 +20,7 @@ parser.add_argument('--n-train-samples', type=int, default=50000, help='Number o
 parser.add_argument('--n-test-samples', type=int, default=50000, help='Number of testing samples')
 parser.add_argument('--n-mazes', type=int, default=10)
 parser.add_argument('--hidden-size', type=int, default=1024)
+parser.add_argument('--n-epochs', type=int, default=25, help='Number of epochs to train for')
 parser.add_argument('--plot-vis-set', action='store_true')
 
 parser = add_encoding_params(parser)
@@ -124,7 +125,7 @@ first_eval = sim.evaluate(test_input, {out_p_filt: test_output}, verbose=0)
 print("Loss before training:", first_eval["loss"])
 print("Angular RMSE before training:", first_eval["out_p_filt_angular_rmse"])
 
-param_file = "./saved_params/policy_params_{}samples".format(args.n_train_samples)
+param_file = "./saved_params/policy_params_{}samples_{}epochs".format(args.n_train_samples, args.n_epochs)
 
 if not os.path.exists(param_file + '.npz'):
     print("Training")
@@ -135,7 +136,7 @@ if not os.path.exists(param_file + '.npz'):
         # loss={out_p: tf.losses.MSE()}
         loss={out_p: mse_loss},
     )
-    sim.fit(train_input, {out_p: train_output}, epochs=10)
+    sim.fit(train_input, {out_p: train_output}, epochs=args.n_epochs)
     print("Saving parameters to: {}".format(param_file))
     # save the parameters to file
     sim.save_params(param_file)
