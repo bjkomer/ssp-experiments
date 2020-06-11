@@ -241,10 +241,12 @@ with model:
     nengo.Connection(ssp_input, spatial_cleanup)
 
     spatial_cleanup.encoders = encoders_mixed
+    # spatial_cleanup.encoders = encoders_grid_cell
     spatial_cleanup.eval_points = np.vstack([encoders_place_cell, encoders_band_cell, encoders_grid_cell])
     spatial_cleanup.intercepts = mixed_intercepts
 
     location_ssp.encoders = encoders_mixed
+    # location_ssp.encoders = encoders_grid_cell
     location_ssp.eval_points = np.vstack([encoders_place_cell, encoders_band_cell, encoders_grid_cell])
     location_ssp.intercepts = mixed_intercepts
 
@@ -259,6 +261,7 @@ with model:
 
     if __name__ == '__main__':
         p_clean = nengo.Probe(location_ssp)
+        # p_coord = nengo.Probe(coord_input)
     else:
         # vmin = None
         # vmax = None
@@ -289,3 +292,14 @@ with model:
         nengo.Connection(coord_input, coord_heatmap_node, function=to_ssp)
 
 
+if __name__ == '__main__':
+    duration = 50
+    sim = nengo.Simulator(model)
+    sim.run(duration)
+
+    output_fname = 'neural_cleanup_output_{}.npz'.format(dim)
+
+    np.savez(
+        output_fname,
+        clean_output=sim.data[p_clean],
+    )
