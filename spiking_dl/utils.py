@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import nengo.spa as spa
+import tensorflow as tf
 
 
 def create_policy_train_test_sets(
@@ -188,3 +189,64 @@ def create_policy_train_test_sets(
             test_output = sample_output_dirs
 
     return train_input, train_output, test_input, test_output
+
+
+# def compute_angular_rmse(directions_pred, directions_true):
+#     """ Computes just the RMSE, without generating a figure """
+#
+#     angles_flat_pred = np.arctan2(directions_pred[:, 1], directions_pred[:, 0])
+#     angles_flat_true = np.arctan2(directions_true[:, 1], directions_true[:, 0])
+#
+#     # Create 3 possible offsets to cover all cases
+#     angles_offset_true = np.zeros((len(angles_flat_true), 3))
+#     angles_offset_true[:, 0] = angles_flat_true - 2 * np.pi
+#     angles_offset_true[:, 1] = angles_flat_true
+#     angles_offset_true[:, 2] = angles_flat_true + 2 * np.pi
+#
+#     angles_offset_true -= angles_flat_pred.reshape(len(angles_flat_pred), 1)
+#     angles_offset_true = np.abs(angles_offset_true)
+#
+#     angle_error = np.min(angles_offset_true, axis=1)
+#
+#     angle_squared_error = angle_error**2
+#
+#     angle_rmse = np.sqrt(angle_squared_error.mean())
+#
+#     return angle_rmse
+
+def compute_angular_rmse(directions_pred, directions_true):
+    """ Computes just the RMSE, with tensorflow compatible code """
+
+    angles_flat_pred = tf.math.atan2(directions_pred[:, 1], directions_pred[:, 0])
+    angles_flat_true = tf.math.atan2(directions_true[:, 1], directions_true[:, 0])
+
+    # Create 3 possible offsets to cover all cases
+    # angles_offset_true = np.zeros((len(angles_flat_true), 3))
+    # angles_offset_true = tf.zeros((angles_flat_true.shape[0], 3))
+    # angles_offset_true[:, 0] = angles_flat_true - 2 * np.pi
+    # angles_offset_true[:, 1] = angles_flat_true
+    # angles_offset_true[:, 2] = angles_flat_true + 2 * np.pi
+
+    angles_offset_true = tf.stack(
+        [
+            angles_flat_true - 2 * np.pi,
+            angles_flat_true,
+            angles_flat_true + 2 * np.pi,
+        ]
+    )
+
+    # angles_offset_true -= angles_flat_pred.reshape(angles_flat_pred.shape[0], 1)
+    angles_offset_true -= angles_flat_pred
+
+    # angles_offset_true = np.abs(angles_offset_true)
+    angles_offset_true = tf.math.abs(angles_offset_true)
+
+    # angle_error = np.min(angles_offset_true, axis=1)
+    angle_error = tf.math.reduce_min(angles_offset_true, axis=1)
+
+    angle_squared_error = angle_error**2
+
+    # angle_rmse = np.sqrt(angle_squared_error.mean())
+    angle_rmse = tf.math.sqrt(tf.math.reduce_mean(angle_squared_error))
+
+    return angle_rmse

@@ -5,7 +5,8 @@ import numpy as np
 import nengo.spa as spa
 import matplotlib.pyplot as plt
 from ssp_navigation.utils.encodings import get_encoding_function, add_encoding_params
-from utils import create_policy_train_test_sets
+from utils import create_policy_train_test_sets, compute_angular_rmse
+import os
 
 import nengo_dl
 
@@ -17,6 +18,7 @@ parser.add_argument('--net-seed', type=int, default=13)
 parser.add_argument('--n-train-samples', type=int, default=50000, help='Number of training samples')
 parser.add_argument('--n-test-samples', type=int, default=50000, help='Number of testing samples')
 parser.add_argument('--n-mazes', type=int, default=10)
+parser.add_argument('--hidden-size', type=int, default=1024)
 
 parser = add_encoding_params(parser)
 
@@ -58,7 +60,8 @@ with nengo.Network(seed=args.net_seed) as net:
     # the input node that will be used to feed in (context, location, goal)
     inp = nengo.Node(np.zeros((args.dim*2 + args.maze_id_dim,)))
 
-    x = nengo_dl.Layer(neuron_type)(inp)
+    x = nengo_dl.Layer(tf.keras.layers.Dense(units=args.hidden_size))(inp)
+    x = nengo_dl.Layer(neuron_type)(x)
 
     out = nengo_dl.Layer(tf.keras.layers.Dense(units=2))(x)
 
@@ -81,6 +84,7 @@ test_input = np.tile(test_input[:, None, :], (1, n_steps, 1))
 # test_output = np.tile(test_output[:, None, None], (1, n_steps, 1))
 test_output = np.tile(test_output[:, None, :], (1, n_steps, 1))
 
+
 def mse_loss(y_true, y_pred):
     return tf.metrics.MSE(
         y_true[:, -1], y_pred[:, -1]
@@ -92,29 +96,54 @@ def cosine_loss(y_true, y_pred):
         y_true[:, -1], y_pred[:, -1]
     )
 
+
+def angular_rmse(y_true, y_pred):
+    return compute_angular_rmse(
+        y_true[:, -1], y_pred[:, -1]
+    )
+
+
 print(test_output.shape)
 
-sim.compile(loss={out_p_filt: mse_loss})
-print("Loss before training:",
-      sim.evaluate(test_input, {out_p_filt: test_output}, verbose=0)["loss"])
+# sim.compile(loss={out_p_filt: mse_loss})
+sim.compile(
+    loss={out_p_filt: mse_loss},
+    metrics={out_p_filt: angular_rmse},
+)
+first_eval = sim.evaluate(test_input, {out_p_filt: test_output}, verbose=0)
+print("Loss before training:", first_eval["loss"])
+print("Angular RMSE before training:", first_eval["out_p_filt_angular_rmse"])
 
-do_training = True
-if do_training:
+param_file = "./policy_params_{}samples".format(args.n_train_samples)
+
+if not os.path.exists(param_file + '.npz'):
+    print("Training")
     # run training
     sim.compile(
         # optimizer=tf.optimizers.RMSprop(0.001),
         optimizer=tf.optimizers.Adam(0.001),
         # loss={out_p: tf.losses.MSE()}
-        loss = {out_p: mse_loss}
+        loss = {out_p: mse_loss},
     )
     sim.fit(train_input, {out_p: train_output}, epochs=10)
     print("Saving parameters")
     # save the parameters to file
-    sim.save_params("./policy_debug_params")
+    sim.save_params(param_file)
 else:
     # load parameters
-    sim.load_params("./policy_debug_params")
+    print("Loading pre-trained parameters")
+    sim.load_params(param_file)
 
-sim.compile(loss={out_p_filt: mse_loss})
-print("Accuracy after training:",
-      sim.evaluate(test_input, {out_p_filt: test_output}, verbose=0)["loss"])
+sim.compile(
+    loss={out_p_filt: mse_loss},
+    metrics={out_p_filt: angular_rmse},
+)
+
+final_eval = sim.evaluate(test_input, {out_p_filt: test_output}, verbose=0)
+
+# print(dir(final_eval))
+# print(final_eval)
+
+print("Loss after training:", final_eval["loss"])
+
+print("Angular RMSE after training:", final_eval["out_p_filt_angular_rmse"])
