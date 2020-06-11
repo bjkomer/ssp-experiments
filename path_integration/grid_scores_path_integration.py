@@ -82,6 +82,8 @@ parser.add_argument('--sin-cos-ang', type=int, default=1, choices=[0, 1],
 parser.add_argument('--use-lmu', action='store_true')
 parser.add_argument('--lmu-order', type=int, default=6)
 
+parser.add_argument('--no-cache-load', action='store_true', help='do not load from cache')
+
 args = parser.parse_args()
 
 ssp_scaling = args.ssp_scaling
@@ -179,7 +181,7 @@ else:
     )
 
 # if the file exists, load it from cache
-if os.path.exists(cache_fname):
+if os.path.exists(cache_fname) and not args.no_cache_load:
     print("Generating Train and Test Loaders from Cache")
     trainloader, testloader = load_from_cache(cache_fname, batch_size=batch_size, n_samples=n_samples)
 else:
