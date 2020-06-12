@@ -24,6 +24,7 @@ parser.add_argument('--n-mazes', type=int, default=10)
 parser.add_argument('--hidden-size', type=int, default=1024)
 parser.add_argument('--n-epochs', type=int, default=25, help='Number of epochs to train for')
 parser.add_argument('--plot-vis-set', action='store_true')
+parser.add_argument('--loss-function', type=str, default='mse', choices=['mse', 'cosine', 'ang-rmse'])
 
 parser = add_encoding_params(parser)
 
@@ -134,18 +135,35 @@ first_eval = sim.evaluate(test_input, {out_p_filt: test_output}, verbose=0)
 print("Loss before training:", first_eval["loss"])
 print("Angular RMSE before training:", first_eval["out_p_filt_angular_rmse"])
 
-param_file = "./saved_params/policy_params_{}samples_{}epochs".format(args.n_train_samples, args.n_epochs)
-history_file = "./saved_params/train_history_{}samples_{}epochs.npz".format(args.n_train_samples, args.n_epochs)
+param_file = "./saved_params/policy_params_{}_hs{}_{}samples_{}epochs".format(
+    args.loss_function, args.hidden_size, args.n_train_samples, args.n_epochs
+)
+history_file = "./saved_params/train_history_{}_hs{}_{}samples_{}epochs.npz".format(
+    args.loss_function, args.hidden_size, args.n_train_samples, args.n_epochs
+)
 
 if not os.path.exists(param_file + '.npz'):
     print("Training")
     # run training
-    sim.compile(
-        # optimizer=tf.optimizers.RMSprop(0.001),
-        optimizer=tf.optimizers.Adam(0.001),
-        # loss={out_p: tf.losses.MSE()}
-        loss={out_p: mse_loss},
-    )
+    if args.loss_function == 'mse':
+        sim.compile(
+            # optimizer=tf.optimizers.RMSprop(0.001),
+            optimizer=tf.optimizers.Adam(0.001),
+            # loss={out_p: tf.losses.MSE()}
+            loss={out_p: mse_loss},
+        )
+    elif args.loss_function == 'cosine':
+        sim.compile(
+            # optimizer=tf.optimizers.RMSprop(0.001),
+            optimizer=tf.optimizers.Adam(0.001),
+            loss={out_p: cosine_loss},
+        )
+    elif args.loss_function == 'ang-rmse':
+        sim.compile(
+            # optimizer=tf.optimizers.RMSprop(0.001),
+            optimizer=tf.optimizers.Adam(0.001),
+            loss={out_p: angular_rmse},
+        )
     history = sim.fit(
         train_input,
         {out_p: train_output},
