@@ -392,3 +392,173 @@ def compute_angular_rmse(directions_pred, directions_true):
     angle_rmse = tf.math.sqrt(tf.math.reduce_mean(angle_squared_error))
 
     return angle_rmse
+
+
+def create_localization_train_test_sets(
+        data, n_train_samples, n_test_samples,
+        args,
+        n_mazes_to_use,
+        encoding_func,
+        tile_mazes=False,
+        connected_tiles=False,
+        rng=np.random,
+        split_seed=13):
+
+    np.random.seed(args.seed)
+    id_size = args.maze_id_dim
+    if id_size > 0:
+        maze_sps = np.zeros((args.n_mazes, args.maze_id_dim))
+        # overwrite data
+        for mi in range(args.n_mazes):
+            maze_sps[mi, :] = spa.SemanticPointer(args.maze_id_dim).v
+    else:
+        maze_sps = None
+
+
+    # shape is (n_mazes, n_samples, n_sensors, 4)
+    dist_sensors = data['dist_sensors']
+
+    total_dataset_samples = dist_sensors.shape[1]
+
+    # shape is (n_mazes, n_samples, 2)
+    locations = data['locations']
+
+    n_sensors = dist_sensors.shape[2]
+
+    n_mazes = dist_sensors.shape[0]
+
+    for test_set, n_samples in enumerate([n_train_samples, n_test_samples]):
+
+        sensor_inputs = np.zeros((n_samples, n_sensors*4))
+
+        encoding_outputs = np.zeros((n_samples, args.dim))
+
+        # for the 2D encoding method
+        # pos_outputs = np.zeros((n_samples, 2))
+
+        if maze_sps is not None:
+            maze_ids = np.zeros((n_samples, maze_sps.shape[1]))
+        else:
+            maze_ids = None
+
+        if n_train_samples + n_test_samples < total_dataset_samples:
+            if test_set:
+                sample_indices = rng.randint(low=n_train_samples, high=n_train_samples+n_test_samples, size=(n_test_samples,))
+            else:
+                sample_indices = rng.randint(low=0, high=n_train_samples, size=(n_train_samples,))
+        else:
+            if test_set:
+                sample_indices = rng.randint(low=0, high=total_dataset_samples, size=(n_train_samples,))
+            else:
+                sample_indices = rng.randint(low=0, high=total_dataset_samples, size=(n_train_samples,))
+
+        for i in range(n_samples):
+            # choose random maze and position in maze
+
+            maze_ind = np.random.randint(low=0, high=n_mazes_to_use)
+
+            sensor_inputs[i, :] = dist_sensors[maze_ind, sample_indices[i], :, :].flatten()
+
+            loc = locations[maze_ind, sample_indices[i], :]
+            encoding_outputs[i, :] = encoding_func(loc[0], loc[1])
+
+            # # one-hot maze ID
+            # maze_ids[i, maze_ind] = 1
+
+            if maze_sps is not None:
+                # supports both one-hot and random-sp
+                maze_ids[i, :] = maze_sps[maze_ind, :]
+
+        if test_set == 0:
+            train_input = np.hstack([sensor_inputs, maze_ids])
+            train_output = encoding_outputs
+        elif test_set == 1:
+            test_input = np.hstack([sensor_inputs, maze_ids])
+            test_output = encoding_outputs
+
+    return train_input, train_output, test_input, test_output
+
+
+def create_localization_viz_set(
+        data, n_train_samples, n_test_samples,
+        args,
+        n_mazes_to_use,
+        encoding_func,
+        tile_mazes=False,
+        connected_tiles=False,
+        rng=np.random,
+        split_seed=13):
+
+    np.random.seed(args.seed)
+    id_size = args.maze_id_dim
+    if id_size > 0:
+        maze_sps = np.zeros((args.n_mazes, args.maze_id_dim))
+        # overwrite data
+        for mi in range(args.n_mazes):
+            maze_sps[mi, :] = spa.SemanticPointer(args.maze_id_dim).v
+    else:
+        maze_sps = None
+
+
+    # shape is (n_mazes, n_samples, n_sensors, 4)
+    dist_sensors = data['dist_sensors']
+
+    total_dataset_samples = dist_sensors.shape[1]
+
+    # shape is (n_mazes, n_samples, 2)
+    locations = data['locations']
+
+    n_sensors = dist_sensors.shape[2]
+
+    n_mazes = dist_sensors.shape[0]
+
+    for test_set, n_samples in enumerate([n_train_samples, n_test_samples]):
+
+        sensor_inputs = np.zeros((n_samples, n_sensors*4))
+
+        encoding_outputs = np.zeros((n_samples, args.dim))
+
+        # for the 2D encoding method
+        # pos_outputs = np.zeros((n_samples, 2))
+
+        if maze_sps is not None:
+            maze_ids = np.zeros((n_samples, maze_sps.shape[1]))
+        else:
+            maze_ids = None
+
+        if n_train_samples + n_test_samples < total_dataset_samples:
+            if test_set:
+                sample_indices = rng.randint(low=n_train_samples, high=n_train_samples+n_test_samples, size=(n_test_samples,))
+            else:
+                sample_indices = rng.randint(low=0, high=n_train_samples, size=(n_train_samples,))
+        else:
+            if test_set:
+                sample_indices = rng.randint(low=0, high=total_dataset_samples, size=(n_train_samples,))
+            else:
+                sample_indices = rng.randint(low=0, high=total_dataset_samples, size=(n_train_samples,))
+
+        for i in range(n_samples):
+            # choose random maze and position in maze
+
+            maze_ind = np.random.randint(low=0, high=n_mazes_to_use)
+
+            sensor_inputs[i, :] = dist_sensors[maze_ind, sample_indices[i], :, :].flatten()
+
+            loc = locations[maze_ind, sample_indices[i], :]
+            encoding_outputs[i, :] = encoding_func(loc[0], loc[1])
+
+            # # one-hot maze ID
+            # maze_ids[i, maze_ind] = 1
+
+            if maze_sps is not None:
+                # supports both one-hot and random-sp
+                maze_ids[i, :] = maze_sps[maze_ind, :]
+
+        if test_set == 0:
+            train_input = np.hstack([sensor_inputs, maze_ids])
+            train_output = encoding_outputs
+        elif test_set == 1:
+            test_input = np.hstack([sensor_inputs, maze_ids])
+            test_output = encoding_outputs
+
+    return train_input, train_output, test_input, test_output
