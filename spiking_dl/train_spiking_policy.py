@@ -8,6 +8,7 @@ from ssp_navigation.utils.encodings import get_encoding_function, add_encoding_p
 from utils import create_policy_train_test_sets, compute_angular_rmse, create_policy_vis_set
 from ssp_navigation.utils.path import plot_path_predictions, plot_path_predictions_image, get_path_predictions_image
 import os
+import pickle
 
 import nengo_dl
 
@@ -18,6 +19,7 @@ parser.add_argument('--maze-id-dim', type=int, default=256)
 parser.add_argument('--net-seed', type=int, default=13)
 parser.add_argument('--n-train-samples', type=int, default=50000, help='Number of training samples')
 parser.add_argument('--n-test-samples', type=int, default=50000, help='Number of testing samples')
+parser.add_argument('--n-validation-samples', type=int, default=5000, help='Number of test samples for validation')
 parser.add_argument('--n-mazes', type=int, default=10)
 parser.add_argument('--hidden-size', type=int, default=1024)
 parser.add_argument('--n-epochs', type=int, default=25, help='Number of epochs to train for')
@@ -89,11 +91,18 @@ train_input = train_input[:, None, :]
 # train_output = train_output[:, None, None]
 train_output = train_output[:, None, :]
 
+# small validation set, so it will not take long to compute
+val_input = test_input[:args.n_validation_samples]
+val_output = test_output[:args.n_validation_samples]
+val_input = val_input[:, None, :]
+val_output = val_output[:, None, :]
+
 # number of timesteps to repeat the input/output for
 n_steps = 30
 test_input = np.tile(test_input[:, None, :], (1, n_steps, 1))
 # test_output = np.tile(test_output[:, None, None], (1, n_steps, 1))
 test_output = np.tile(test_output[:, None, :], (1, n_steps, 1))
+
 
 
 def mse_loss(y_true, y_pred):
@@ -116,7 +125,7 @@ def angular_rmse(y_true, y_pred):
 
 print(test_output.shape)
 
-sim.compile(loss={out_p_filt: mse_loss})
+# sim.compile(loss={out_p_filt: mse_loss})
 sim.compile(
     loss={out_p_filt: mse_loss},
     metrics={out_p_filt: angular_rmse},
@@ -126,6 +135,7 @@ print("Loss before training:", first_eval["loss"])
 print("Angular RMSE before training:", first_eval["out_p_filt_angular_rmse"])
 
 param_file = "./saved_params/policy_params_{}samples_{}epochs".format(args.n_train_samples, args.n_epochs)
+history_file = "./saved_params/train_history_{}samples_{}epochs.npz".format(args.n_train_samples, args.n_epochs)
 
 if not os.path.exists(param_file + '.npz'):
     print("Training")
@@ -136,7 +146,16 @@ if not os.path.exists(param_file + '.npz'):
         # loss={out_p: tf.losses.MSE()}
         loss={out_p: mse_loss},
     )
-    sim.fit(train_input, {out_p: train_output}, epochs=args.n_epochs)
+    history = sim.fit(
+        train_input,
+        {out_p: train_output},
+        epochs=args.n_epochs,
+        validation_data=(val_input, val_output)
+    )
+    np.savez(
+        history_file,
+        **history.history,
+    )
     print("Saving parameters to: {}".format(param_file))
     # save the parameters to file
     sim.save_params(param_file)
