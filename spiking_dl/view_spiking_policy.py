@@ -139,6 +139,8 @@ param_file = args.param_file
 print("Loading pre-trained parameters")
 sim.load_params(param_file)
 
+print(type(sim))
+
 # sim.compile(
 #     loss={out_p_filt: mse_loss},
 #     metrics={out_p_filt: angular_rmse},
@@ -160,6 +162,11 @@ vis_input, vis_output, batch_size = create_policy_vis_set(
     encoding_func=encoding_func,
     maze_indices=[0, 1, 2, 3],
     goal_indices=[0, 1],
+    # TEMP: for debugging
+    # maze_indices=[0, ],
+    # goal_indices=[2, 3, 4, 5, 6, 7, 8],
+    # x_offset=0.25,
+    # y_offset=0.25,
 )
 
 n_steps = 30

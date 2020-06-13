@@ -8,7 +8,6 @@ from ssp_navigation.utils.encodings import get_encoding_function, add_encoding_p
 from utils import create_policy_train_test_sets, compute_angular_rmse, create_policy_vis_set
 from ssp_navigation.utils.path import plot_path_predictions, plot_path_predictions_image, get_path_predictions_image
 import os
-import pickle
 
 import nengo_dl
 

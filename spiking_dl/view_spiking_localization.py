@@ -26,6 +26,10 @@ parser.add_argument('--hidden-size', type=int, default=1024)
 parser.add_argument('--n-epochs', type=int, default=25, help='Number of epochs to train for')
 parser.add_argument('--plot-vis-set', action='store_true')
 parser.add_argument('--loss-function', type=str, default='mse', choices=['mse', 'cosine', 'ang-rmse'])
+parser.add_argument('--n-sensors', type=int, default=36)
+parser.add_argument('--fov', type=int, default=360)
+parser.add_argument('--max-dist', type=float, default=10, help='maximum distance for distance sensor')
+
 parser.add_argument('--param-file', type=str, default='')
 
 parser = add_encoding_params(parser)
@@ -131,17 +135,15 @@ for i, x in enumerate(xs):
 print("Generating visualization set")
 
 vis_input, vis_output = create_localization_viz_set(
-    data=data,
     args=args,
-    # n_mazes=args.n_mazes,
+    n_mazes_to_use=2,  # 10
     encoding_func=encoding_func,
-    # maze_indices=[0, 1, 2, 3],
 )
 
 n_batches = vis_input.shape[0]
 batch_size = vis_input.shape[1]
 
-vis_input = np.tile(vis_input[:, None, :], (1, n_steps, 1))
+# vis_input = np.tile(vis_input[:, None, :], (1, n_steps, 1))
 # vis_output = np.tile(vis_output[:, None, :], (1, n_steps, 1))
 
 print("Running visualization")

@@ -4,9 +4,11 @@ import tensorflow as tf
 import numpy as np
 import nengo.spa as spa
 import matplotlib.pyplot as plt
-from ssp_navigation.utils.encodings import get_encoding_function, add_encoding_params
+from ssp_navigation.utils.encodings import get_encoding_function, add_encoding_params, get_encoding_heatmap_vectors
 from utils import create_localization_train_test_sets, compute_angular_rmse, create_localization_viz_set
 from ssp_navigation.utils.path import plot_path_predictions, plot_path_predictions_image, get_path_predictions_image
+from spatial_semantic_pointers.utils import ssp_to_loc_v
+from spatial_semantic_pointers.plots import plot_predictions_v
 import os
 
 import nengo_dl
@@ -24,6 +26,9 @@ parser.add_argument('--hidden-size', type=int, default=1024)
 parser.add_argument('--n-epochs', type=int, default=25, help='Number of epochs to train for')
 parser.add_argument('--plot-vis-set', action='store_true')
 parser.add_argument('--loss-function', type=str, default='mse', choices=['mse', 'cosine', 'ang-rmse'])
+parser.add_argument('--n-sensors', type=int, default=36)
+parser.add_argument('--fov', type=int, default=360)
+parser.add_argument('--max-dist', type=float, default=10, help='maximum distance for distance sensor')
 
 parser = add_encoding_params(parser)
 
@@ -194,50 +199,65 @@ print("Loss after training:", final_eval["loss"])
 
 if args.plot_vis_set:
 
+    res = 64
+    xs = np.linspace(limit_low, limit_high, res)
+    ys = np.linspace(limit_low, limit_high, res)
+
+    coords = np.zeros((res * res, 2))
+    for i, x in enumerate(xs):
+        for j, y in enumerate(ys):
+            coords[i * res + j, 0] = x
+            coords[i * res + j, 1] = y
+
     print("Generating visualization set")
 
-    vis_input, vis_output, batch_size = create_localization_viz_set(
-        data=data,
+    vis_input, vis_output = create_localization_viz_set(
         args=args,
-        n_mazes=args.n_mazes,
         encoding_func=encoding_func,
-        maze_indices=[0, 1, 2, 3],
     )
 
-    vis_input = np.tile(vis_input[:, None, :], (1, n_steps, 1))
+    n_batches = vis_input.shape[0]
+    batch_size = vis_input.shape[1]
+
+    # vis_input = np.tile(vis_input[:, None, :], (1, n_steps, 1))
     # vis_output = np.tile(vis_output[:, None, :], (1, n_steps, 1))
 
     print("Running visualization")
     # viz_eval = sim.evaluate(test_input, {out_p_filt: test_output}, verbose=0)
 
-    n_batches = 4*2
+    fig, ax = plt.subplots(1, n_batches)
 
     for bi in range(n_batches):
-        viz_eval = sim.predict(vis_input[bi*batch_size:(bi+1)*batch_size])
+        vis_batch_input = np.tile(vis_input[bi, :, None, :], (1, n_steps, 1))
+        viz_eval = sim.predict(vis_batch_input)
         # batch_data = viz_eval[out_p_filt][:, -1, :]
         batch_data = viz_eval[out_p_filt][:, 10:, :].mean(axis=1)
-        directions = vis_output[bi*batch_size:(bi+1)*batch_size, :]
+        true_ssps = vis_output[bi, :, :]
 
         print('pred.shape', batch_data.shape)
-        print('directions.shape', directions.shape)
+        print('true_ssps.shape', true_ssps.shape)
 
-        wall_overlay = (directions[:, 0] == 0) & (directions[:, 1] == 0)
+        wall_overlay = np.sum(true_ssps, axis=1) == 0
 
         print('wall_overlay.shape', wall_overlay.shape)
 
-        fig_truth, rmse = plot_path_predictions_image(
-            directions_pred=directions,
-            directions_true=directions,
-            wall_overlay=wall_overlay
+        hmv = get_encoding_heatmap_vectors(xs, ys, args.dim, encoding_func, normalize=False)
+
+        predictions = np.zeros((res * res, 2))
+
+        # computing 'predicted' coordinates, where the agent thinks it is
+        predictions[:, :] = ssp_to_loc_v(
+            batch_data,
+            hmv, xs, ys
         )
 
-        fig_pred, rmse = plot_path_predictions_image(
-            directions_pred=batch_data,
-            directions_true=directions,
-            wall_overlay=wall_overlay
+        plot_predictions_v(
+            predictions=predictions, coords=coords,
+            ax=ax[bi],
+            min_val=limit_low,
+            max_val=limit_high,
+            fixed_axes=True,
         )
 
-        plt.show()
+    plt.show()
 
-        print(batch_data)
-        print(batch_data.shape)

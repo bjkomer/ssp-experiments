@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import nengo.spa as spa
 import tensorflow as tf
+import os
 
 
 def create_policy_train_test_sets(
@@ -201,6 +202,8 @@ def create_policy_vis_set(
         tile_mazes=False,
         connected_tiles=False,
         subsample=1,
+        x_offset=0,  # optional offsets for checking overfitting
+        y_offset=0,
         split_seed=13):
 
     rng = np.random.RandomState(seed=args.seed)
@@ -270,10 +273,10 @@ def create_policy_vis_set(
 
     goal_sps = np.zeros((n_mazes, n_goals, args.dim))
     for ni in range(goal_sps.shape[0]):
-        for gi in range(goal_sps.shape[1]):
+        for gi, goal_index in enumerate(goal_indices):
             goal_sps[ni, gi, :] = encoding_func(
-                x=goals[ni, gi, 0] + offsets[ni, 0],
-                y=goals[ni, gi, 1] + offsets[ni, 1]
+                x=goals[ni, goal_index, 0] + offsets[ni, 0],
+                y=goals[ni, goal_index, 1] + offsets[ni, 1]
             )
 
     n_samples = int(res / subsample) * int(res / subsample) * n_mazes * n_goals
@@ -292,7 +295,7 @@ def create_policy_vis_set(
     # Generate data so each batch contains a single maze and goal
     si = 0  # sample index, increments each time
     for mi in maze_indices:
-        for gi in goal_indices:
+        for gi, goal_index in enumerate(goal_indices):
             for xi in range(0, res, subsample):
                 for yi in range(0, res, subsample):
                     loc_x = xs[xi] + offsets[mi, 0]
@@ -302,11 +305,11 @@ def create_policy_vis_set(
                     viz_locs[si, 1] = loc_y
                     viz_goals[si, :] = goals[mi, gi, :] + offsets[mi, :]
 
-                    viz_loc_sps[si, :] = encoding_func(x=loc_x, y=loc_y)
+                    viz_loc_sps[si, :] = encoding_func(x=loc_x + x_offset, y=loc_y + y_offset)
 
                     viz_goal_sps[si, :] = goal_sps[mi, gi, :]
 
-                    viz_output_dirs[si, :] = solved_mazes[mi, gi, xi, yi, :]
+                    viz_output_dirs[si, :] = solved_mazes[mi, goal_index, xi, yi, :]
 
                     if maze_sps is not None:
                         viz_maze_sps[si, :] = maze_sps[mi]
@@ -480,10 +483,9 @@ def create_localization_train_test_sets(
 
 
 def create_localization_viz_set(
-        data, n_train_samples, n_test_samples,
         args,
-        n_mazes_to_use,
         encoding_func,
+        n_mazes_to_use=10,
         tile_mazes=False,
         connected_tiles=False,
         rng=np.random,
@@ -499,66 +501,148 @@ def create_localization_viz_set(
     else:
         maze_sps = None
 
+    colour_centers = np.array([
+        [3, 3],
+        [10, 4],
+        [7, 7],
+    ])
 
-    # shape is (n_mazes, n_samples, n_sensors, 4)
-    dist_sensors = data['dist_sensors']
+    def colour_func(x, y, sigma=7):
+        ret = np.zeros((3,))
 
-    total_dataset_samples = dist_sensors.shape[1]
+        for c in range(3):
+            ret[c] = np.exp(-((colour_centers[c, 0] - x) ** 2 + (colour_centers[c, 1] - y) ** 2) / (sigma ** 2))
 
-    # shape is (n_mazes, n_samples, 2)
-    locations = data['locations']
+        return ret
 
-    n_sensors = dist_sensors.shape[2]
+    home = os.path.expanduser("~")
+    dataset_file = os.path.join(
+        home,
+        'ssp-navigation/ssp_navigation/datasets/mixed_style_100mazes_100goals_64res_13size_13seed/maze_dataset.npz'
+    )
+    base_data = np.load(dataset_file)
 
-    n_mazes = dist_sensors.shape[0]
+    coarse_mazes = base_data['coarse_mazes']
+    fine_mazes = base_data['fine_mazes']
+    xs = base_data['xs']
+    ys = base_data['ys']
 
-    for test_set, n_samples in enumerate([n_train_samples, n_test_samples]):
+    res = fine_mazes.shape[2]
+    coarse_maze_size = coarse_mazes.shape[1]
 
-        sensor_inputs = np.zeros((n_samples, n_sensors*4))
+    limit_low = xs[0]
+    limit_high = xs[-1]
 
-        encoding_outputs = np.zeros((n_samples, args.dim))
+    sensor_scaling = (limit_high - limit_low) / coarse_maze_size
 
-        # for the 2D encoding method
-        # pos_outputs = np.zeros((n_samples, 2))
+    # Scale to the coordinates of the coarse maze, for getting distance measurements
+    xs_scaled = ((xs - limit_low) / (limit_high - limit_low)) * coarse_maze_size
+    ys_scaled = ((ys - limit_low) / (limit_high - limit_low)) * coarse_maze_size
 
-        if maze_sps is not None:
-            maze_ids = np.zeros((n_samples, maze_sps.shape[1]))
-        else:
-            maze_ids = None
+    n_sensors = args.n_sensors
+    fov_rad = args.fov * np.pi / 180
 
-        if n_train_samples + n_test_samples < total_dataset_samples:
-            if test_set:
-                sample_indices = rng.randint(low=n_train_samples, high=n_train_samples+n_test_samples, size=(n_test_samples,))
-            else:
-                sample_indices = rng.randint(low=0, high=n_train_samples, size=(n_train_samples,))
-        else:
-            if test_set:
-                sample_indices = rng.randint(low=0, high=total_dataset_samples, size=(n_train_samples,))
-            else:
-                sample_indices = rng.randint(low=0, high=total_dataset_samples, size=(n_train_samples,))
+    # R, G, B, distance
+    dist_sensors = np.zeros((n_mazes_to_use, res*res, n_sensors * 4))
 
-        for i in range(n_samples):
-            # choose random maze and position in maze
+    # output SSP
+    target_outputs = np.zeros((n_mazes_to_use, res*res, args.dim))
 
-            maze_ind = np.random.randint(low=0, high=n_mazes_to_use)
+    maze_ids = np.zeros((n_mazes_to_use, res*res, args.maze_id_dim))
 
-            sensor_inputs[i, :] = dist_sensors[maze_ind, sample_indices[i], :, :].flatten()
+    # Generate sensor readings for every location in xs and ys in each maze
+    for mi in range(n_mazes_to_use):
+        # Print that replaces the line each time
+        print('\x1b[2K\r Map {0} of {1}'.format(mi + 1, n_mazes_to_use), end="\r")
 
-            loc = locations[maze_ind, sample_indices[i], :]
-            encoding_outputs[i, :] = encoding_func(loc[0], loc[1])
+        for xi, x in enumerate(xs_scaled):
+            for yi, y in enumerate(ys_scaled):
 
-            # # one-hot maze ID
-            # maze_ids[i, maze_ind] = 1
+                # Only compute measurements if not in a wall
+                if fine_mazes[mi, xi, yi] == 0:
+                    # Compute sensor measurements and scale them based on xs and ys
+                    dist_sensors[mi, xi * res + yi, :] = generate_colour_sensor_readings(
+                        map_arr=coarse_mazes[mi, :, :],
+                        colour_func=colour_func,
+                        n_sensors=n_sensors,
+                        fov_rad=fov_rad,
+                        x=x,
+                        y=y,
+                        th=0,
+                        max_sensor_dist=args.max_dist,
+                    ).flatten() * sensor_scaling
 
-            if maze_sps is not None:
-                # supports both one-hot and random-sp
-                maze_ids[i, :] = maze_sps[maze_ind, :]
+                    target_outputs[mi, xi * res + yi, :] = encoding_func(x=x, y=y)
 
-        if test_set == 0:
-            train_input = np.hstack([sensor_inputs, maze_ids])
-            train_output = encoding_outputs
-        elif test_set == 1:
-            test_input = np.hstack([sensor_inputs, maze_ids])
-            test_output = encoding_outputs
+                    maze_ids[mi, xi * res + yi, :] = maze_sps[mi, :]
 
-    return train_input, train_output, test_input, test_output
+    viz_input = np.concatenate([dist_sensors, maze_ids], axis=2)
+    viz_output = target_outputs
+
+    return viz_input, viz_output
+
+
+def generate_colour_sensor_readings(map_arr,
+                                    colour_func,
+                                    n_sensors=30,
+                                    fov_rad=np.pi,
+                                    x=0,
+                                    y=0,
+                                    th=0,
+                                    max_sensor_dist=10,
+                                    ):
+    """
+    Given a map, agent location in the map, number of sensors, field of view
+    calculate the distance readings of each sensor to the nearest obstacle
+    uses supersampling to find the approximate collision points
+    """
+    dists = np.zeros((n_sensors, 4))
+
+    angs = np.linspace(-fov_rad / 2. + th, fov_rad / 2. + th, n_sensors)
+
+    for i, ang in enumerate(angs):
+        dists[i, :] = get_collision_coord(map_arr, x, y, ang, colour_func, max_sensor_dist)
+
+    return dists
+
+
+def get_collision_coord(map_array, x, y, th, colour_func,
+                        max_sensor_dist=10,
+                        dr=.05,
+                        ):
+    """
+    Find the first occupied space given a start point and direction
+    """
+    # Define the step sizes
+    dx = np.cos(th)*dr
+    dy = np.sin(th)*dr
+
+    # Initialize to starting point
+    cx = x
+    cy = y
+
+    # R, G, B, dist
+    ret = np.zeros((4, ))
+
+    for i in range(int(max_sensor_dist/dr)):
+        # Move one unit in the direction of the sensor
+        cx += dx
+        cy += dy
+
+        if map_array[int(round(cx)), int(round(cy))] == 1:
+            ret[:3] = colour_func(cx, cy)
+            ret[3] = (i - 1)*dr
+            return ret
+
+    return max_sensor_dist
+
+
+def free_space(pos, map_array, width, height):
+    """
+    Returns True if the position corresponds to a free space in the map
+    :param pos: 2D floating point x-y coordinates
+    """
+    # TODO: doublecheck that rounding is the correct thing to do here
+    x = np.clip(int(np.round(pos[0])), 0, width - 1)
+    y = np.clip(int(np.round(pos[1])), 0, height - 1)
+    return map_array[x, y] == 0
