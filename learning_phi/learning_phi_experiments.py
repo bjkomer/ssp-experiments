@@ -26,17 +26,21 @@ args = parser.parse_args()
 def main(args):
     torch.set_default_dtype(torch.float64)
 
-    for limit in [0.5, 1.0, 2.0, 4.0]:
-        for ssp_dim in [5, 10, 15, 20, 100]:
-            for coord_dim in [1, 2]:
+    limits = [0.5, 1.0, 2.0, 4.0]
+    ssp_dims = [5, 10, 15, 20, 100]
+    coord_dims = [1, 2]
+
+    for limit in limits:
+        for ssp_dim in ssp_dims:
+            for coord_dim in coord_dims:
                 args.limit = limit
                 args.ssp_dim = ssp_dim
                 args.coord_dim = coord_dim
 
                 n_phis = (args.ssp_dim-1)//2
 
-                true_phis = np.zeros((args.n_seeds, n_phis, args.coord_dim))
-                learned_phis = np.zeros((args.n_seeds, n_phis, args.coord_dim))
+                true_phis = np.zeros((args.n_seeds, args.coord_dim, n_phis))
+                learned_phis = np.zeros((args.n_seeds, args.coord_dim, n_phis))
                 losses = np.zeros((args.n_seeds, args.n_epochs))
                 val_losses = np.zeros((args.n_seeds, args.n_epochs))
 
