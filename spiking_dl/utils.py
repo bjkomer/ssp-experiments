@@ -115,8 +115,8 @@ def create_policy_train_test_sets(
     rng.shuffle(goal_indices)
 
     # extra noise on the training data
-    gauss_noise_loc = rng.standard_normal((n_train_samples, args.dim))
-    gauss_noise_goal = rng.standard_normal((n_train_samples, args.dim))
+    gauss_noise_loc = rng.standard_normal((n_train_samples, args.dim)) * input_noise
+    gauss_noise_goal = rng.standard_normal((n_train_samples, args.dim)) * input_noise
     offset_noise_loc = rng.uniform(low=-shift_noise, high=shift_noise, size=(n_train_samples, 2))
     offset_noise_goal = rng.uniform(low=-shift_noise, high=shift_noise, size=(n_train_samples, 2))
 
