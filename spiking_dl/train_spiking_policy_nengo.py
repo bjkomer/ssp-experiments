@@ -69,6 +69,7 @@ with nengo.Network(seed=args.net_seed) as net:
     # net.config[nengo.Ensemble].max_rates = nengo.dists.Choice([100])
     # net.config[nengo.Ensemble].intercepts = nengo.dists.Choice([0])
     net.config[nengo.Connection].synapse = None
+    net.config[nengo.Connection].transform = nengo_dl.dists.Glorot()
     neuron_type = nengo.LIF(amplitude=0.01)
 
 
@@ -81,14 +82,16 @@ with nengo.Network(seed=args.net_seed) as net:
 
     hidden_ens = nengo.Ensemble(
         n_neurons=args.hidden_size,
-        dimensions=args.dim*2 + args.maze_id_dim,
+        # dimensions=args.dim*2 + args.maze_id_dim,
+        dimensions=1,
         neuron_type=neuron_type
     )
 
     out = nengo.Node(size_in=2)
 
-    conn_in = nengo.Connection(inp, hidden_ens, synapse=None)
-    conn_out = nengo.Connection(hidden_ens, out, synapse=None, function=lambda x: [0, 0])
+    conn_in = nengo.Connection(inp, hidden_ens.neurons, synapse=None)
+    conn_out = nengo.Connection(hidden_ens.neurons, out, synapse=None)
+    # conn_out = nengo.Connection(hidden_ens, out, synapse=None, function=lambda x: [0, 0])
 
     # x = nengo_dl.Layer(tf.keras.layers.Dense(units=args.hidden_size))(inp)
     # x = nengo_dl.Layer(neuron_type)(x)
@@ -102,7 +105,7 @@ with nengo.Network(seed=args.net_seed) as net:
 
 # minibatch_size = 200
 minibatch_size = 256
-sim = nengo_dl.Simulator(net, minibatch_size=minibatch_size)
+
 with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
 
     print("\nSimulator Built\n")
@@ -147,10 +150,10 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
     print(test_output.shape)
 
     # sim.compile(loss={out_p_filt: mse_loss})
-    sim.compile(
-        loss={out_p_filt: mse_loss},
-        metrics={out_p_filt: angular_rmse},
-    )
+    # sim.compile(
+    #     loss={out_p_filt: mse_loss},
+    #     metrics={out_p_filt: angular_rmse},
+    # )
     # first_eval = sim.evaluate(test_input, {out_p_filt: test_output}, verbose=0)
     # print("Loss before training:", first_eval["loss"])
     # print("Angular RMSE before training:", first_eval["out_p_filt_angular_rmse"])
@@ -187,6 +190,8 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
                 optimizer=tf.optimizers.Adam(0.001),
                 loss={out_p: angular_rmse},
             )
+        else:
+            raise NotImplementedError
         history = sim.fit(
             train_input,
             {out_p: train_output},
@@ -217,7 +222,7 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
     # print(params[1])
     # print(params[2])
     # Remove the lambda that can't be saved
-    del params[2]['function']
+    # del params[2]['function']
     pickle.dump(params, open(nengo_obj_file, "wb"))
     print("Nengo Parameters Saved")
 
