@@ -24,6 +24,7 @@ args = parser.parse_args()
 
 
 def main(args):
+    torch.set_default_dtype(torch.float64)
 
     for limit in [0.5, 1.0, 2.0, 4.0]:
         for ssp_dim in [5, 10, 15, 20, 100]:
