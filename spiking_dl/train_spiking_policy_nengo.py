@@ -26,6 +26,10 @@ parser.add_argument('--n-epochs', type=int, default=25, help='Number of epochs t
 parser.add_argument('--plot-vis-set', action='store_true')
 parser.add_argument('--loss-function', type=str, default='mse', choices=['mse', 'cosine', 'ang-rmse'])
 
+parser.add_argument('--input-noise', type=float, default=0.01, help='Gaussian noise to add to the inputs when training')
+parser.add_argument('--shift-noise', type=float, default=0.2,
+                    help='Shifting coordinates before encoding by up to this amount as a form of noise')
+
 parser = add_encoding_params(parser)
 
 args = parser.parse_args()
@@ -50,6 +54,8 @@ train_input, train_output, test_input, test_output = create_policy_train_test_se
     data=data,
     n_train_samples=args.n_train_samples,
     n_test_samples=args.n_test_samples,
+    input_noise=args.input_noise,
+    shift_noise=args.shift_noise,
     args=args,
     n_mazes=args.n_mazes,
     encoding_func=encoding_func,
