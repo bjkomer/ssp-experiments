@@ -95,11 +95,15 @@ def experiment(
     phis = rng.uniform(-np.pi+0.001, np.pi-0.001, size=(coord_dim, n_phis))
     xf = np.ones((n_phis + 2,), dtype='complex64')
     xf[1:-1] = np.exp(1.j * phis[0, :])
-    yf = np.ones((n_phis + 2,), dtype='complex64')
-    yf[1:-1] = np.exp(1.j * phis[1, :])
+    if coord_dim == 2:
+        yf = np.ones((n_phis + 2,), dtype='complex64')
+        yf[1:-1] = np.exp(1.j * phis[1, :])
 
-    def encode_func(pos):
-        return np.fft.irfft((xf ** pos[0]) * (yf ** pos[1]), n=ssp_dim)
+        def encode_func(pos):
+            return np.fft.irfft((xf ** pos[0]) * (yf ** pos[1]), n=ssp_dim)
+    else:
+        def encode_func(pos):
+            return np.fft.irfft((xf ** pos), n=ssp_dim)
 
     model = SSPTransform(coord_dim=coord_dim, ssp_dim=ssp_dim)
 
