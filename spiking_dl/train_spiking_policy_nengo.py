@@ -161,10 +161,10 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
     param_file = "./saved_params/nengo_policy_params_{}_hs{}_{}samples_{}epochs".format(
         args.loss_function, args.hidden_size, args.n_train_samples, args.n_epochs
     )
-    history_file = "./saved_params/nengo_train_history_{}_hs{}_{}samples_{}epochs.npz".format(
+    history_file = "./saved_params/nengo_policy_train_history_{}_hs{}_{}samples_{}epochs.npz".format(
         args.loss_function, args.hidden_size, args.n_train_samples, args.n_epochs
     )
-    nengo_obj_file = "./saved_params/nengo_obj_{}_hs{}_{}samples_{}epochs.pkl".format(
+    nengo_obj_file = "./saved_params/nengo_policy_obj_{}_hs{}_{}samples_{}epochs.pkl".format(
         args.loss_function, args.hidden_size, args.n_train_samples, args.n_epochs
     )
 
