@@ -216,6 +216,7 @@ class ExperimentControl(object):
     """
 
     def __init__(self, items, vocab, file_name, time_per_item=3, num_test_pairs=50, sim_thresh=.8,
+                 consecutive_timesteps=10,
                  dir_mag_limit=1.0, ssp_dir=True, encode_func=None, decode_func=None):
 
         # Dictionary of {item: location}
@@ -249,6 +250,9 @@ class ExperimentControl(object):
         self.sim_thresh = sim_thresh
         # 'velocity' of the circular convolution
         self.dir_mag_limit = dir_mag_limit
+        # number of consecutive timesteps that the similarity threshold must be met for
+        self.consecutive_timesteps = consecutive_timesteps
+        self.current_matches = 0
 
         # Copy of the item vocab used
         self.vocab = vocab
@@ -429,25 +433,35 @@ class ExperimentControl(object):
                 # TODO: have a check here to see if the currently visualized item is close enough to the target item
                 #       if so, record how long it took using 'self.change_time', and set some flag so that this doesn't
                 #       get hit again until the next item. Could also move early, but the total time wouldn't be fixed
-                elapsed_time = t - self.change_time
+                self.current_matches += 1
+                # record only after matching some threshold of timesteps in a row
+                if self.current_matches >= self.consecutive_timesteps:
+                    elapsed_time = t - self.change_time
 
-                dist = np.linalg.norm(self.coords[self.prev_item_index] - self.coords[self.item_index])
-                # Store the timing data
-                print("Storing timing data!")
-                self.data[self.completed_tests, :] = (self.prev_item_index, self.item_index, elapsed_time, dist)
-                # saving data so far, overwriting old file
-                np.save(self.file_name, self.data[:self.completed_tests])
-                self.current_recorded = True
+                    dist = np.linalg.norm(self.coords[self.prev_item_index] - self.coords[self.item_index])
+                    # Store the timing data
+                    print("Storing timing data!")
+                    self.data[self.completed_tests, :] = (self.prev_item_index, self.item_index, elapsed_time, dist)
+                    # saving data so far, overwriting old file
+                    np.save(self.file_name, self.data[:self.completed_tests])
+                    self.current_recorded = True
 
-                if self.ssp_dir:
-                    # at target, don't need to move (setting displacement to origin)
-                    self.ret_vec[:self.dim] = 0
-                    self.ret_vec[0] = 1
-                    # modify the memory to start at the last target
-                    self.ret_vec[2*self.dim:] = self.encode_func(self.coords[self.item_index])
+                    if self.ssp_dir:
+                        # at target, don't need to move (setting displacement to origin)
+                        self.ret_vec[:self.dim] = 0
+                        self.ret_vec[0] = 1
+                        # modify the memory to start at the last target
+                        self.ret_vec[2*self.dim:] = self.encode_func(self.coords[self.item_index])
+                    else:
+                        # at target, don't need to move
+                        self.ret_vec[:2] = 0
+            else:
+                # no match on this timestep, so degrade the match count
+                # but not fully, so a spurious miss is less detrimental
+                if self.current_matches < 2:
+                    self.current_matches = 0
                 else:
-                    # at target, don't need to move
-                    self.ret_vec[:2] = 0
+                    self.current_matches -= 2
             # else:
             #     print(np.dot(self.vectors[self.item_index], vis))
 
