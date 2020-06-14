@@ -25,42 +25,49 @@ args = parser.parse_args()
 
 def main(args):
 
-    n_phis = (args.ssp_dim-1)//2
+    for limit in [0.5, 1.0, 2.0, 4.0]:
+        for ssp_dim in [5, 10, 15, 20, 100]:
+            for coord_dim in [1, 2]:
+                args.limit = limit
+                args.ssp_dim = ssp_dim
+                args.coord_dim = coord_dim
 
-    true_phis = np.zeros((args.n_seeds, n_phis, args.coord_dim))
-    learned_phis = np.zeros((args.n_seeds, n_phis, args.coord_dim))
-    losses = np.zeros((args.n_seeds, args.n_epochs))
-    val_losses = np.zeros((args.n_seeds, args.n_epochs))
+                n_phis = (args.ssp_dim-1)//2
 
-    for seed in range(args.n_seeds):
-        true_phi, learned_phi, loss, val_loss = experiment(
-            seed=seed,
-            limit=args.limit,
-            ssp_dim=args.ssp_dim,
-            coord_dim=args.coord_dim,
-            batch_size=args.batch_size,
-            n_train_samples=args.n_train_samples,
-            n_test_samples=args.n_test_samples,
-            args=args,
-        )
+                true_phis = np.zeros((args.n_seeds, n_phis, args.coord_dim))
+                learned_phis = np.zeros((args.n_seeds, n_phis, args.coord_dim))
+                losses = np.zeros((args.n_seeds, args.n_epochs))
+                val_losses = np.zeros((args.n_seeds, args.n_epochs))
 
-        true_phis[seed, :, :] = true_phi
-        learned_phis[seed, :, :] = learned_phi
-        losses[seed, :] = loss
-        val_losses[seed, :] = val_loss
+                for seed in range(args.n_seeds):
+                    true_phi, learned_phi, loss, val_loss = experiment(
+                        seed=seed,
+                        limit=args.limit,
+                        ssp_dim=args.ssp_dim,
+                        coord_dim=args.coord_dim,
+                        batch_size=args.batch_size,
+                        n_train_samples=args.n_train_samples,
+                        n_test_samples=args.n_test_samples,
+                        args=args,
+                    )
 
-    if not os.path.exists('output'):
-        os.makedirs('output')
+                    true_phis[seed, :, :] = true_phi
+                    learned_phis[seed, :, :] = learned_phi
+                    losses[seed, :] = loss
+                    val_losses[seed, :] = val_loss
 
-    fname = 'output/learned_phi_results_{}D_{}dim_{}limit.npz'.format(args.coord_dim, args.ssp_dim, args.limit)
+                if not os.path.exists('output'):
+                    os.makedirs('output')
 
-    np.savez(
-        fname,
-        true_phis=true_phis,
-        learned_phis=learned_phis,
-        losses=losses,
-        val_losses=val_losses,
-    )
+                fname = 'output/learned_phi_results_{}D_{}dim_{}limit.npz'.format(args.coord_dim, args.ssp_dim, args.limit)
+
+                np.savez(
+                    fname,
+                    true_phis=true_phis,
+                    learned_phis=learned_phis,
+                    losses=losses,
+                    val_losses=val_losses,
+                )
 
 
 def experiment(
