@@ -68,6 +68,7 @@ with nengo.Network(seed=args.net_seed) as net:
     # net.config[nengo.Ensemble].max_rates = nengo.dists.Choice([100])
     # net.config[nengo.Ensemble].intercepts = nengo.dists.Choice([0])
     net.config[nengo.Connection].synapse = None
+    net.config[nengo.Connection].transform = nengo_dl.dists.Glorot()
     neuron_type = nengo.LIF(amplitude=0.01)
 
 
@@ -80,14 +81,20 @@ with nengo.Network(seed=args.net_seed) as net:
 
     hidden_ens = nengo.Ensemble(
         n_neurons=args.hidden_size,
-        dimensions=36*4 + args.maze_id_dim,
+        dimensions=1,
+        # dimensions=36*4 + args.maze_id_dim,
         neuron_type=neuron_type
     )
 
     out = nengo.Node(size_in=args.dim)
 
-    conn_in = nengo.Connection(inp, hidden_ens, synapse=None)
-    conn_out = nengo.Connection(hidden_ens, out, synapse=None, function=lambda x: np.zeros((args.dim,)))
+    conn_in = nengo.Connection(
+        inp, hidden_ens.neurons, synapse=None
+    )
+    conn_out = nengo.Connection(
+        hidden_ens.neurons, out, synapse=None,
+        # function=lambda x: np.zeros((args.dim,))
+    )
 
     # x = nengo_dl.Layer(tf.keras.layers.Dense(units=args.hidden_size))(inp)
     # x = nengo_dl.Layer(neuron_type)(x)
@@ -208,7 +215,7 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
 
     params = sim.get_nengo_params([conn_in, hidden_ens, conn_out])
     # Remove the lambda that can't be saved
-    del params[2]['function']
+    # del params[2]['function']
     pickle.dump(params, open(nengo_obj_file, "wb"))
     print("Nengo Parameters Saved")
 

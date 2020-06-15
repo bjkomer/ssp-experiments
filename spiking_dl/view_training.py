@@ -9,7 +9,7 @@ fname = sys.argv[1]
 data = np.load(fname)
 
 plt.plot(data['out_p_loss'])
-plt.plot(data['val_out_p_loss'])
+plt.plot(data['val_out_p_loss']/30.)
 
 
 plt.show()
