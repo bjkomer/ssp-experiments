@@ -98,17 +98,26 @@ def generate_cleanup_dataset(
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--neurons-per-dim', type=int, default=25)
-parser.add_argument('--n-samples', type=int, default=100)
+parser.add_argument('--n-samples', type=int, default=1000)
 # parser.add_argument('--n-items', type=int, default=10)
 parser.add_argument('--n-items', type=int, default=7)
 parser.add_argument('--res', type=int, default=32)
+parser.add_argument('--encoder-type', type=str, default='mixed', choices=['mixed', 'grid', 'band', 'place', 'random'])
+parser.add_argument('--new-dataset', action='store_true', help='generate a new random dataset to evaluate on')
+parser.add_argument('--sigma', type=float, default=0.005, help='additional gaussian noise to add')
 
 parser = add_encoding_params(parser)
 
-args = parser.parse_args([])
+if __name__ == '__main__':
+    args = parser.parse_args()
+else:
+    args = parser.parse_args([])
+    args.new_dataset = True
 
 args.spatial_encoding = 'sub-toroid-ssp'
 args.dim = 256
+args.new_dataset = True
+
 
 n_neurons = args.dim * args.neurons_per_dim
 
@@ -215,6 +224,43 @@ else:
         heatmap_vectors=heatmap_vectors,
     )
 
+if args.new_dataset:
+    train_cache_fname = 'neural_cleanup_train_dataset_{}.npz'.format(dim)
+    if os.path.exists(train_cache_fname):
+        train_data = np.load(train_cache_fname)
+        clean_vectors_train = train_data['clean_vectors']
+        noisy_vectors_train = train_data['noisy_vectors']
+        coords_train = train_data['coords']
+    else:
+        clean_vectors_train, noisy_vectors_train, coords_train = generate_cleanup_dataset(
+            enc_func,
+            args.n_samples,
+            args.dim,
+            args.n_items,
+            item_set=None,
+            allow_duplicate_items=False,
+            limits=(-args.limit, args.limit, -args.limit, args.limit),
+            seed=14,
+            normalize_memory=True
+        )
+
+        np.savez(
+            train_cache_fname,
+            clean_vectors=clean_vectors_train,
+            noisy_vectors=noisy_vectors_train,
+            coords=coords_train,
+            heatmap_vectors=heatmap_vectors,
+        )
+
+    if args.sigma > 0:
+        rng_noise = np.random.RandomState(seed=13)
+        noisy_vectors_train += rng_noise.normal(loc=0, scale=args.sigma, size=noisy_vectors_train.shape)
+
+else:
+    clean_vectors_train = clean_vectors
+    noisy_vectors_train = noisy_vectors
+    coords_train = coords
+
 model = nengo.Network(seed=13)
 with model:
 
@@ -240,21 +286,38 @@ with model:
 
     nengo.Connection(ssp_input, spatial_cleanup)
 
-    spatial_cleanup.encoders = encoders_mixed
-    # spatial_cleanup.encoders = encoders_grid_cell
-    spatial_cleanup.eval_points = np.vstack([encoders_place_cell, encoders_band_cell, encoders_grid_cell])
-    spatial_cleanup.intercepts = mixed_intercepts
+    if args.encoder_type == 'mixed':
+        spatial_cleanup.encoders = encoders_mixed
+        spatial_cleanup.intercepts = mixed_intercepts
 
-    location_ssp.encoders = encoders_mixed
-    # location_ssp.encoders = encoders_grid_cell
+        location_ssp.encoders = encoders_mixed
+        location_ssp.intercepts = mixed_intercepts
+    elif args.encoder_type == 'grid':
+        spatial_cleanup.encoders = encoders_grid_cell
+        spatial_cleanup.intercepts = mixed_intercepts
+
+        location_ssp.encoders = encoders_grid_cell
+        location_ssp.intercepts = mixed_intercepts
+    elif args.encoder_type == 'band':
+        spatial_cleanup.encoders = encoders_band_cell
+        spatial_cleanup.intercepts = mixed_intercepts
+
+        location_ssp.encoders = encoders_band_cell
+        location_ssp.intercepts = mixed_intercepts
+    elif args.encoder_type == 'place':
+        spatial_cleanup.encoders = encoders_place_cell
+        spatial_cleanup.intercepts = mixed_intercepts
+
+        location_ssp.encoders = encoders_place_cell
+        location_ssp.intercepts = mixed_intercepts
+
     location_ssp.eval_points = np.vstack([encoders_place_cell, encoders_band_cell, encoders_grid_cell])
-    location_ssp.intercepts = mixed_intercepts
 
     nengo.Connection(
         spatial_cleanup,
         location_ssp,
-        function=clean_vectors,
-        eval_points=noisy_vectors,
+        function=clean_vectors_train,
+        eval_points=noisy_vectors_train,
         scale_eval_points=False,
         # solver=LstsqL2(),
     )
@@ -297,7 +360,14 @@ if __name__ == '__main__':
     sim = nengo.Simulator(model)
     sim.run(duration)
 
-    output_fname = 'neural_cleanup_output_{}.npz'.format(dim)
+    if args.new_dataset:
+        output_fname = 'neural_cleanup_output_test_{}_{}_{}items_{}samples_{}sigma.npz'.format(
+            args.encoder_type, dim, args.n_items, args.n_samples, args.sigma,
+        )
+    else:
+        output_fname = 'neural_cleanup_output_{}_{}_{}items_{}samples_{}sigma.npz'.format(
+            args.encoder_type, dim, args.n_items, args.n_samples, args.sigma,
+        )
 
     np.savez(
         output_fname,
