@@ -35,31 +35,54 @@ reaction_time_offset = .962
 if len(sys.argv) <= 1:
     # # TODO: link to the final data
     # fname = "/home/ctnuser/spatial-cognition/prototyping/map_traversal/exp_data_kosslyn.npy"
-    fname = "/home/ctnuser/ssp_navigation_sandbox/kosslyn_experiment/output/kosslyn_ssp_cconv_{}seed_tpi1.0_thresh0.4_vel{}_npd{}.npy"
-    eps = 0.002
-    reaction_time = []
-    distance = []
-    seeds = [1, 2, 3, 4, 5]
-    vel = '0.15'
-    seeds = [1, 2, 3, 4, 5]
-    vel = '0.125'
-    npd = 25
+    attractor = True
+    if not attractor:
+        # old version with cleanup and no attractor
+        fname = "/home/ctnuser/ssp_navigation_sandbox/kosslyn_experiment/output/kosslyn_ssp_cconv_{}seed_tpi1.0_thresh0.4_vel{}_npd{}.npy"
+        eps = 0.002
+        reaction_time = []
+        distance = []
+        seeds = [1, 2, 3, 4, 5]
+        vel = '0.125'
+        npd = 25
+        distance_scaling = 2
+        center_offset = 0
+    else:
+        # fname = "/home/ctnuser/ssp_navigation_sandbox/kosslyn_experiment/output/attractor_kosslyn_ssp_cconv_{}seed_tpi1.5_thresh0.4_vel{}_npd{}.npy"
+        fname = "/home/ctnuser/ssp_navigation_sandbox/kosslyn_experiment/output/attractor_kosslyn_ssp_cconv_{}seed_tpi2.0_thresh0.45_vel{}_npd{}.npy"
+        eps = 0.002
+        reaction_time = []
+        distance = []
+        # seeds = [1, 2, 3, 4, 5]
+        # seeds = [1, 2, 3, 5]
+        # seeds = [6, 7, 8, 9]
+        # seeds = [1, 2, 3, 5, 16, 17, 18, 19, 20]
+        # seeds = [23, 24, 25, 26, 28, 29]
+        # all the runs that didn't crash
+        seeds = [1, 2, 3, 5, 16, 17, 18, 19, 20, 23, 24, 25, 26, 28, 29]
+        vel = '0.5'
+        npd = 50
+        distance_scaling = 4.2 #4#3.5  # arbitrary scaling parameter
+        center_offset = 1.2  # account for the radius of the objects in distance calculation
     for seed in seeds:
 
         data = np.load(fname.format(seed, vel, npd))
 
-        inds = data[:, 2] > eps
+        inds = (data[:, 2] > eps) & (data[:, 3] > center_offset)
         reaction_time += list(data[inds, 2])
         distance += list(data[inds, 3])
 
-    distance_scaling = 2
-
     model_data = np.zeros((len(reaction_time), 2))
     model_data[:, 0] = distance
+    model_data[:, 0] -= center_offset
     model_data[:, 0] *= distance_scaling
     model_data[:, 1] = reaction_time
     model_data[:, 1] += reaction_time_offset
 
+    # cut off data past where human is measured for the plot
+
+    inds = model_data[:, 0] < 19
+    model_data = model_data[inds, :]
 
 else:
     fname = sys.argv[1]
@@ -84,7 +107,7 @@ fig, ax = plt.subplots(1, 1, figsize=(8, 4), tight_layout=True)
 
 palette = sns.color_palette(n_colors=2)
 
-ax.scatter(model_data[:, 0], model_data[:, 1], color=palette[1])
+ax.scatter(model_data[:, 0], model_data[:, 1], color=palette[1], s=5)
 ax.scatter(human_data[:, 0], human_data[:, 1], color=palette[0])
 
 ax.legend(['Model', 'Human'])
@@ -93,13 +116,36 @@ ax.legend(['Model', 'Human'])
 p_human = np.poly1d(np.polyfit(human_data[:, 0], human_data[:, 1], 1))
 p_model = np.poly1d(np.polyfit(model_data[:, 0], model_data[:, 1], 1))
 xs = np.linspace(0, 20, 32)
-ax.plot(xs, p_human(xs), color=palette[0], linestyle='dashed')
-ax.plot(xs, p_model(xs), color=palette[1], linestyle='dashed')
+ax.plot(xs, p_model(xs), color=palette[1], linestyle='-')
+ax.plot(xs, p_human(xs), color=palette[0], linestyle='--')
+
 
 ax.set_xlabel("Distance (cm)", fontsize=14)
 ax.set_ylabel("Reaction Time (s)", fontsize=14)
 
 
+# Calculate r^2 value for human and model
+error_human = np.zeros((human_data.shape[0]))
+mean_human = np.mean(human_data[:, 1])
+for i in range(human_data.shape[0]):
+    error_human[i] = p_human(human_data[i, 0]) - human_data[i, 1]
+ss_res = np.sum(error_human**2)
+ss_tot = np.sum((human_data[:, 1] - mean_human)**2)
+
+r2 = 1 - (ss_res / ss_tot)
+
+print("r2 human: {}".format(r2))
+
+error_model = np.zeros((model_data.shape[0]))
+mean_model = np.mean(model_data[:, 1])
+for i in range(model_data.shape[0]):
+    error_model[i] = p_model(model_data[i, 0]) - model_data[i, 1]
+ss_res = np.sum(error_model**2)
+ss_tot = np.sum((model_data[:, 1] - mean_model)**2)
+
+r2 = 1 - (ss_res / ss_tot)
+
+print("r2 model: {}".format(r2))
 
 sns.despine()
 
