@@ -851,7 +851,7 @@ class NengoGridEnv(object):
             'seed': env_seed,
             # 'map_style': args.map_style,
             'map_size': 10,
-            'fixed_episode_length': False,  # Setting to false so location resets are not automatic
+            'fixed_episode_length': True,
             'episode_length': 1000,  # 500, 1000,  #200,
             'max_lin_vel': 5,
             'max_ang_vel': 5,
@@ -973,7 +973,8 @@ class NengoGridEnv(object):
         for i in range(self.height):
             for j in range(self.width):
                 if self.map_array[i, j] == 1:
-                    tiles.append(self.tile_template.format(i, j))
+                    # tiles.append(self.tile_template.format(i, j))
+                    tiles.append(self.tile_template.format(i, self.height - (j + 1)))
         self.base_html += ''.join(tiles)
 
         # # draw distance sensors
@@ -1019,8 +1020,14 @@ class NengoGridEnv(object):
         # y3 = 100 - (self.env.state[1] + body_scale * 0.5 * np.sin(self.th + 2 * np.pi / 3)) * self.scale_y
 
         # points = "{0},{1} {2},{3} {4},{5}".format(x1, y1, x2, y2, x3, y3)
-        loc = 'cx="{0}" cy="{1}"'.format(self.env.state[0] * self.scale_x+.5, self.env.state[1] * self.scale_y+.5)
-        goal = 'cx="{0}" cy="{1}"'.format(self.env.goal_state[0] * self.scale_x+.5, self.env.goal_state[1] * self.scale_y+.5)
+        loc = 'cx="{0}" cy="{1}"'.format(
+            self.env.state[0] * self.scale_x+.5,
+            self.height - (self.env.state[1] * self.scale_y+.5)
+        )
+        goal = 'cx="{0}" cy="{1}"'.format(
+            self.env.goal_state[0] * self.scale_x+.5,
+            self.height - (self.env.goal_state[1] * self.scale_y+.5)
+        )
 
         # Update the html plot
         self._nengo_html_ = self.base_html.format(goal, loc)
@@ -1064,3 +1071,67 @@ class NengoGridEnv(object):
 
         self.steps += 1
         return self.env_output
+
+
+class PolicyGT(object):
+
+    def __init__(self, heatmap_vectors, maze_index=0, dim=256):
+        """ground truth policy"""
+        home = os.path.expanduser("~")
+        dataset_file = os.path.join(
+            home,
+            'ssp-navigation/ssp_navigation/datasets/mixed_style_100mazes_100goals_64res_13size_13seed/maze_dataset.npz'
+        )
+        data = np.load(dataset_file)
+
+        self.dim = dim
+
+        self.xs = data['xs']
+        self.ys = data['ys']
+
+        self.heatmap_vectors = heatmap_vectors
+
+        # fixed random set of locations for the goals
+        self.limit_range = self.xs[-1] - self.xs[0]
+
+        # n_mazes by size by size
+        # coarse_mazes = data['coarse_mazes']
+        # n_mazes by res by res
+        self.fine_mazes = data['fine_mazes'][maze_index, :, :]
+
+        # n_mazes by n_goals, res by res by 2
+        self.solved_mazes = data['solved_mazes'][maze_index, :, :, :, :]
+
+        # n_mazes by n_goals by 2
+        self.goals = data['goals'][maze_index, :, :]
+
+    def get_closest_goal_index(self, goal_ssp):
+        vs = np.tensordot(goal_ssp, self.heatmap_vectors, axes=([0], [2]))
+
+        xy = np.unravel_index(vs.argmax(), vs.shape)
+        goal_pos = np.array(
+            [[self.xs[xy[0]], self.ys[xy[1]]]]
+        )
+        goal_dists = np.linalg.norm(self.goals - goal_pos , axis=1)
+        goal_index = np.argmin(goal_dists)
+
+        return goal_index
+
+    def get_closest_grid_point(self, loc_ssp):
+        vs = np.tensordot(loc_ssp, self.heatmap_vectors, axes=([0], [2]))
+
+        xy = np.unravel_index(vs.argmax(), vs.shape)
+
+        return xy[0], xy[1]
+
+
+    def __call__(self, t, v):
+
+        loc_ssp = v[self.dim:self.dim*2]
+        goal_ssp = v[self.dim*2:self.dim*3]
+
+        gi = self.get_closest_goal_index(goal_ssp)
+
+        xi, yi = self.get_closest_grid_point(loc_ssp)
+
+        return self.solved_mazes[gi, xi, yi]

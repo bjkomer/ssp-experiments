@@ -5,7 +5,7 @@ import numpy as np
 import nengo.spa as spa
 import nengo_spa
 import os
-from utils import NengoGridEnv, generate_cleanup_dataset
+from utils import NengoGridEnv, generate_cleanup_dataset, PolicyGT
 from ssp_navigation.utils.encodings import get_encoding_function, get_encoding_heatmap_vectors
 from spatial_semantic_pointers.plots import SpatialHeatmap
 # from spatial_semantic_pointers.utils import encode_point, get_heatmap_vectors
@@ -13,7 +13,7 @@ from spatial_semantic_pointers.plots import SpatialHeatmap
 
 parser = argparse.ArgumentParser('Spiking Integrated System')
 
-parser.add_argument('--policy-hidden-size', type=int, default=1024)
+parser.add_argument('--policy-hidden-size', type=int, default=2048)
 parser.add_argument('--localization-hidden-size', type=int, default=1024)
 parser.add_argument('--dim', type=int, default=256)
 parser.add_argument('--maze-id-dim', type=int, default=256)
@@ -23,13 +23,14 @@ parser.add_argument('--scale-ratio', type=float, default=0.0)
 parser.add_argument('--n-proj', type=int, default=3)
 parser.add_argument('--ssp-scaling', type=float, default=0.5)
 
-parser.add_argument('--maze-index', type=int, default=0)
+parser.add_argument('--maze-index', type=int, default=1)
 parser.add_argument('--env-seed', type=int, default=13)
 parser.add_argument('--noise', type=float, default=0.25) #.25
 parser.add_argument('--normalize-action', action='store_true')
 parser.add_argument('--use-dataset-goals', action='store_true')
 parser.add_argument('--use-localization-gt', action='store_true')
 parser.add_argument('--use-cleanup-gt', action='store_true')
+parser.add_argument('--use-policy-gt', action='store_true')
 
 # For the cleanup
 parser.add_argument('--neurons-per-dim', type=int, default=50)
@@ -38,9 +39,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 else:
     args = parser.parse_args([])
-    args.normalize_action = True
+    # args.normalize_action = True
     args.use_localization_gt = True
     args.use_cleanup_gt = True
+    args.use_policy_gt = True
     args.use_dataset_goals = True
 
 np.random.seed(13)
@@ -52,8 +54,12 @@ for mi in range(10):
 
 # Load learned parameters for components of the network
 # TODO: update these to final trained versions
-policy_param_file = 'saved_params/nengo_obj_mse_hs1024_1000000samples_250epochs.pkl'
-localization_param_file = 'saved_params/nengo_localization_obj_mse_hs1024_5000samples_25epochs.pkl'
+# policy_param_file = 'saved_params/nengo_obj_mse_hs1024_1000000samples_250epochs.pkl'
+# policy_param_file = 'saved_params/nengo_policy_obj_mse_hs1024_1500000samples_50epochs.pkl'
+# policy_param_file = 'saved_params/nengo_policy_obj_mse_hs1024_2000000samples_100epochs.pkl'
+policy_param_file = 'saved_params/nengo_policy_obj_mse_hs2048_5000000samples_100epochs.pkl'
+# localization_param_file = 'saved_params/nengo_localization_obj_mse_hs1024_1000000samples_250epochs.pkl'
+localization_param_file = 'saved_params/nengo_localization_obj_mse_hs1024_5000000samples_100epochs.pkl'
 
 policy_params = pickle.load(open(policy_param_file, 'rb'))
 policy_inp_params = policy_params[0]
@@ -135,7 +141,7 @@ with model:
         normalize_action=args.normalize_action,
         use_dataset_goals=args.use_dataset_goals,
         nengo_dt=0.001,
-        sim_dt=0.01,  # how often to call the gridworld simulator
+        sim_dt=0.001,#0.01,  # how often to call the gridworld simulator
     )
     env = nengo.Node(
         nengo_grid_env,
@@ -157,9 +163,20 @@ with model:
     # Localization #
     ################
 
+    localization_inp_node = nengo.Node(
+        size_in=args.maze_id_dim + 36*4,
+        size_out=args.maze_id_dim + 36*4
+    )
+
+    localization_out_node = nengo.Node(
+        size_in=args.dim,
+        size_out=args.dim
+    )
+
     localization_ens = nengo.Ensemble(
         n_neurons=args.localization_hidden_size,
-        dimensions=args.maze_id_dim + 36*4,
+        # dimensions=args.maze_id_dim + 36*4,
+        dimensions=1,
         neuron_type=neuron_type,
         **localization_ens_params
     )
@@ -167,43 +184,94 @@ with model:
     # Context
     nengo.Connection(
         env[:args.dim],
-        localization_ens[0:args.dim],
+        localization_inp_node[0:args.dim]
+        # localization_ens[0:args.dim],
         # synapse=None,
-        **localization_inp_params
+        # **localization_inp_params
     )
 
     # Sensors
     nengo.Connection(
         env[2*args.dim:2*args.dim+36*4],
-        localization_ens[args.dim:],
+        localization_inp_node[args.dim:],
+        # localization_ens[args.dim:],
         # synapse=None,
-        **localization_inp_params,
+        # **localization_inp_params
+    )
+
+    nengo.Connection(
+        localization_inp_node,
+        localization_ens.neurons,
+        **localization_inp_params
     )
 
     ##########
     # Policy #
     ##########
 
-    policy_ens = nengo.Ensemble(
-        n_neurons=args.policy_hidden_size,
-        dimensions=args.dim*2 + args.maze_id_dim,
-        neuron_type=neuron_type,
-        **policy_ens_params
+    policy_inp_node = nengo.Node(
+        size_in=args.dim*2 + args.maze_id_dim,
+        size_out=args.dim*2 + args.maze_id_dim
     )
+
+    policy_out_node = nengo.Node(
+        size_in=2,
+        size_out=2,
+    )
+    if args.use_policy_gt:
+        policy_ens = nengo.Node(
+            PolicyGT(heatmap_vectors=heatmap_vectors, maze_index=args.maze_index, dim=args.dim),
+            size_in=args.dim*2 + args.maze_id_dim,
+            size_out=2
+        )
+        nengo.Connection(
+            policy_inp_node,
+            policy_ens,
+            synapse=None
+        )
+        nengo.Connection(
+            policy_ens,
+            policy_out_node,
+            synapse=0.001,
+        )
+    else:
+        policy_ens = nengo.Ensemble(
+            n_neurons=args.policy_hidden_size,
+            # dimensions=args.dim*2 + args.maze_id_dim,
+            dimensions=1,
+            neuron_type=neuron_type,
+            **policy_ens_params
+        )
+
+        nengo.Connection(
+            policy_inp_node,
+            policy_ens.neurons,
+            synapse=None,
+            **policy_inp_params
+        )
+
+        nengo.Connection(
+            policy_ens.neurons,
+            policy_out_node,
+            # synapse=0.1,
+            synapse=0.001,
+            **policy_out_params
+        )
 
     # Context
     nengo.Connection(
         env[:args.dim],
-        policy_ens[0:args.dim],
+        policy_inp_node[0:args.dim],
         # synapse=None,
-        **policy_inp_params
+        # **policy_inp_params
     )
 
     # Location
     if args.use_localization_gt:
         nengo.Connection(
             env[[-4, -3]],
-            policy_ens[args.dim:2*args.dim],
+            # policy_inp_node[args.dim:2*args.dim],
+            localization_out_node,
             function=to_ssp,
             # synapse=None,
         )
@@ -211,18 +279,24 @@ with model:
         # connection from localization network
         # TODO: should there be a cleanup added on here? hopefully learned model is clean enough
         nengo.Connection(
-            localization_ens,
-            policy_ens[args.dim:2*args.dim],
-            function=lambda x: np.zeros((args.dim,)),
+            localization_ens.neurons,
+            localization_out_node,
+            # policy_inp_node[args.dim:2*args.dim],
+            # function=lambda x: np.zeros((args.dim,)),
             synapse=0.1,
             **localization_out_params
         )
+    nengo.Connection(
+        localization_out_node,
+        policy_inp_node[args.dim:2 * args.dim],
+        synapse=None
+    )
 
     # Goal
     if args.use_cleanup_gt:
         nengo.Connection(
             env[[-2, -1]],
-            policy_ens[2 * args.dim:3 * args.dim],
+            policy_inp_node[2 * args.dim:3 * args.dim],
             function=to_ssp,
             # synapse=None,
         )
@@ -230,7 +304,7 @@ with model:
     # cleanup connection
         nengo.Connection(
             spatial_cleanup,
-            policy_ens[2*args.dim:3*args.dim],
+            policy_inp_node[2*args.dim:3*args.dim],
             function=clean_vectors,
             eval_points=noisy_vectors,
             scale_eval_points=False,
@@ -238,12 +312,19 @@ with model:
         )
 
     # Velocity output
+    # nengo.Connection(
+    #     policy_ens.neurons,
+    #     env,
+    #     # function=lambda x: [0, 0],
+    #     synapse=0.1,
+    #     **policy_out_params
+    # )
+
+
     nengo.Connection(
-        policy_ens,
+        policy_out_node,
         env,
-        function=lambda x: [0, 0],
-        synapse=0.1,
-        **policy_out_params
+        synapse=None,
     )
 
 
@@ -262,9 +343,7 @@ with model:
             size_in=args.dim, size_out=0,
         )
         nengo.Connection(
-            localization_ens,
+            localization_out_node,
             localization_heatmap_node,
-            function=lambda x: np.zeros((args.dim,)),
-            synapse=0.1,
-            **localization_out_params
+            synapse=None,
         )
