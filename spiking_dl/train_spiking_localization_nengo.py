@@ -276,8 +276,8 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
                         val_input,
                         {
                             out_p: val_output,
-                            p_weight_in: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
-                            p_weight_out: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
+                            p_weight_in: np.ones((val_input.shape[0], 1, p_weight_in.size_in)),
+                            p_weight_out: np.ones((val_input.shape[0], 1, p_weight_in.size_in)),
                         }
                     )
                 )
@@ -295,9 +295,9 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
                         val_input,
                         {
                             out_p: val_output,
-                            p_weight_in: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
-                            p_weight_mid: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
-                            p_weight_out: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
+                            p_weight_in: np.ones((val_input.shape[0], 1, p_weight_in.size_in)),
+                            p_weight_mid: np.ones((val_input.shape[0], 1, p_weight_in.size_in)),
+                            p_weight_out: np.ones((val_input.shape[0], 1, p_weight_in.size_in)),
                         }
                     )
                 )
