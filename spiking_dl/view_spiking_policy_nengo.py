@@ -23,6 +23,7 @@ parser.add_argument('--net-seed', type=int, default=13)
 # parser.add_argument('--n-validation-samples', type=int, default=5000, help='Number of test samples for validation')
 parser.add_argument('--n-mazes', type=int, default=10)
 parser.add_argument('--hidden-size', type=int, default=1024)
+parser.add_argument('--n-layers', type=int, default=1, choices=[1, 2])
 parser.add_argument('--n-epochs', type=int, default=25, help='Number of epochs to train for')
 parser.add_argument('--plot-vis-set', action='store_true')
 parser.add_argument('--loss-function', type=str, default='mse', choices=['mse', 'cosine', 'ang-rmse'])
@@ -68,6 +69,7 @@ with nengo.Network(seed=args.net_seed) as net:
     # net.config[nengo.Ensemble].max_rates = nengo.dists.Choice([100])
     # net.config[nengo.Ensemble].intercepts = nengo.dists.Choice([0])
     net.config[nengo.Connection].synapse = None
+    net.config[nengo.Connection].transform = nengo_dl.dists.Glorot()
     neuron_type = nengo.LIF(amplitude=0.01)
 
 
@@ -88,32 +90,75 @@ with nengo.Network(seed=args.net_seed) as net:
 
         hidden_ens = nengo.Ensemble(
             n_neurons=args.hidden_size,
-            dimensions=args.dim * 2 + args.maze_id_dim,
+            dimensions=1,
+            # dimensions=args.dim * 2 + args.maze_id_dim,
             neuron_type=neuron_type,
             **policy_ens_params
         )
 
         out = nengo.Node(size_in=2)
 
-        conn_in = nengo.Connection(
-            inp, hidden_ens, synapse=None,
-            **policy_inp_params
-        )
-        conn_out = nengo.Connection(
-            hidden_ens, out, synapse=None, function=lambda x: [0, 0],
-            **policy_out_params
-        )
+        if args.n_layers == 1:
+            conn_in = nengo.Connection(
+                inp, hidden_ens.neurons, synapse=None,
+                **policy_inp_params
+            )
+            conn_out = nengo.Connection(
+                hidden_ens.neurons, out, synapse=None,
+                **policy_out_params
+            )
+        elif args.n_layers == 2:
+            policy_mid_params = policy_params[3]
+            policy_ens_two_params = policy_params[4]
+
+            hidden_ens_two = nengo.Ensemble(
+                n_neurons=args.hidden_size,
+                dimensions=1,
+                neuron_type=neuron_type,
+                **policy_ens_two_params
+            )
+
+            conn_in = nengo.Connection(
+                inp, hidden_ens.neurons, synapse=None,
+                **policy_inp_params
+            )
+            conn_mid = nengo.Connection(
+                hidden_ens.neurons, hidden_ens_two.neurons, synapse=None,
+                **policy_mid_params
+            )
+            conn_out = nengo.Connection(
+                hidden_ens_two.neurons, out, synapse=None,
+                **policy_out_params
+            )
+        else:
+            raise NotImplementedError
     else:
+
         hidden_ens = nengo.Ensemble(
             n_neurons=args.hidden_size,
-            dimensions=args.dim*2 + args.maze_id_dim,
+            dimensions=1,
             neuron_type=neuron_type
         )
 
         out = nengo.Node(size_in=2)
 
-        conn_in = nengo.Connection(inp, hidden_ens, synapse=None)
-        conn_out = nengo.Connection(hidden_ens, out, synapse=None, function=lambda x: [0, 0])
+        if args.n_layers == 1:
+
+            conn_in = nengo.Connection(inp, hidden_ens.neurons, synapse=None)
+            conn_out = nengo.Connection(hidden_ens.neurons, out, synapse=None)
+        elif args.n_layers == 2:
+
+            hidden_ens_two = nengo.Ensemble(
+                n_neurons=args.hidden_size,
+                dimensions=1,
+                neuron_type=neuron_type
+            )
+
+            conn_in = nengo.Connection(inp, hidden_ens.neurons, synapse=None)
+            conn_mid = nengo.Connection(hidden_ens.neurons, hidden_ens_two.neurons, synapse=None)
+            conn_out = nengo.Connection(hidden_ens_two.neurons, out, synapse=None)
+        else:
+            raise NotImplementedError
 
     out_p = nengo.Probe(out, label="out_p")
     out_p_filt = nengo.Probe(out, synapse=0.1, label="out_p_filt")

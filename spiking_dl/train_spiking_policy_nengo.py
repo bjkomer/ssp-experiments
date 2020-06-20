@@ -22,6 +22,7 @@ parser.add_argument('--n-test-samples', type=int, default=5000, help='Number of 
 parser.add_argument('--n-validation-samples', type=int, default=5000, help='Number of test samples for validation')
 parser.add_argument('--n-mazes', type=int, default=10)
 parser.add_argument('--hidden-size', type=int, default=1024)
+parser.add_argument('--n-layers', type=int, default=1, choices=[1, 2])
 parser.add_argument('--n-epochs', type=int, default=25, help='Number of epochs to train for')
 parser.add_argument('--plot-vis-set', action='store_true')
 parser.add_argument('--loss-function', type=str, default='mse', choices=['mse', 'cosine', 'ang-rmse'])
@@ -89,14 +90,23 @@ with nengo.Network(seed=args.net_seed) as net:
 
     out = nengo.Node(size_in=2)
 
-    conn_in = nengo.Connection(inp, hidden_ens.neurons, synapse=None)
-    conn_out = nengo.Connection(hidden_ens.neurons, out, synapse=None)
-    # conn_out = nengo.Connection(hidden_ens, out, synapse=None, function=lambda x: [0, 0])
+    if args.n_layers == 1:
 
-    # x = nengo_dl.Layer(tf.keras.layers.Dense(units=args.hidden_size))(inp)
-    # x = nengo_dl.Layer(neuron_type)(x)
-    #
-    # out = nengo_dl.Layer(tf.keras.layers.Dense(units=2))(x)
+        conn_in = nengo.Connection(inp, hidden_ens.neurons, synapse=None)
+        conn_out = nengo.Connection(hidden_ens.neurons, out, synapse=None)
+    elif args.n_layers == 2:
+
+        hidden_ens_two = nengo.Ensemble(
+            n_neurons=args.hidden_size,
+            dimensions=1,
+            neuron_type=neuron_type
+        )
+
+        conn_in = nengo.Connection(inp, hidden_ens.neurons, synapse=None)
+        conn_mid = nengo.Connection(hidden_ens.neurons, hidden_ens_two.neurons, synapse=None)
+        conn_out = nengo.Connection(hidden_ens_two.neurons, out, synapse=None)
+    else:
+        raise NotImplementedError
 
 
 
@@ -158,14 +168,19 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
     # print("Loss before training:", first_eval["loss"])
     # print("Angular RMSE before training:", first_eval["out_p_filt_angular_rmse"])
 
-    param_file = "./saved_params/nengo_policy_params_{}_hs{}_{}samples_{}epochs".format(
-        args.loss_function, args.hidden_size, args.n_train_samples, args.n_epochs
+
+    suffix = '{}layer_{}_hs{}_{}samples_{}epochs'.format(
+        args.n_layers, args.loss_function, args.hidden_size, args.n_train_samples, args.n_epochs
     )
-    history_file = "./saved_params/nengo_policy_train_history_{}_hs{}_{}samples_{}epochs.npz".format(
-        args.loss_function, args.hidden_size, args.n_train_samples, args.n_epochs
+
+    param_file = "./saved_params/nengo_policy_params_{}".format(
+        suffix
     )
-    nengo_obj_file = "./saved_params/nengo_policy_obj_{}_hs{}_{}samples_{}epochs.pkl".format(
-        args.loss_function, args.hidden_size, args.n_train_samples, args.n_epochs
+    history_file = "./saved_params/nengo_policy_train_history_{}.npz".format(
+        suffix
+    )
+    nengo_obj_file = "./saved_params/nengo_policy_obj_{}.pkl".format(
+        suffix
     )
 
     if not os.path.exists(param_file + '.npz'):
@@ -216,13 +231,13 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
     )
 
 
-    params = sim.get_nengo_params([conn_in, hidden_ens, conn_out])
-    # print(len(params))
-    # print(params[0])
-    # print(params[1])
-    # print(params[2])
-    # Remove the lambda that can't be saved
-    # del params[2]['function']
+    if args.n_layers == 1:
+        params = sim.get_nengo_params([conn_in, hidden_ens, conn_out])
+    elif args.n_layers == 2:
+        params = sim.get_nengo_params([conn_in, hidden_ens, conn_out, conn_mid, hidden_ens_two])
+    else:
+        raise NotImplementedError
+
     pickle.dump(params, open(nengo_obj_file, "wb"))
     print("Nengo Parameters Saved")
 
