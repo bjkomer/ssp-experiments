@@ -31,6 +31,8 @@ parser.add_argument('--input-noise', type=float, default=0.01, help='Gaussian no
 parser.add_argument('--shift-noise', type=float, default=0.2,
                     help='Shifting coordinates before encoding by up to this amount as a form of noise')
 
+parser.add_argument('--weight-reg', type=float, default=0.001)
+
 parser = add_encoding_params(parser)
 
 args = parser.parse_args()
@@ -73,10 +75,8 @@ with nengo.Network(seed=args.net_seed) as net:
     net.config[nengo.Connection].transform = nengo_dl.dists.Glorot()
     neuron_type = nengo.LIF(amplitude=0.01)
 
-
-    # this is an optimization to improve the training speed,
-    # since we won't require stateful behaviour in this example
     nengo_dl.configure_settings(stateful=False)
+    nengo_dl.configure_settings(keep_history=True)
 
     # the input node that will be used to feed in (context, location, goal)
     inp = nengo.Node(np.zeros((args.dim*2 + args.maze_id_dim,)))
@@ -105,10 +105,16 @@ with nengo.Network(seed=args.net_seed) as net:
         conn_in = nengo.Connection(inp, hidden_ens.neurons, synapse=None)
         conn_mid = nengo.Connection(hidden_ens.neurons, hidden_ens_two.neurons, synapse=None)
         conn_out = nengo.Connection(hidden_ens_two.neurons, out, synapse=None)
+
+        p_weight_mid = nengo.Probe(conn_mid, "weights")
+        net.config[p_weight_mid].keep_history = False
     else:
         raise NotImplementedError
 
-
+    p_weight_in = nengo.Probe(conn_in, "weights")
+    net.config[p_weight_in].keep_history = False
+    p_weight_out = nengo.Probe(conn_out, "weights")
+    net.config[p_weight_out].keep_history = False
 
     out_p = nengo.Probe(out, label="out_p")
     out_p_filt = nengo.Probe(out, synapse=0.1, label="out_p_filt")
@@ -169,8 +175,8 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
     # print("Angular RMSE before training:", first_eval["out_p_filt_angular_rmse"])
 
 
-    suffix = '{}layer_{}_hs{}_{}samples_{}epochs'.format(
-        args.n_layers, args.loss_function, args.hidden_size, args.n_train_samples, args.n_epochs
+    suffix = '{}layer_{}_hs{}_{}samples_{}epochs_{}reg'.format(
+        args.n_layers, args.loss_function, args.hidden_size, args.n_train_samples, args.n_epochs, args.weight_reg
     )
 
     param_file = "./saved_params/nengo_policy_params_{}".format(
@@ -187,12 +193,50 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
         print("Training")
         # run training
         if args.loss_function == 'mse':
-            sim.compile(
-                # optimizer=tf.optimizers.RMSprop(0.001),
-                optimizer=tf.optimizers.Adam(0.001),
-                # loss={out_p: tf.losses.MSE()}
-                loss={out_p: mse_loss},
-            )
+            if args.weight_reg > 0:
+                if args.n_layers == 1:
+                    sim.compile(
+                        # optimizer=tf.optimizers.RMSprop(0.001),
+                        optimizer=tf.optimizers.Adam(0.001),
+                        # loss={out_p: tf.losses.MSE()}
+                        loss={
+                            out_p: mse_loss,
+                            p_weight_in: nengo_dl.losses.Regularize(),
+                            p_weight_out: nengo_dl.losses.Regularize(),
+                        },
+                        loss_weights={
+                            out_p: 1,
+                            p_weight_in: args.weight_reg,
+                            p_weight_out: args.weight_reg,
+                        }
+                    )
+                elif args.n_layers == 2:
+                    sim.compile(
+                        # optimizer=tf.optimizers.RMSprop(0.001),
+                        optimizer=tf.optimizers.Adam(0.001),
+                        # loss={out_p: tf.losses.MSE()}
+                        loss={
+                            out_p: mse_loss,
+                            p_weight_in: nengo_dl.losses.Regularize(),
+                            p_weight_mid: nengo_dl.losses.Regularize(),
+                            p_weight_out: nengo_dl.losses.Regularize(),
+                        },
+                        loss_weights={
+                            out_p: 1,
+                            p_weight_in: args.weight_reg,
+                            p_weight_mid: args.weight_reg,
+                            p_weight_out: args.weight_reg,
+                        }
+                    )
+                else:
+                    raise NotImplementedError
+            else:
+                sim.compile(
+                    # optimizer=tf.optimizers.RMSprop(0.001),
+                    optimizer=tf.optimizers.Adam(0.001),
+                    # loss={out_p: tf.losses.MSE()}
+                    loss={out_p: mse_loss},
+                )
         elif args.loss_function == 'cosine':
             sim.compile(
                 # optimizer=tf.optimizers.RMSprop(0.001),
@@ -207,12 +251,55 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
             )
         else:
             raise NotImplementedError
-        history = sim.fit(
-            train_input,
-            {out_p: train_output},
-            epochs=args.n_epochs,
-            validation_data=(val_input, val_output)
-        )
+
+        if args.weight_reg > 0:
+            if args.n_layers == 1:
+                history = sim.fit(
+                    x=train_input,
+                    y={
+                        out_p: train_output,
+                        p_weight_in:  np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
+                        p_weight_out: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
+                    },
+                    epochs=args.n_epochs,
+                    validation_data=(
+                        val_input,
+                        {
+                            out_p: val_output,
+                            p_weight_in: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
+                            p_weight_out: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
+                        }
+                    )
+                )
+            else:
+                history = sim.fit(
+                    x=train_input,
+                    y={
+                        out_p: train_output,
+                        p_weight_in: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
+                        p_weight_mid: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
+                        p_weight_out: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
+                    },
+                    epochs=args.n_epochs,
+                    validation_data=(
+                        val_input,
+                        {
+                            out_p: val_output,
+                            p_weight_in: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
+                            p_weight_mid: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
+                            p_weight_out: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
+                        }
+                    )
+                )
+        else:
+            history = sim.fit(
+                x=train_input,
+                y={
+                    out_p: train_output,
+                },
+                epochs=args.n_epochs,
+                validation_data=(val_input, val_output)
+            )
         np.savez(
             history_file,
             **history.history,
