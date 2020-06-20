@@ -25,6 +25,7 @@ parser.add_argument('--n-test-samples', type=int, default=50000, help='Number of
 parser.add_argument('--n-validation-samples', type=int, default=5000, help='Number of test samples for validation')
 parser.add_argument('--n-mazes', type=int, default=10)
 parser.add_argument('--hidden-size', type=int, default=1024)
+parser.add_argument('--n-layers', type=int, default=1, choices=[1, 2])
 parser.add_argument('--n-epochs', type=int, default=25, help='Number of epochs to train for')
 parser.add_argument('--plot-vis-set', action='store_true')
 parser.add_argument('--loss-function', type=str, default='mse', choices=['mse', 'cosine', 'ang-rmse'])
@@ -96,15 +97,42 @@ with nengo.Network(seed=args.net_seed) as net:
 
         out = nengo.Node(size_in=args.dim)
 
-        conn_in = nengo.Connection(
-            inp, hidden_ens.neurons, synapse=None,
-            **localization_inp_params
-        )
-        conn_out = nengo.Connection(
-            hidden_ens.neurons, out, synapse=None,
-            # function=lambda x: np.zeros((args.dim,)),
-            **localization_out_params
-        )
+        if args.n_layers == 1:
+
+            conn_in = nengo.Connection(
+                inp, hidden_ens.neurons, synapse=None,
+                **localization_inp_params
+            )
+            conn_out = nengo.Connection(
+                hidden_ens.neurons, out, synapse=None,
+                # function=lambda x: np.zeros((args.dim,)),
+                **localization_out_params
+            )
+        elif args.n_layers == 2:
+
+            localization_mid_params = localization_params[3]
+            localization_ens_two_params = localization_params[4]
+
+            hidden_ens_two = nengo.Ensemble(
+                n_neurons=args.hidden_size,
+                dimensions=1,
+                neuron_type=neuron_type,
+                **localization_ens_two_params
+            )
+
+            conn_in = nengo.Connection(
+                inp, hidden_ens.neurons, synapse=None,
+                **localization_inp_params
+            )
+            conn_mid = nengo.Connection(
+                hidden_ens.neurons, hidden_ens_two.neurons, synapse=None,
+                **localization_mid_params
+            )
+            conn_out = nengo.Connection(
+                hidden_ens_two.neurons, out, synapse=None,
+                **localization_out_params
+            )
+
     else:
         hidden_ens = nengo.Ensemble(
             n_neurons=args.hidden_size,
@@ -114,8 +142,37 @@ with nengo.Network(seed=args.net_seed) as net:
 
         out = nengo.Node(size_in=args.dim)
 
-        conn_in = nengo.Connection(inp, hidden_ens, synapse=None)
-        conn_out = nengo.Connection(hidden_ens, out, synapse=None, function=lambda x: np.zeros((args.dim,)))
+        if args.n_layers == 2:
+            hidden_ens_two = nengo.Ensemble(
+                n_neurons=args.hidden_size,
+                dimensions=1,
+                # dimensions=36*4 + args.maze_id_dim,
+                neuron_type=neuron_type
+            )
+
+            conn_in = nengo.Connection(
+                inp, hidden_ens.neurons, synapse=None
+            )
+
+            conn_mid = nengo.Connection(
+                hidden_ens.neurons, hidden_ens_two.neurons, synapse=None
+            )
+
+            conn_out = nengo.Connection(
+                hidden_ens_two.neurons, out, synapse=None,
+            )
+
+        else:
+
+            conn_in = nengo.Connection(
+                inp, hidden_ens.neurons, synapse=None
+            )
+            conn_out = nengo.Connection(
+                hidden_ens.neurons, out, synapse=None,
+            )
+
+        # conn_in = nengo.Connection(inp, hidden_ens, synapse=None)
+        # conn_out = nengo.Connection(hidden_ens, out, synapse=None, function=lambda x: np.zeros((args.dim,)))
 
     out_p = nengo.Probe(out, label="out_p")
     out_p_filt = nengo.Probe(out, synapse=0.1, label="out_p_filt")
@@ -222,7 +279,7 @@ for bi in range(n_batches):
     )
 
     plot_predictions_v(
-        predictions=predictions, coords=coords,
+        predictions=predictions[wall_overlay == False, :], coords=coords[wall_overlay == False, :],
         ax=ax[0, bi],
         min_val=limit_low,
         max_val=limit_high,
@@ -230,7 +287,7 @@ for bi in range(n_batches):
     )
 
     plot_predictions_v(
-        predictions=truth, coords=coords,
+        predictions=truth[wall_overlay == False, :], coords=coords[wall_overlay == False, :],
         ax=ax[1, bi],
         min_val=limit_low,
         max_val=limit_high,
