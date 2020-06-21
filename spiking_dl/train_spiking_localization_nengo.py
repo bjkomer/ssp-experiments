@@ -75,7 +75,8 @@ with nengo.Network(seed=args.net_seed) as net:
     neuron_type = nengo.LIF(amplitude=0.01)
 
     nengo_dl.configure_settings(stateful=False)
-    nengo_dl.configure_settings(keep_history=True)
+    # nengo_dl.configure_settings(keep_history=True)
+    nengo_dl.configure_settings(keep_history=False)
 
     # the input node that will be used to feed in (context, location, goal)
     inp = nengo.Node(np.zeros((36*4 + args.maze_id_dim,)))
