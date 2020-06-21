@@ -117,6 +117,7 @@ with nengo.Network(seed=args.net_seed) as net:
     net.config[p_weight_out].keep_history = False
 
     out_p = nengo.Probe(out, label="out_p")
+    net.config[out_p].keep_history = False
     out_p_filt = nengo.Probe(out, synapse=0.1, label="out_p_filt")
 
 # minibatch_size = 200
