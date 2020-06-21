@@ -265,21 +265,27 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
                 loss={out_p: angular_rmse},
             )
         if args.weight_reg > 0:
+            dummy_train_array = np.empty((train_input.shape[0], 1, p_weight_in.size_in), dtype=bool)
+            dummy_val_array = np.empty((val_input.shape[0], 1, p_weight_in.size_in), dtype=bool)
             if args.n_layers == 1:
                 history = sim.fit(
                     x=train_input,
                     y={
                         out_p: train_output,
-                        p_weight_in:  np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
-                        p_weight_out: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
+                        p_weight_in: dummy_train_array,
+                        p_weight_out: dummy_train_array,
+                        # p_weight_in:  np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
+                        # p_weight_out: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
                     },
                     epochs=args.n_epochs,
                     validation_data=(
                         val_input,
                         {
                             out_p: val_output,
-                            p_weight_in: np.ones((val_input.shape[0], 1, p_weight_in.size_in)),
-                            p_weight_out: np.ones((val_input.shape[0], 1, p_weight_in.size_in)),
+                            p_weight_in: dummy_val_array,
+                            p_weight_out: dummy_val_array,
+                            # p_weight_in: np.ones((val_input.shape[0], 1, p_weight_in.size_in)),
+                            # p_weight_out: np.ones((val_input.shape[0], 1, p_weight_in.size_in)),
                         }
                     )
                 )
@@ -288,18 +294,24 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
                     x=train_input,
                     y={
                         out_p: train_output,
-                        p_weight_in: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
-                        p_weight_mid: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
-                        p_weight_out: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
+                        p_weight_in: dummy_train_array,
+                        p_weight_mid: dummy_train_array,
+                        p_weight_out: dummy_train_array,
+                        # p_weight_in: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
+                        # p_weight_mid: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
+                        # p_weight_out: np.ones((train_input.shape[0], 1, p_weight_in.size_in)),
                     },
                     epochs=args.n_epochs,
                     validation_data=(
                         val_input,
                         {
                             out_p: val_output,
-                            p_weight_in: np.ones((val_input.shape[0], 1, p_weight_in.size_in)),
-                            p_weight_mid: np.ones((val_input.shape[0], 1, p_weight_in.size_in)),
-                            p_weight_out: np.ones((val_input.shape[0], 1, p_weight_in.size_in)),
+                            p_weight_in: dummy_val_array,
+                            p_weight_mid: dummy_val_array,
+                            p_weight_out: dummy_val_array,
+                            # p_weight_in: np.ones((val_input.shape[0], 1, p_weight_in.size_in)),
+                            # p_weight_mid: np.ones((val_input.shape[0], 1, p_weight_in.size_in)),
+                            # p_weight_out: np.ones((val_input.shape[0], 1, p_weight_in.size_in)),
                         }
                     )
                 )
