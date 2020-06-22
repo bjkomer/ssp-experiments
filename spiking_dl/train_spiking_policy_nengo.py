@@ -91,6 +91,9 @@ with nengo.Network(seed=args.net_seed) as net:
 
     out = nengo.Node(size_in=2)
 
+    out_p = nengo.Probe(out, label="out_p")
+    net.config[out_p].keep_history = False
+
     if args.n_layers == 1:
 
         conn_in = nengo.Connection(inp, hidden_ens.neurons, synapse=None)
@@ -107,18 +110,18 @@ with nengo.Network(seed=args.net_seed) as net:
         conn_mid = nengo.Connection(hidden_ens.neurons, hidden_ens_two.neurons, synapse=None)
         conn_out = nengo.Connection(hidden_ens_two.neurons, out, synapse=None)
 
-        p_weight_mid = nengo.Probe(conn_mid, "weights")
+        p_weight_mid = nengo.Probe(conn_mid, "weights", label="p_weight_mid")
         net.config[p_weight_mid].keep_history = False
     else:
         raise NotImplementedError
 
-    p_weight_in = nengo.Probe(conn_in, "weights")
+    p_weight_in = nengo.Probe(conn_in, "weights", label="p_weight_in")
     net.config[p_weight_in].keep_history = False
-    p_weight_out = nengo.Probe(conn_out, "weights")
+    p_weight_out = nengo.Probe(conn_out, "weights", label="p_weight_out")
     net.config[p_weight_out].keep_history = False
 
-    out_p = nengo.Probe(out, label="out_p")
-    net.config[out_p].keep_history = False
+
+
     out_p_filt = nengo.Probe(out, synapse=0.1, label="out_p_filt")
 
 # minibatch_size = 200
@@ -233,6 +236,7 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
                 else:
                     raise NotImplementedError
             else:
+                print("compiling with no weight reg")
                 sim.compile(
                     # optimizer=tf.optimizers.RMSprop(0.001),
                     optimizer=tf.optimizers.Adam(0.001),
@@ -306,9 +310,18 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
                     )
                 )
         else:
+            print("about to fit")
+            # history = sim.fit(
+            #     x=train_input,
+            #     y={
+            #         out_p: train_output,
+            #     },
+            #     epochs=args.n_epochs,
+            #     validation_data=(val_input, val_output)
+            # )
             history = sim.fit(
-                x=train_input,
-                y={
+                train_input,
+                {
                     out_p: train_output,
                 },
                 epochs=args.n_epochs,

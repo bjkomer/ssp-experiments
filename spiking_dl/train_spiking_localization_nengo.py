@@ -90,6 +90,9 @@ with nengo.Network(seed=args.net_seed) as net:
 
     out = nengo.Node(size_in=args.dim)
 
+    out_p = nengo.Probe(out, label="out_p")
+    net.config[out_p].keep_history = False
+
     if args.n_layers == 2:
         hidden_ens_two = nengo.Ensemble(
             n_neurons=args.hidden_size,
@@ -132,8 +135,6 @@ with nengo.Network(seed=args.net_seed) as net:
     p_weight_out = nengo.Probe(conn_out, "weights")
     net.config[p_weight_out].keep_history = False
 
-    out_p = nengo.Probe(out, label="out_p")
-    net.config[out_p].keep_history = False
     out_p_filt = nengo.Probe(out, synapse=0.1, label="out_p_filt")
 
 # minibatch_size = 200
