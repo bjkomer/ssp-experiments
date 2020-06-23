@@ -259,8 +259,8 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
             raise NotImplementedError
 
         if args.weight_reg > 0:
-            dummy_train_array = np.empty((train_input.shape[0], 1, p_weight_in.size_in), dtype=bool)
-            dummy_val_array = np.empty((val_input.shape[0], 1, p_weight_in.size_in), dtype=bool)
+            dummy_train_array = np.empty((train_input.shape[0], 1, 0), dtype=bool)
+            dummy_val_array = np.empty((val_input.shape[0], 1, 0), dtype=bool)
             if args.n_layers == 1:
                 history = sim.fit(
                     x=train_input,
@@ -325,7 +325,12 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
                     out_p: train_output,
                 },
                 epochs=args.n_epochs,
-                validation_data=(val_input, val_output)
+                validation_data=(
+                    val_input,
+                    {
+                        out_p: val_output,
+                    }
+                )
             )
         np.savez(
             history_file,
