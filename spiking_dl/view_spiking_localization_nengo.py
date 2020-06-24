@@ -231,9 +231,11 @@ for i, x in enumerate(xs):
 
 print("Generating visualization set")
 
+n_mazes_to_use = 4
+
 vis_input, vis_output = create_localization_viz_set(
     args=args,
-    n_mazes_to_use=2,  # 10
+    n_mazes_to_use=n_mazes_to_use,  # 10
     encoding_func=encoding_func,
 )
 
@@ -246,7 +248,8 @@ batch_size = vis_input.shape[1]
 print("Running visualization")
 # viz_eval = sim.evaluate(test_input, {out_p_filt: test_output}, verbose=0)
 
-fig, ax = plt.subplots(2, n_batches)
+fig, ax = plt.subplots(2, n_batches, tight_layout=True, figsize=(8, 5))
+
 
 for bi in range(n_batches):
     vis_batch_input = np.tile(vis_input[bi, :, None, :], (1, n_steps, 1))
@@ -280,7 +283,7 @@ for bi in range(n_batches):
 
     plot_predictions_v(
         predictions=predictions[wall_overlay == False, :], coords=coords[wall_overlay == False, :],
-        ax=ax[0, bi],
+        ax=ax[1, bi],
         min_val=limit_low,
         max_val=limit_high,
         fixed_axes=True,
@@ -288,10 +291,13 @@ for bi in range(n_batches):
 
     plot_predictions_v(
         predictions=truth[wall_overlay == False, :], coords=coords[wall_overlay == False, :],
-        ax=ax[1, bi],
+        ax=ax[0, bi],
         min_val=limit_low,
         max_val=limit_high,
         fixed_axes=True,
     )
+
+    ax[0, bi].set_axis_off()
+    ax[1, bi].set_axis_off()
 
 plt.show()

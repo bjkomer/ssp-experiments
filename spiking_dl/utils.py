@@ -260,7 +260,7 @@ def create_policy_vis_set(
     # n_mazes by n_goals by 2
     goals = data['goals']
 
-    n_mazes = goals.shape[0]
+    # n_mazes = goals.shape[0]
     n_goals = goals.shape[1]
     # dim = data['goal_sps'].shape[2]
 
@@ -278,7 +278,7 @@ def create_policy_vis_set(
 
     maze_indices = maze_indices
     goal_indices = goal_indices
-    n_mazes = len(maze_indices)
+    # n_mazes = len(maze_indices)
     n_goals = len(goal_indices)
 
     res = fine_mazes.shape[1]
@@ -300,14 +300,14 @@ def create_policy_vis_set(
 
 
     goal_sps = np.zeros((n_mazes, n_goals, args.dim))
-    for ni in range(goal_sps.shape[0]):
+    for ni in range(n_mazes):
         for gi, goal_index in enumerate(goal_indices):
             goal_sps[ni, gi, :] = encoding_func(
                 x=goals[ni, goal_index, 0] + offsets[ni, 0],
                 y=goals[ni, goal_index, 1] + offsets[ni, 1]
             )
 
-    n_samples = int(res / subsample) * int(res / subsample) * n_mazes * n_goals
+    n_samples = int(res / subsample) * int(res / subsample) * len(maze_indices) * n_goals
 
     # Visualization
     viz_locs = np.zeros((n_samples, 2))
@@ -322,6 +322,7 @@ def create_policy_vis_set(
 
     # Generate data so each batch contains a single maze and goal
     si = 0  # sample index, increments each time
+    # for mi, maze_index in enumerate(maze_indices):
     for mi in maze_indices:
         for gi, goal_index in enumerate(goal_indices):
             for xi in range(0, res, subsample):
@@ -344,14 +345,14 @@ def create_policy_vis_set(
 
                     si += 1
 
-    batch_size = int(si / (n_mazes * n_goals))
+    batch_size = int(si / (len(maze_indices) * n_goals))
 
     print("Visualization Data Generated")
     print("Total Samples: {}".format(si))
-    print("Mazes: {}".format(n_mazes))
+    print("Mazes: {}".format(len(maze_indices)))
     print("Goals: {}".format(n_goals))
     print("Batch Size: {}".format(batch_size))
-    print("Batches: {}".format(n_mazes * n_goals))
+    print("Batches: {}".format(len(maze_indices) * n_goals))
 
     if maze_sps is None:
         viz_input = np.hstack([viz_loc_sps, viz_goal_sps])
@@ -927,6 +928,7 @@ class NengoGridEnv(object):
 
         # Load in the static outputs for this environment
         self.env_output[:self.dim] = maze_sps[maze_index, :]
+        # self.env_output[:self.dim] = maze_sps[maze_index+1, :]
 
         # TODO: temporarily just returning the deconvolved noisy goal
         # self.env_output[self.dim:2*self.dim] = item_memory.v

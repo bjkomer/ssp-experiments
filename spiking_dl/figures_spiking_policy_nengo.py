@@ -22,12 +22,12 @@ parser.add_argument('--net-seed', type=int, default=13)
 # parser.add_argument('--n-test-samples', type=int, default=50000, help='Number of testing samples')
 # parser.add_argument('--n-validation-samples', type=int, default=5000, help='Number of test samples for validation')
 parser.add_argument('--n-mazes', type=int, default=10)
-parser.add_argument('--hidden-size', type=int, default=1024)
-parser.add_argument('--n-layers', type=int, default=1, choices=[1, 2])
+parser.add_argument('--hidden-size', type=int, default=2048)
+parser.add_argument('--n-layers', type=int, default=2, choices=[1, 2])
 parser.add_argument('--n-epochs', type=int, default=25, help='Number of epochs to train for')
 parser.add_argument('--plot-vis-set', action='store_true')
 parser.add_argument('--loss-function', type=str, default='mse', choices=['mse', 'cosine', 'ang-rmse'])
-parser.add_argument('--param-file', type=str, default='')
+parser.add_argument('--param-file', type=str, default='saved_params/nengo_policy_obj_2layer_mse_hs2048_5000000samples_100epochs_1e-05reg.pkl')
 
 parser = add_encoding_params(parser)
 
@@ -249,19 +249,37 @@ print(type(sim))
 
 print("Generating visualization set")
 
-vis_input, vis_output, batch_size = create_policy_vis_set(
-    data=data,
-    args=args,
-    n_mazes=args.n_mazes,
-    encoding_func=encoding_func,
-    maze_indices=[0, 1, 2, 3],
-    goal_indices=[0, 1],
-    # TEMP: for debugging
-    # maze_indices=[0, ],
-    # goal_indices=[2, 3, 4, 5, 6, 7, 8],
-    # x_offset=0.25,
-    # y_offset=0.25,
-)
+vis_set_fname = 'saved_params/policy_viz_set.npz'
+
+if not os.path.exists(vis_set_fname):
+
+    vis_input, vis_output, batch_size = create_policy_vis_set(
+        data=data,
+        args=args,
+        n_mazes=args.n_mazes,
+        encoding_func=encoding_func,
+        # maze_indices=[2, 4, 5, 6],
+        maze_indices=[1, 0, 5, 7],
+        goal_indices=[0,],
+        # TEMP: for debugging
+        # maze_indices=[0, ],
+        # goal_indices=[2, 3, 4, 5, 6, 7, 8],
+        # x_offset=0.25,
+        # y_offset=0.25,
+    )
+
+    np.savez(
+        vis_set_fname,
+        vis_input=vis_input,
+        vis_output=vis_output,
+        batch_size=batch_size
+    )
+else:
+    data = np.load(vis_set_fname)
+    vis_input = data['vis_input']
+    vis_output = data['vis_output']
+    batch_size = data['batch_size']
+
 
 n_steps = 30
 vis_input = np.tile(vis_input[:, None, :], (1, n_steps, 1))
@@ -270,7 +288,9 @@ vis_input = np.tile(vis_input[:, None, :], (1, n_steps, 1))
 print("Running visualization")
 # viz_eval = sim.evaluate(test_input, {out_p_filt: test_output}, verbose=0)
 
-n_batches = 4*2
+n_batches = 4
+
+fix, ax = plt.subplots(2, 4, tight_layout=True, figsize=(8, 5))
 
 for bi in range(n_batches):
     viz_eval = sim.predict(vis_input[bi*batch_size:(bi+1)*batch_size])
@@ -288,16 +308,23 @@ for bi in range(n_batches):
     fig_truth, rmse = plot_path_predictions_image(
         directions_pred=directions,
         directions_true=directions,
-        wall_overlay=wall_overlay
+        wall_overlay=wall_overlay,
+        ax=ax[0, bi],
+        trim=True,
     )
+    ax[0, bi].set_title("")
 
     fig_pred, rmse = plot_path_predictions_image(
         directions_pred=batch_data,
         directions_true=directions,
-        wall_overlay=wall_overlay
+        wall_overlay=wall_overlay,
+        ax=ax[1, bi],
+        trim=True,
     )
 
-    plt.show()
+    ax[1, bi].set_title("RMSE: {}".format(np.round(rmse, 4)))
 
-    print(batch_data)
-    print(batch_data.shape)
+    ax[0, bi].set_axis_off()
+    ax[1, bi].set_axis_off()
+
+plt.show()
