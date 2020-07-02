@@ -11,7 +11,7 @@ from spatial_semantic_pointers.plots import SpatialHeatmap
 
 
 dim=512
-dim=64
+dim=256
 n_items=16
 seed=0
 limit=5
@@ -127,8 +127,18 @@ n_exp_items = min(n_items, max_items)
 estims = np.zeros((n_exp_items, dim,))
 sims = np.zeros((n_exp_items,))
 
-# filler_id_vocab = vocab.create_subset(keys=filler_id_keys)
-filler_vocab = vocab.create_subset(keys=filler_keys + filler_id_keys)
+filler_id_vocab = vocab.create_subset(keys=filler_id_keys)
+filler_vocab = vocab.create_subset(keys=filler_keys)
+filler_all_vocab = vocab.create_subset(keys=filler_keys + filler_id_keys)
+
+
+print("\n\n\n")
+print("the filler keys")
+print(filler_id_keys)
+print("the filler values")
+print(filler_keys)
+print("\n\n\n")
+
 
 # print(filler_keys)
 # print(len(filler_keys))
@@ -158,7 +168,7 @@ with model:
 
     # Fixed memory based on the level slot to access
     level_slot_input_node = nengo.Node(
-        lambda t: vocab['LevelSlot{}'.format(n_levels - 1)].v,
+        lambda t: vocab['LevelSlot{}'.format(n_levels - 2)].v,
         size_in=0,
         size_out=dim
     )
@@ -179,13 +189,14 @@ with model:
     )
 
     nengo.Connection(item_input_node, model.cconv_noisy_level_filler.input_a)
-    nengo.Connection(level_slot_input_node, model.cconv_noisy_level_filler.input_a)
+    nengo.Connection(level_slot_input_node, model.cconv_noisy_level_filler.input_b)
 
     # Note: this is set up as heteroassociative between ID and the content (should clean up as well)
     model.noisy_level_filler_id_cleanup = spa.ThresholdingAssocMem(
-        threshold=0.7,
-        # input_vocab=filler_id_vocab,
-        input_vocab=filler_vocab,
+        # threshold=0.7,
+        threshold=0.4,
+        input_vocab=filler_id_vocab,
+        output_vocab=filler_vocab,
         # mapping=vocab.keys(),
         mapping=mapping,
         function=lambda x: x > 0.
