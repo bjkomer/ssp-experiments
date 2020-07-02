@@ -89,7 +89,7 @@ def get_axes_from_network(fname, dim, hidden_size=1024):
         hidden_size=hidden_size, output_size=2, n_layers=1, dropout_fraction=0.0
     )
 
-    model.load_state_dict(torch.load(fname, map_location=lambda storage, loc: storage), strict=False)
+    model.load_state_dict(torch.load(fname, map_location=lambda storage, loc: storage), strict=True)
 
     phis = model.encoding_layer.phis.detach().numpy()
 
@@ -164,7 +164,7 @@ def final():
             if type_index < 2:
                 X = X.v
                 Y = Y.v
-            im = plot_heatmap(X, Y, np.linspace(-5, 5, 128), np.linspace(-5, 5, 128), ax2[type_index, seed])
+            im = plot_heatmap(X, Y, np.linspace(-5, 5, 32), np.linspace(-5, 5, 32), ax2[type_index, seed])
             phi_mag_total[seed * n_toroid:(seed + 1) * n_toroid, 0] = md[:, 0]
 
             if seed == 0:
