@@ -28,6 +28,8 @@ def phi_mag_and_dir(X, Y):
 def magnitude_histogram(md, ax):
     # sns.distplot(md[:, 0], ax=ax, rug=True, hist=False)
     sns.distplot(md[:, 0], ax=ax, rug=True, hist=True)
+    # sns.distplot(md[:, 0], ax=ax, rug=True, hist=True, bins=30)
+    # sns.distplot(md[:, 0], ax=ax, rug=True, hist=True, bins=20)
     ax.set_xlim([0, np.sqrt(2)*np.pi])
     # ax.set_title('Magnitude Histogram')
     # ax.set_xticks([0, np.pi])
@@ -89,7 +91,7 @@ def get_axes_from_network(fname, dim, hidden_size=1024):
         hidden_size=hidden_size, output_size=2, n_layers=1, dropout_fraction=0.0
     )
 
-    model.load_state_dict(torch.load(fname, map_location=lambda storage, loc: storage), strict=True)
+    model.load_state_dict(torch.load(fname, map_location=lambda storage, loc: storage), strict=False)
 
     phis = model.encoding_layer.phis.detach().numpy()
 
@@ -114,15 +116,15 @@ def get_axes_from_network(fname, dim, hidden_size=1024):
 
 
 def final():
-    fig, ax = plt.subplots(4, 4, figsize=(8, 6), tight_layout=True)
-    fig2, ax2 = plt.subplots(4, 3, figsize=(5, 4), tight_layout=True)
+    fig, ax = plt.subplots(5, 4, figsize=(8, 6), tight_layout=True)
+    fig2, ax2 = plt.subplots(5, 3, figsize=(5, 4), tight_layout=True)
 
     dim = 256
     res = 32
     sigma = .15
     n_toroid = (dim - 1) // 2
 
-    for type_index in range(4):
+    for type_index in range(5):
         phi_mag_total = np.zeros((n_toroid*3, 1))
         for seed in range(3):
             if type_index == 0:
@@ -146,16 +148,26 @@ def final():
 
                 md, phi_pos = phi_mag_and_dir(X.v, Y.v)
             elif type_index == 2:
-                # learned SSP
+                # learned SSP no regularization
                 X, Y = get_axes_from_network(
                     fname='learned_ssp_models/no_reg_model_1layer_1024hs_seed{}.pt'.format(seed),
+                    # fname='learned_ssp_models/reg_proper_model_1layer_1024hs_seed{}.pt'.format(seed),
+                    # fname='learned_ssp_models/reg_proper_noise_model_1layer_1024hs_seed{}.pt'.format(seed),
+                    # fname='learned_ssp_models/reg_proper_phi_decay_model_1layer_1024hs_seed{}.pt'.format(seed),
                     dim=dim
                 )
                 md, phi_pos = phi_mag_and_dir(X, Y)
             elif type_index == 3:
-                # learned SSP
+                # learned SSP just weight regularization
                 X, Y = get_axes_from_network(
-                    fname='learned_ssp_models/model_1layer_1024hs_seed{}.pt'.format(seed),
+                    fname='learned_ssp_models/reg_proper_model_1layer_1024hs_seed{}.pt'.format(seed),
+                    dim=dim
+                )
+                md, phi_pos = phi_mag_and_dir(X, Y)
+            elif type_index == 4:
+                # learned SSP weight and phi regularization
+                X, Y = get_axes_from_network(
+                    fname='learned_ssp_models/reg_proper_phi_decay_model_1layer_1024hs_seed{}.pt'.format(seed),
                     dim=dim
                 )
                 md, phi_pos = phi_mag_and_dir(X, Y)
@@ -164,7 +176,7 @@ def final():
             if type_index < 2:
                 X = X.v
                 Y = Y.v
-            im = plot_heatmap(X, Y, np.linspace(-5, 5, 32), np.linspace(-5, 5, 32), ax2[type_index, seed])
+            im = plot_heatmap(X, Y, np.linspace(-5, 5, 128), np.linspace(-5, 5, 128), ax2[type_index, seed])
             phi_mag_total[seed * n_toroid:(seed + 1) * n_toroid, 0] = md[:, 0]
 
             if seed == 0:
@@ -180,6 +192,9 @@ def final():
                 elif type_index == 3:
                     # label = 'Learned SSP'
                     label = 'D     '
+                elif type_index == 4:
+                    # label = 'Learned SSP'
+                    label = 'E     '
                 # ax[type_index, seed].set_ylabel(
                 #     label, rotation=90, fontsize=18,
                 #     # position=(0, .4)
