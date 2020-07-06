@@ -564,6 +564,7 @@ if __name__ == '__main__':
     fname = 'data_hier.npz'
     fname = 'data_hier_multi.npz'
     fname = 'data_hier_multi_neural.npz'
+    # fname = 'data_hier_multi_neural_low.npz'
     # fname = 'data_hier_multi_neural_test.npz'
 
     # item_numbers = [8, 16, 32, 64, 128, 256, 512, 1024]
@@ -579,6 +580,7 @@ if __name__ == '__main__':
     hierarchies = [1, 2]
     # hierarchies = [4]
     hierarchies = [1, 4]
+    item_numbers = [4]
 
     if os.path.exists(fname):
         data = np.load(fname)
@@ -587,9 +589,9 @@ if __name__ == '__main__':
         sim = data['sim']
     else:
 
-        rmse = np.zeros((3, len(item_numbers), len(seeds)))
-        acc = np.zeros((3, len(item_numbers), len(seeds)))
-        sim = np.zeros((3, len(item_numbers), len(seeds)))
+        rmse = np.zeros((len(hierarchies), len(item_numbers), len(seeds)))
+        acc = np.zeros((len(hierarchies), len(item_numbers), len(seeds)))
+        sim = np.zeros((len(hierarchies), len(item_numbers), len(seeds)))
 
         # for hi, n_hierarchy in enumerate([1, 2, 3]):
         for hi, n_hierarchy in enumerate(hierarchies):
@@ -598,10 +600,17 @@ if __name__ == '__main__':
                     print("{} - {} - {} of {} - {} - {}".format(
                         hi+1, ni+1, si+1, len(hierarchies), len(item_numbers), len(seeds))
                     )
-                    rmse[hi, ni, si], acc[hi, ni, si], sim[hi, ni, si] = experiment_direct(
-                        dim=512, n_hierarchy=n_hierarchy, n_items=n_items, seed=seed, limit=5, res=128,
-                        neural=True
-                    )
+                    if n_items == 4 and n_hierarchy == 4:
+                        # this case is the same as the non-hierarchy case
+                        rmse[hi, ni, si], acc[hi, ni, si], sim[hi, ni, si] = experiment_direct(
+                            dim=512, n_hierarchy=1, n_items=n_items, seed=seed, limit=5, res=128,
+                            neural=True
+                        )
+                    else:
+                        rmse[hi, ni, si], acc[hi, ni, si], sim[hi, ni, si] = experiment_direct(
+                            dim=512, n_hierarchy=n_hierarchy, n_items=n_items, seed=seed, limit=5, res=128,
+                            neural=True
+                        )
 
         np.savez(
             fname,
@@ -609,6 +618,25 @@ if __name__ == '__main__':
             acc=acc,
             sim=sim,
         )
+
+    if fname == 'data_hier_multi_neural.npz':
+        # combine with the smaller dataset
+        data_small = np.load('data_hier_multi_neural_low.npz')
+        rmse_small = data_small['rmse']
+        acc_small = data_small['acc']
+        sim_small = data_small['sim']
+
+        print(rmse.shape)
+        print(rmse_small.shape)
+
+        rmse = np.concatenate([rmse_small, rmse], axis=1)
+        acc = np.concatenate([acc_small, acc], axis=1)
+        sim = np.concatenate([sim_small, sim], axis=1)
+
+        item_numbers = [4, 16, 64, 256]
+        seeds = [0, 1, 2, 3, 4]
+        hierarchies = [1, 4]
+
 
     df = pd.DataFrame()
 
@@ -631,16 +659,35 @@ if __name__ == '__main__':
                     },
                     ignore_index=True
                 )
-    print(df)
-    fig, ax = plt.subplots(3, 1, tight_layout=True)
 
-    sns.lineplot(data=df, x='Items', y='Similarity', hue='Hierarchy', ax=ax[0])
-    sns.lineplot(data=df, x='Items', y='Accuracy', hue='Hierarchy', ax=ax[1])
-    sns.lineplot(data=df, x='Items', y='RMSE', hue='Hierarchy', ax=ax[2])
+    final_figure = True
 
-    ax[0].set(xscale='log')
-    ax[1].set(xscale='log')
-    ax[2].set(xscale='log')
+    if final_figure:
+        fig, ax = plt.subplots(1, 1, tight_layout=True, figsize=(6, 3))
+        sns.lineplot(data=df, x='Items', y='RMSE', hue='Hierarchy', ax=ax)
+
+        ax.set(xscale='log')
+
+        handles, labels = ax.get_legend_handles_labels()
+        ax.legend(handles=handles[1:], labels=labels[1:])
+
+        # fig, ax = plt.subplots(2, 1, tight_layout=True)
+        # sns.lineplot(data=df, x='Items', y='Accuracy', hue='Hierarchy', ax=ax[0])
+        # sns.lineplot(data=df, x='Items', y='RMSE', hue='Hierarchy', ax=ax[1])
+        #
+        # ax[0].set(xscale='log')
+        # ax[1].set(xscale='log')
+    else:
+        print(df)
+        fig, ax = plt.subplots(3, 1, tight_layout=True)
+
+        sns.lineplot(data=df, x='Items', y='Similarity', hue='Hierarchy', ax=ax[0])
+        sns.lineplot(data=df, x='Items', y='Accuracy', hue='Hierarchy', ax=ax[1])
+        sns.lineplot(data=df, x='Items', y='RMSE', hue='Hierarchy', ax=ax[2])
+
+        ax[0].set(xscale='log')
+        ax[1].set(xscale='log')
+        ax[2].set(xscale='log')
 
     sns.despine()
 
