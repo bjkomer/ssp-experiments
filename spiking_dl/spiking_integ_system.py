@@ -6,7 +6,7 @@ import nengo.spa as spa
 import nengo_spa
 import os
 import torch
-from utils import NengoGridEnv, generate_cleanup_dataset, PolicyGT
+from utils import NengoGridEnv, generate_cleanup_dataset, PolicyGT, LocalizationGT
 from ssp_navigation.utils.encodings import get_encoding_function, get_encoding_heatmap_vectors
 from spatial_semantic_pointers.plots import SpatialHeatmap
 # from spatial_semantic_pointers.utils import encode_point, get_heatmap_vectors
@@ -23,16 +23,20 @@ parser.add_argument('--spatial-encoding', type=str, default='sub-toroid-ssp')
 parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--scale-ratio', type=float, default=0.0)
 parser.add_argument('--n-proj', type=int, default=3)
-parser.add_argument('--ssp-scaling', type=float, default=0.5)
+# parser.add_argument('--ssp-scaling', type=float, default=0.5)
+parser.add_argument('--ssp-scaling', type=float, default=1.0)
 
-parser.add_argument('--maze-index', type=int, default=0)
+parser.add_argument('--maze-index', type=int, default=1)
 parser.add_argument('--env-seed', type=int, default=13)
-parser.add_argument('--noise', type=float, default=0.0) #.25
+# parser.add_argument('--noise', type=float, default=0.0) #.25
+parser.add_argument('--noise', type=float, default=0.25)
 parser.add_argument('--normalize-action', action='store_true')
 parser.add_argument('--use-dataset-goals', action='store_true')
 parser.add_argument('--use-localization-gt', action='store_true')
 parser.add_argument('--use-cleanup-gt', action='store_true')
 parser.add_argument('--use-policy-gt', action='store_true')
+parser.add_argument('--use-precomp-policy', action='store_true')
+parser.add_argument('--use-precomp-localization', action='store_true')
 # parser.add_argument('--n-goals', type=int, default=7)
 parser.add_argument('--n-goals', type=int, default=2)
 
@@ -44,11 +48,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 else:
     args = parser.parse_args([])
-    # args.normalize_action = True
-    args.use_localization_gt = True
+    args.normalize_action = True
+    # args.use_localization_gt = True
     args.use_cleanup_gt = True
     # args.use_policy_gt = True
     # args.use_dataset_goals = True
+    # args.use_precomp_policy = True
+    # args.use_precomp_localization = True
 
 rng = np.random.RandomState(seed=args.seed)
 torch.manual_seed(args.seed)
@@ -217,7 +223,7 @@ with model:
     # Context
     nengo.Connection(
         env[:args.dim],
-        localization_inp_node[0:args.dim]
+        localization_inp_node[36*4:]
         # localization_ens[0:args.dim],
         # synapse=None,
         # **localization_inp_params
@@ -226,7 +232,8 @@ with model:
     # Sensors
     nengo.Connection(
         env[2*args.dim:2*args.dim+36*4],
-        localization_inp_node[args.dim:],
+        # localization_inp_node[args.dim:],
+        localization_inp_node[:36*4],
         # localization_ens[args.dim:],
         # synapse=None,
         # **localization_inp_params
@@ -251,9 +258,18 @@ with model:
         size_in=2,
         size_out=2,
     )
-    if args.use_policy_gt:
+    if args.use_policy_gt or args.use_precomp_policy:
+        if args.use_precomp_policy:
+            # pre-computed spiking policy
+            path = 'ssp_navigation_sandbox/spiking_dl/spiking_policy_solution.npz'
+        else:
+            # ground truth dataset
+            path = 'ssp-navigation/ssp_navigation/datasets/mixed_style_100mazes_100goals_64res_13size_13seed/maze_dataset.npz'
         policy_ens = nengo.Node(
-            PolicyGT(heatmap_vectors=heatmap_vectors, maze_index=args.maze_index, dim=args.dim),
+            PolicyGT(
+                heatmap_vectors=heatmap_vectors, maze_index=args.maze_index, dim=args.dim,
+                path=path,
+            ),
             size_in=args.dim*2 + args.maze_id_dim,
             size_out=2
         )
@@ -334,7 +350,29 @@ with model:
     )
 
     # Location
-    if args.use_localization_gt:
+    if args.use_precomp_localization:
+        loc_ens = nengo.Node(
+            LocalizationGT(
+                heatmap_vectors=heatmap_vectors, maze_index=args.maze_index, dim=args.dim,
+                cleanup=True,
+                # cleanup=False,
+                path='ssp_navigation_sandbox/spiking_dl/spiking_localization_solution.npz',
+            ),
+            size_in=36*4 + args.maze_id_dim,
+            size_out=args.dim
+        )
+        nengo.Connection(
+            localization_inp_node,
+            loc_ens,
+            synapse=synapse
+        )
+        nengo.Connection(
+            loc_ens,
+            localization_out_node,
+            synapse=0.01,
+            # synapse=0.1,
+        )
+    elif args.use_localization_gt:
         nengo.Connection(
             env[[-4, -3]],
             # policy_inp_node[args.dim:2*args.dim],
@@ -352,7 +390,8 @@ with model:
             localization_out_node,
             # policy_inp_node[args.dim:2*args.dim],
             # function=lambda x: np.zeros((args.dim,)),
-            synapse=0.1,
+            # synapse=0.1,
+            synapse=0.01,
             **localization_out_params
         )
     nengo.Connection(
