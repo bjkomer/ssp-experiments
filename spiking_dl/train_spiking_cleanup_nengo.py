@@ -26,6 +26,7 @@ parser.add_argument('--n-layers', type=int, default=1, choices=[1, 2])
 parser.add_argument('--n-epochs', type=int, default=25, help='Number of epochs to train for')
 parser.add_argument('--plot-vis-set', action='store_true')
 parser.add_argument('--loss-function', type=str, default='mse', choices=['mse', 'cosine', 'ang-rmse'])
+parser.add_argument('--sigma', type=float, default=0.01, help='Gaussian noise sigma')
 
 parser.add_argument('--weight-reg', type=float, default=0.001)
 
@@ -47,6 +48,7 @@ train_input, train_output, test_input, test_output = create_cleanup_train_test_s
     n_train_samples=args.n_train_samples,
     n_test_samples=args.n_test_samples,
     args=args,
+    sigma=args.sigma,
     encoding_func=encoding_func,
 )
 
@@ -174,8 +176,8 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
     print("Loss before training:", first_eval["loss"])
     # print("Angular RMSE before training:", first_eval["out_p_filt_angular_rmse"])
 
-    suffix = '{}layer_{}_hs{}_{}samples_{}epochs_{}reg'.format(
-        args.n_layers, args.loss_function, args.hidden_size, args.n_train_samples, args.n_epochs, args.weight_reg
+    suffix = '{}layer_{}_hs{}_{}samples_{}epochs_{}reg_{}sigma'.format(
+        args.n_layers, args.loss_function, args.hidden_size, args.n_train_samples, args.n_epochs, args.weight_reg, args.sigma
     )
 
     param_file = "./saved_params/nengo_cleanup_params_{}".format(
