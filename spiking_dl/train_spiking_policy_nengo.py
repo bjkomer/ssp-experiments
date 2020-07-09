@@ -37,7 +37,7 @@ parser = add_encoding_params(parser)
 
 args = parser.parse_args()
 
-args.dim = 256
+# args.dim = 256
 args.spatial_encoding = 'sub-toroid-ssp'
 
 if not os.path.exists('saved_params'):
@@ -180,8 +180,8 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
     # print("Angular RMSE before training:", first_eval["out_p_filt_angular_rmse"])
 
 
-    suffix = '{}layer_{}_hs{}_{}samples_{}epochs_{}reg'.format(
-        args.n_layers, args.loss_function, args.hidden_size, args.n_train_samples, args.n_epochs, args.weight_reg
+    suffix = '{}dim_{}layer_{}_hs{}_{}samples_{}epochs_{}reg'.format(
+        args.dim, args.n_layers, args.loss_function, args.hidden_size, args.n_train_samples, args.n_epochs, args.weight_reg
     )
 
     param_file = "./saved_params/nengo_policy_params_{}".format(
