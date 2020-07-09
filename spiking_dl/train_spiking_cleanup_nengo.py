@@ -5,7 +5,7 @@ import numpy as np
 import nengo.spa as spa
 import matplotlib.pyplot as plt
 from ssp_navigation.utils.encodings import get_encoding_function, add_encoding_params
-from utils import create_policy_train_test_sets, compute_angular_rmse, create_policy_vis_set
+from utils import create_cleanup_train_test_sets, compute_angular_rmse
 from ssp_navigation.utils.path import plot_path_predictions, plot_path_predictions_image, get_path_predictions_image
 import os
 import pickle
@@ -27,10 +27,6 @@ parser.add_argument('--n-epochs', type=int, default=25, help='Number of epochs t
 parser.add_argument('--plot-vis-set', action='store_true')
 parser.add_argument('--loss-function', type=str, default='mse', choices=['mse', 'cosine', 'ang-rmse'])
 
-parser.add_argument('--input-noise', type=float, default=0.01, help='Gaussian noise to add to the inputs when training')
-parser.add_argument('--shift-noise', type=float, default=0.2,
-                    help='Shifting coordinates before encoding by up to this amount as a form of noise')
-
 parser.add_argument('--weight-reg', type=float, default=0.001)
 
 parser = add_encoding_params(parser)
@@ -51,7 +47,6 @@ train_input, train_output, test_input, test_output = create_cleanup_train_test_s
     n_train_samples=args.n_train_samples,
     n_test_samples=args.n_test_samples,
     args=args,
-    n_mazes_to_use=args.n_mazes,
     encoding_func=encoding_func,
 )
 

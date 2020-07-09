@@ -9,6 +9,7 @@ from collections import OrderedDict
 from gridworlds.envs import GridWorldEnv, generate_obs_dict
 from gridworlds.constants import possible_objects
 from spatial_semantic_pointers.utils import encode_point
+import sys
 
 
 def create_policy_train_test_sets(
@@ -515,6 +516,7 @@ def create_localization_viz_set(
         args,
         encoding_func,
         n_mazes_to_use=10,
+        res=64,
         tile_mazes=False,
         connected_tiles=False,
         rng=np.random,
@@ -556,11 +558,14 @@ def create_localization_viz_set(
     xs = base_data['xs']
     ys = base_data['ys']
 
-    res = fine_mazes.shape[2]
+    data_res = fine_mazes.shape[2]
     coarse_maze_size = coarse_mazes.shape[1]
 
     limit_low = xs[0]
     limit_high = xs[-1]
+
+    xs = np.linspace(limit_low, limit_high, res)
+    ys = np.linspace(limit_low, limit_high, res)
 
     sensor_scaling = (limit_high - limit_low) / coarse_maze_size
 
@@ -587,9 +592,8 @@ def create_localization_viz_set(
         for xi, x in enumerate(xs_scaled):
             for yi, y in enumerate(ys_scaled):
 
-                # Only compute measurements if not in a wall
-                if fine_mazes[mi, xi, yi] == 0:
-                    # Compute sensor measurements and scale them based on xs and ys
+                if res != data_res:
+                    # Compute even within a wall, should return 0 for all distances if in wall
                     dist_sensors[mi, xi * res + yi, :] = generate_colour_sensor_readings(
                         map_arr=coarse_mazes[mi, :, :],
                         colour_func=colour_func,
@@ -603,7 +607,29 @@ def create_localization_viz_set(
 
                     target_outputs[mi, xi * res + yi, :] = encoding_func(x=x, y=y)
 
+                    print(x)
+                    print(xs[xi])
+                    print("")
+
                     maze_ids[mi, xi * res + yi, :] = maze_sps[mi, :]
+                else:
+                    # Only compute measurements if not in a wall
+                    if fine_mazes[mi, xi, yi] == 0:
+                        # Compute sensor measurements and scale them based on xs and ys
+                        dist_sensors[mi, xi * res + yi, :] = generate_colour_sensor_readings(
+                            map_arr=coarse_mazes[mi, :, :],
+                            colour_func=colour_func,
+                            n_sensors=n_sensors,
+                            fov_rad=fov_rad,
+                            x=x,
+                            y=y,
+                            th=0,
+                            max_sensor_dist=args.max_dist,
+                        ).flatten() * sensor_scaling
+
+                        target_outputs[mi, xi * res + yi, :] = encoding_func(x=x, y=y)
+
+                        maze_ids[mi, xi * res + yi, :] = maze_sps[mi, :]
 
     viz_input = np.concatenate([dist_sensors, maze_ids], axis=2)
     viz_output = target_outputs
@@ -658,7 +684,8 @@ def get_collision_coord(map_array, x, y, th, colour_func,
         cx += dx
         cy += dy
 
-        if map_array[int(round(cx)), int(round(cy))] == 1:
+        # if map_array[int(round(cx)), int(round(cy))] == 1:
+        if int(round(cx)) < 0 or int(round(cx)) > 12 or int(round(cy)) < 0 or int(round(cy)) > 12 or map_array[int(round(cx)), int(round(cy))] == 1:
             ret[:3] = colour_func(cx, cy)
             ret[3] = (i - 1)*dr
             return ret
@@ -779,6 +806,7 @@ class NengoGridEnv(object):
             normalize_action=True,
             noise=0.1,
             env_seed=13,
+            n_trials=100,  # number of trials to record before exiting
     ):
 
         self.dim = dim
@@ -788,6 +816,17 @@ class NengoGridEnv(object):
         self.dt_ratio = int(self.sim_dt / self.nengo_dt)
         self.normalize_action = normalize_action
         self.noise = noise
+
+        self.n_trials = n_trials
+        # index of the current trial
+        self.trial_index = 0
+        # 1 for reaching goal within step limit, 0 for not
+        self.successes = np.zeros((self.n_trials,), dtype=bool)
+        # return for each trials
+        self.returns = np.zeros((self.n_trials,))
+        if not os.path.exists('output'):
+            os.makedirs('output')
+        self.fname_data = 'output/maze{}_seed{}_spiking_data.npz'.format(maze_index, env_seed)
 
         # Output vector periodically updated based on sim_dt
         # last 4 dimensions are for debug (agent x,y and goal x,y)
@@ -852,7 +891,8 @@ class NengoGridEnv(object):
             'seed': env_seed,
             # 'map_style': args.map_style,
             'map_size': 10,
-            'fixed_episode_length': True,
+            # 'fixed_episode_length': True,
+            'fixed_episode_length': False,
             'episode_length': 1000,  # 500, 1000,  #200,
             'max_lin_vel': 5,
             'max_ang_vel': 5,
@@ -1051,6 +1091,8 @@ class NengoGridEnv(object):
 
             obs, reward, done, info = self.env.step(action)
 
+            self.returns[self.trial_index] += reward
+
             if done:
                 obs = self.env.reset()
 
@@ -1060,6 +1102,20 @@ class NengoGridEnv(object):
 
                 # TODO: temporarily just doing the deconvolving here
                 self.env_output[self.dim:2 * self.dim] = (self.item_memory * ~ cue_sp).v
+
+                if reward > 0:
+                    self.successes[self.trial_index] = 1
+
+                self.trial_index += 1
+                print("Trial {} of {}".format(self.trial_index, self.n_trials))
+                if self.trial_index == self.n_trials:
+                    np.savez(
+                        self.fname_data,
+                        successes=self.successes,
+                        returns=self.returns,
+                    )
+                    print("Data Generation Complete, Exiting...")
+                    sys.exit(0)
 
             self.env_output[self.dim*2:self.dim*2+self.n_sensors*4] = obs
 
@@ -1077,12 +1133,13 @@ class NengoGridEnv(object):
 
 class PolicyGT(object):
 
-    def __init__(self, heatmap_vectors, maze_index=0, dim=256):
+    def __init__(self, heatmap_vectors, maze_index=0, dim=256,
+                 path='ssp-navigation/ssp_navigation/datasets/mixed_style_100mazes_100goals_64res_13size_13seed/maze_dataset.npz'):
         """ground truth policy"""
         home = os.path.expanduser("~")
         dataset_file = os.path.join(
             home,
-            'ssp-navigation/ssp_navigation/datasets/mixed_style_100mazes_100goals_64res_13size_13seed/maze_dataset.npz'
+            path,
         )
         data = np.load(dataset_file)
 
@@ -1107,6 +1164,7 @@ class PolicyGT(object):
         # n_mazes by n_goals by 2
         self.goals = data['goals'][maze_index, :, :]
 
+
     def get_closest_goal_index(self, goal_ssp):
         vs = np.tensordot(goal_ssp, self.heatmap_vectors, axes=([0], [2]))
 
@@ -1119,8 +1177,12 @@ class PolicyGT(object):
 
         return goal_index
 
+
     def get_closest_grid_point(self, loc_ssp):
         vs = np.tensordot(loc_ssp, self.heatmap_vectors, axes=([0], [2]))
+
+        # # zero out any result inside a wall
+        # vs[self.fine_mazes == 0] = 0
 
         xy = np.unravel_index(vs.argmax(), vs.shape)
 
@@ -1137,3 +1199,110 @@ class PolicyGT(object):
         xi, yi = self.get_closest_grid_point(loc_ssp)
 
         return self.solved_mazes[gi, xi, yi]
+
+
+class LocalizationGT(object):
+
+    def __init__(self, heatmap_vectors, maze_index=0, dim=256, cleanup=True,
+                 path='ssp_navigation_sandbox/spiking_dl/spiking_localization_solution.npz'):
+        home = os.path.expanduser("~")
+        dataset_file = os.path.join(
+            home,
+            path,
+        )
+        data = np.load(dataset_file)
+
+        # res by res by 36*4
+        self.sensor_inputs = data['sensor_inputs'][maze_index, :, :, :]
+        # res by res by dim
+        self.ssp_outputs = data['ssp_outputs'][maze_index, :, :, :]
+        # self.ssp_outputs = data['ssp_true'][maze_index, :, :, :]
+
+        # # normalize the sensor inputs so dot product can be used
+        # for i in range(self.sensor_inputs.shape[0]):
+        #     for j in range(self.sensor_inputs.shape[1]):
+        #         norm = np.linalg.norm(self.sensor_inputs[i, j, :])
+        #         if norm > 0:
+        #             self.sensor_inputs[i, j, :] = self.sensor_inputs[i, j, :] / norm
+
+        self.dim = dim
+
+        self.heatmap_vectors = heatmap_vectors
+
+        self.cleanup = cleanup
+
+
+    # def get_closest_sensor_index(self, sensors):
+    #     vs = np.tensordot(sensors, self.sensor_inputs, axes=([0], [2]))
+    #
+    #     xy = np.unravel_index(vs.argmax(), vs.shape)
+    #
+    #     return xy[0], xy[1]
+
+    def get_closest_sensor_index(self, sensors):
+        # vs = np.tensordot(sensors, self.sensor_inputs, axes=([0], [2]))
+
+        vs = np.sum((self.sensor_inputs - sensors)**2, axis=2)
+
+        xy = np.unravel_index(vs.argmin(), vs.shape)
+
+        return xy[0], xy[1]
+
+
+    def get_closest_grid_point(self, loc_ssp):
+        vs = np.tensordot(loc_ssp, self.heatmap_vectors, axes=([0], [2]))
+
+        xy = np.unravel_index(vs.argmax(), vs.shape)
+
+        return xy[0], xy[1]
+
+
+    def __call__(self, t, v):
+
+        sensors = v[:36*4]
+
+        sxi, syi = self.get_closest_sensor_index(sensors)
+
+        # # TMP
+        # return self.heatmap_vectors[sxi//2, syi//2, :]
+
+        if self.cleanup:
+            xi, yi = self.get_closest_grid_point(self.ssp_outputs[sxi, syi, :])
+            return self.heatmap_vectors[xi, yi, :]
+        else:
+            return self.ssp_outputs[sxi, syi, :]
+
+
+def create_cleanup_train_test_sets(
+        n_train_samples, n_test_samples,
+        args,
+        encoding_func,
+        sigma=0.1/np.sqrt(256),
+        normalize=True,
+        split_seed=13):
+
+    rng = np.random.RandomState(split_seed)
+
+    for test_set, n_samples in enumerate([n_train_samples, n_test_samples]):
+
+        noisy_inputs = np.zeros((n_samples, args.dim))
+
+        clean_outputs = np.zeros((n_samples, args.dim))
+
+        positions = rng.uniform(0, 13, size=(n_samples, 2))
+        noise = rng.normal(loc=0, scale=sigma, size=(n_samples, args.dim))
+
+        for i in range(n_samples):
+            clean_outputs[i, :] = encoding_func(positions[i, 0], positions[i, 1])
+            noisy_inputs[i, :] = clean_outputs[i, :] + noise[i, :]
+            if normalize:
+                noisy_inputs[i, :] = noisy_inputs[i, :] / np.linalg.norm(noisy_inputs[i, :])
+
+        if test_set == 0:
+            train_input = noisy_inputs
+            train_output = clean_outputs
+        elif test_set == 1:
+            test_input = noisy_inputs
+            test_output = clean_outputs
+
+    return train_input, train_output, test_input, test_output
