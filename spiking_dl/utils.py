@@ -797,6 +797,7 @@ class NengoGridEnv(object):
             x_axis_sp,
             y_axis_sp,
             dim=256,
+            maze_id_dim=256,
             n_sensors=36,
             n_goals=7,
             use_dataset_goals=False,
@@ -807,9 +808,11 @@ class NengoGridEnv(object):
             noise=0.1,
             env_seed=13,
             n_trials=100,  # number of trials to record before exiting
+            fname_data='output/debugging'
     ):
 
         self.dim = dim
+        self.maze_id_dim = maze_id_dim
         self.n_sensors = n_sensors
         self.sim_dt = sim_dt
         self.nengo_dt = nengo_dt
@@ -826,11 +829,12 @@ class NengoGridEnv(object):
         self.returns = np.zeros((self.n_trials,))
         if not os.path.exists('output'):
             os.makedirs('output')
-        self.fname_data = 'output/maze{}_seed{}_spiking_data.npz'.format(maze_index, env_seed)
+        # self.fname_data = 'output/maze{}_seed{}_spiking_data.npz'.format(maze_index, env_seed)
+        self.fname_data = fname_data
 
         # Output vector periodically updated based on sim_dt
         # last 4 dimensions are for debug (agent x,y and goal x,y)
-        self.env_output = np.zeros((self.dim*2 + self.n_sensors*4 + 4))
+        self.env_output = np.zeros((self.maze_id_dim + self.dim + self.n_sensors*4 + 4))
 
         self.steps = 0
 
@@ -964,15 +968,15 @@ class NengoGridEnv(object):
         goal_object_index = self.env.goal_object_index
         cue_sp = self.vocab[possible_objects[goal_object_index]]
 
-        self.env_output[self.dim * 2:self.dim * 2 + self.n_sensors*4] = obs
+        self.env_output[self.maze_id_dim + self.dim:self.maze_id_dim + self.dim + self.n_sensors*4] = obs
 
         # Load in the static outputs for this environment
-        self.env_output[:self.dim] = maze_sps[maze_index, :]
+        self.env_output[:self.maze_id_dim] = maze_sps[maze_index, :]
         # self.env_output[:self.dim] = maze_sps[maze_index+1, :]
 
         # TODO: temporarily just returning the deconvolved noisy goal
         # self.env_output[self.dim:2*self.dim] = item_memory.v
-        self.env_output[self.dim:2 * self.dim] = (self.item_memory *~ cue_sp).v
+        self.env_output[self.maze_id_dim:self.maze_id_dim + self.dim] = (self.item_memory *~ cue_sp).v
 
         self.env_output[-4] = self.env.state[0]
         self.env_output[-3] = self.env.state[1]
@@ -1101,7 +1105,7 @@ class NengoGridEnv(object):
                 cue_sp = self.vocab[possible_objects[goal_object_index]]
 
                 # TODO: temporarily just doing the deconvolving here
-                self.env_output[self.dim:2 * self.dim] = (self.item_memory * ~ cue_sp).v
+                self.env_output[self.maze_id_dim:self.maze_id_dim + self.dim] = (self.item_memory * ~ cue_sp).v
 
                 if reward > 0:
                     self.successes[self.trial_index] = 1
@@ -1117,7 +1121,7 @@ class NengoGridEnv(object):
                     print("Data Generation Complete, Exiting...")
                     sys.exit(0)
 
-            self.env_output[self.dim*2:self.dim*2+self.n_sensors*4] = obs
+            self.env_output[self.maze_id_dim + self.dim:self.maze_id_dim + self.dim + self.n_sensors*4] = obs
 
             # Debug values
             self.env_output[-4] = self.env.state[0]
