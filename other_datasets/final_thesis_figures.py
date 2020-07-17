@@ -16,12 +16,6 @@ parser.add_argument('--n-bootstrap-samples', type=int, default=100)
 
 args = parser.parse_args()
 
-# this just determines whether the label is accuracy or R2
-regression = False
-
-data_to_plot = 'all'
-# data_to_plot = 'regression'
-# data_to_plot = 'classification'
 
 meta_df = pd.read_csv('metadata.csv')
 
@@ -98,7 +92,7 @@ df_reg = df_all[df_all['Dataset'].isin(small_continuous_regression)]
 
 print("Average Result per Encoding")
 
-fig, ax = plt.subplots(1, 2, figsize=(8.5, 4), tight_layout=True)
+fig, ax = plt.subplots(1, 2, figsize=(8, 3), tight_layout=True)
 
 for i, df in enumerate([df_clf, df_reg]):
     if i == 1:
@@ -108,6 +102,9 @@ for i, df in enumerate([df_clf, df_reg]):
                 'Accuracy': 'R2',
             }
         )
+        # set negative values to zero as a form of outlier rejection
+        # to get a more useful average measure
+        df[df['R2'] < 0] = 0
     else:
         metric = 'Accuracy'
 
@@ -122,11 +119,12 @@ fig.savefig('figures/pmlb_all_results.pdf')
 
 print("Best Encodings per Dataset")
 
-fig, ax = plt.subplots(1, 2, figsize=(8.5, 4), tight_layout=True)
-for i, df in enumerate([df_clf, df_reg]):
+# fig, ax = plt.subplots(1, 2, figsize=(8, 3), tight_layout=True)
+fig, ax = plt.subplots(2, 1, figsize=(8, 6), tight_layout=True)
+for i, df_base in enumerate([df_clf, df_reg]):
     if i == 1:
         metric = 'R2'
-        df = df.rename(columns=
+        df_base = df_base.rename(columns=
             {
                 'Accuracy': 'R2',
             }
@@ -134,63 +132,82 @@ for i, df in enumerate([df_clf, df_reg]):
     else:
         metric = 'Accuracy'
 
-    across_models = True
 
-    encodings = df['Encoding'].unique()
+    print("Bootstrapping Best Encodings Encodings - {}".format(metric))
+    rng = np.random.RandomState(seed=13)
+    seed_sets = rng.randint(low=1, high=10, size=(args.n_bootstrap_samples, 3))
 
-    models = df['Model'].unique()
+    cache_fname = 'cache_' + metric + '.csv'
 
-    datasets = df['Dataset'].unique()
+    if not os.path.exists(cache_fname):
 
-    n_encodings = len(encodings)
-    n_datasets = len(datasets)
-    n_models = len(models)
+        df_best = pd.DataFrame()
 
-    # initialize dictionary with empty lists
-    best_dict = {}
-    for encoding in encodings:
-        best_dict[encoding] = []
+        for seed_set in seed_sets:
 
-    if across_models:
-        accs = np.zeros((n_encodings, n_models, n_datasets))
+            df = df_base[df_base['Seed'].isin(seed_set)]
 
-        for di, dataset_name in enumerate(datasets):
-            for ei, encoding in enumerate(encodings):
-                for mi, model in enumerate(models):
-                    accs[ei, mi, di] = df[(df['Dataset'] == dataset_name) & (df['Encoding'] == encoding) & (df['Model'] == model)][metric].mean()
-                    if np.isnan(accs[ei, mi, di]):
-                        accs[ei, mi, di] = 0
+            across_models = True
 
-            if np.sum(accs[:, :, di]) != 0:
-                # make sure there is some data
-                ind_best = np.unravel_index(np.argmax(accs[:, :, di], axis=None), accs[:, :, di].shape)
-                best_dict[encodings[ind_best[0]]].append(dataset_name)
+            encodings = df['Encoding'].unique()
+
+            models = df['Model'].unique()
+
+            datasets = df['Dataset'].unique()
+
+            n_encodings = len(encodings)
+            n_datasets = len(datasets)
+            n_models = len(models)
+
+            # initialize dictionary with empty lists
+            best_dict = {}
+            for encoding in encodings:
+                best_dict[encoding] = []
+
+            if across_models:
+                accs = np.zeros((n_encodings, n_models, n_datasets))
+
+                for di, dataset_name in enumerate(datasets):
+                    for ei, encoding in enumerate(encodings):
+                        for mi, model in enumerate(models):
+                            accs[ei, mi, di] = df[(df['Dataset'] == dataset_name) & (df['Encoding'] == encoding) & (df['Model'] == model)][metric].mean()
+                            if np.isnan(accs[ei, mi, di]):
+                                accs[ei, mi, di] = 0
+
+                    if np.sum(accs[:, :, di]) != 0:
+                        # make sure there is some data
+                        ind_best = np.unravel_index(np.argmax(accs[:, :, di], axis=None), accs[:, :, di].shape)
+                        best_dict[encodings[ind_best[0]]].append(dataset_name)
+            else:
+                accs = np.zeros((n_encodings, n_datasets))
+
+                for di, dataset_name in enumerate(datasets):
+                    for ei, encoding in enumerate(encodings):
+                        accs[ei, di] = df[(df['Dataset'] == dataset_name) & (df['Encoding'] == encoding)][metric].mean()
+                        if np.isnan(accs[ei, di]):
+                            accs[ei, di] = 0
+
+                    if np.sum(accs[:, di]) != 0:
+                        # make sure there is some data
+                        ind_best = np.argmax(accs[:, di])
+                        best_dict[encodings[ind_best]].append(dataset_name)
+
+
+
+            for encoding in encodings:
+                df_best = df_best.append(
+                    {
+                        'Encoding': encoding,
+                        'Datasets': len(best_dict[encoding]),
+                    },
+                    ignore_index=True
+                )
+        df_best.to_csv(cache_fname)
     else:
-        accs = np.zeros((n_encodings, n_datasets))
-
-        for di, dataset_name in enumerate(datasets):
-            for ei, encoding in enumerate(encodings):
-                accs[ei, di] = df[(df['Dataset'] == dataset_name) & (df['Encoding'] == encoding)][metric].mean()
-                if np.isnan(accs[ei, di]):
-                    accs[ei, di] = 0
-
-            if np.sum(accs[:, di]) != 0:
-                # make sure there is some data
-                ind_best = np.argmax(accs[:, di])
-                best_dict[encodings[ind_best]].append(dataset_name)
-
-    df_best = pd.DataFrame()
-
-    for encoding in encodings:
-        df_best = df_best.append(
-            {
-                'Encoding': encoding,
-                'Datasets': len(best_dict[encoding]),
-            },
-            ignore_index=True
-        )
+        df_best = pd.read_csv(cache_fname)
 
     sns.barplot(data=df_best, x='Encoding', y='Datasets', ax=ax[i], order=order)
+ax[0].set_ylim([0, 30])
 sns.despine()
 
 fig.savefig('figures/pmlb_best_encoding.pdf')
@@ -200,6 +217,14 @@ fig.savefig('figures/pmlb_best_encoding.pdf')
 ########################
 
 print("Pairwise Comparisons")
+
+encodings = df_all['Encoding'].unique()
+models = df_all['Model'].unique()
+datasets = df_all['Dataset'].unique()
+
+n_encodings = len(encodings)
+n_datasets = len(datasets)
+n_models = len(models)
 
 # get correct colours
 default_palette = sns.color_palette()
@@ -251,101 +276,81 @@ df_all = df_all.rename(columns=
 )
 
 metric = 'Accuracy'  # just using the same name, since it is just a rank anyway
-for pair in pairs:
-    df_pair = df_all[df_all['Encoding'].isin(pair)]
-
-    # initialize dictionary with empty lists
-    best_dict = {}
-    for encoding in encodings:
-        best_dict[encoding] = []
-
-    if across_models:
-        accs = np.zeros((n_encodings, n_models, n_datasets))
-
-        for di, dataset_name in enumerate(datasets):
-            for ei, encoding in enumerate(encodings):
-                for mi, model in enumerate(models):
-                    accs[ei, mi, di] = \
-                        df_pair[(df_pair['Dataset'] == dataset_name) & (df_pair['Encoding'] == encoding) & (df_pair['Model'] == model)][
-                        metric].mean()
-                    if np.isnan(accs[ei, mi, di]):
-                        accs[ei, mi, di] = 0
-
-            if np.sum(accs[:, :, di]) != 0:
-                # make sure there is some data
-                ind_best = np.unravel_index(np.argmax(accs[:, :, di], axis=None), accs[:, :, di].shape)
-                best_dict[encodings[ind_best[0]]].append(dataset_name)
-    else:
-        accs = np.zeros((n_encodings, n_datasets))
-
-        for di, dataset_name in enumerate(datasets):
-            for ei, encoding in enumerate(encodings):
-                accs[ei, di] = df_pair[(df_pair['Dataset'] == dataset_name) & (df_pair['Encoding'] == encoding)][metric].mean()
-                if np.isnan(accs[ei, di]):
-                    accs[ei, di] = 0
-
-            if np.sum(accs[:, di]) != 0:
-                # make sure there is some data
-                ind_best = np.argmax(accs[:, di])
-                best_dict[encodings[ind_best]].append(dataset_name)
-
-    df_bests.append(pd.DataFrame())
-
-    for encoding in pair:
-        df_bests[-1] = df_bests[-1].append(
-            {
-                'Encoding': encoding,
-                'Datasets': len(best_dict[encoding]),
-            },
-            ignore_index=True
-        )
-
-# plt.figure(figsize=(8, 4))
-fig, ax = plt.subplots(1, len(pairs), sharey=True, sharex=False, figsize=(8, 4))
-for i, df_b in enumerate(df_bests):
-    sns.barplot(data=df_b, x='Encoding', y='Datasets', ax=ax[i], palette=colour_dict, order=order)
-    if i != 0:
-        ax[i].yaxis.set_label_text("")
-    ax[i].xaxis.set_label_text("")
-
-# fig.suptitle("Pairwise Comparisons")
-fig.text(0.5, 0.04, 'Encoding', ha='center')
-sns.despine()
-
-fig.savefig('figures/pmlb_pairwise_results.pdf')
-
-################################
-# Bootstrapping Best Encodings #
-################################
 
 # takes a while, disable by default
 if args.include_bootstrap:
-    print("Bootstrapping Best Encodings")
+    print("Bootstrapping Paired Encodings")
+    rng = np.random.RandomState(seed=13)
+    seed_sets = rng.randint(low=1, high=10, size=(args.n_bootstrap_samples, 3))
 
-    # df_orig = df_all.copy()
+    for pair in pairs:
 
-    df_best = pd.DataFrame()
+        print("Computing bootstrap for pair:")
+        print(pair)
 
-    # seed_sets = [
-    #     [1, 2, 3],
-    #     [4, 5, 6],
-    #     [7, 8, 9],
-    #     [1, 4, 7],
-    #     [2, 5, 8],
-    #     [3, 6, 9],
-    #     [1, 5, 9],
-    #     [2, 6, 7],
-    #     [3, 4, 8],
-    #     [1, 8, 6],
-    #     [4, 2, 9],
-    #     [7, 5, 3],
-    # ]
+        df_pair_all = df_all[df_all['Encoding'].isin(pair)]
 
-    seed_sets = np.random.randint(low=1, high=10, size=(args.n_bootstrap_samples, 3))
+        df_bests.append(pd.DataFrame())
 
-    for seed_set in seed_sets:
+        cache_fname = 'cache_' + pair[1] + '.csv'
 
-        df = df_all[df_all['Seed'].isin(seed_set)]
+        if not os.path.exists(cache_fname):
+
+            for seed_set in seed_sets:
+
+                df_pair = df_pair_all[df_pair_all['Seed'].isin(seed_set)]
+
+                # initialize dictionary with empty lists
+                best_dict = {}
+                for encoding in encodings:
+                    best_dict[encoding] = []
+
+                if across_models:
+                    accs = np.zeros((n_encodings, n_models, n_datasets))
+
+                    for di, dataset_name in enumerate(datasets):
+                        for ei, encoding in enumerate(encodings):
+                            for mi, model in enumerate(models):
+                                accs[ei, mi, di] = \
+                                    df_pair[(df_pair['Dataset'] == dataset_name) & (df_pair['Encoding'] == encoding) & (df_pair['Model'] == model)][
+                                    metric].mean()
+                                if np.isnan(accs[ei, mi, di]):
+                                    accs[ei, mi, di] = 0
+
+                        if np.sum(accs[:, :, di]) != 0:
+                            # make sure there is some data
+                            ind_best = np.unravel_index(np.argmax(accs[:, :, di], axis=None), accs[:, :, di].shape)
+                            best_dict[encodings[ind_best[0]]].append(dataset_name)
+                else:
+                    accs = np.zeros((n_encodings, n_datasets))
+
+                    for di, dataset_name in enumerate(datasets):
+                        for ei, encoding in enumerate(encodings):
+                            accs[ei, di] = df_pair[(df_pair['Dataset'] == dataset_name) & (df_pair['Encoding'] == encoding)][metric].mean()
+                            if np.isnan(accs[ei, di]):
+                                accs[ei, di] = 0
+
+                        if np.sum(accs[:, di]) != 0:
+                            # make sure there is some data
+                            ind_best = np.argmax(accs[:, di])
+                            best_dict[encodings[ind_best]].append(dataset_name)
+
+                for encoding in pair:
+                    df_bests[-1] = df_bests[-1].append(
+                        {
+                            'Encoding': encoding,
+                            'Datasets': len(best_dict[encoding]),
+                        },
+                        ignore_index=True
+                    )
+
+            df_bests[-1].to_csv(cache_fname)
+        else:
+            df_bests[-1] = pd.read_csv(cache_fname)
+
+else:
+    for pair in pairs:
+        df_pair = df_all[df_all['Encoding'].isin(pair)]
 
         # initialize dictionary with empty lists
         best_dict = {}
@@ -358,7 +363,9 @@ if args.include_bootstrap:
             for di, dataset_name in enumerate(datasets):
                 for ei, encoding in enumerate(encodings):
                     for mi, model in enumerate(models):
-                        accs[ei, mi, di] = df[(df['Dataset'] == dataset_name) & (df['Encoding'] == encoding) & (df['Model'] == model)][metric].mean()
+                        accs[ei, mi, di] = \
+                            df_pair[(df_pair['Dataset'] == dataset_name) & (df_pair['Encoding'] == encoding) & (df_pair['Model'] == model)][
+                            metric].mean()
                         if np.isnan(accs[ei, mi, di]):
                             accs[ei, mi, di] = 0
 
@@ -371,7 +378,7 @@ if args.include_bootstrap:
 
             for di, dataset_name in enumerate(datasets):
                 for ei, encoding in enumerate(encodings):
-                    accs[ei, di] = df[(df['Dataset'] == dataset_name) & (df['Encoding'] == encoding)][metric].mean()
+                    accs[ei, di] = df_pair[(df_pair['Dataset'] == dataset_name) & (df_pair['Encoding'] == encoding)][metric].mean()
                     if np.isnan(accs[ei, di]):
                         accs[ei, di] = 0
 
@@ -380,8 +387,10 @@ if args.include_bootstrap:
                     ind_best = np.argmax(accs[:, di])
                     best_dict[encodings[ind_best]].append(dataset_name)
 
-        for encoding in encodings:
-            df_best = df_best.append(
+        df_bests.append(pd.DataFrame())
+
+        for encoding in pair:
+            df_bests[-1] = df_bests[-1].append(
                 {
                     'Encoding': encoding,
                     'Datasets': len(best_dict[encoding]),
@@ -389,9 +398,111 @@ if args.include_bootstrap:
                 ignore_index=True
             )
 
-    fig, ax = plt.subplots(1, 1, figsize=(6, 4))
+# plt.figure(figsize=(8, 4))
+fig, ax = plt.subplots(1, len(pairs), sharey=True, sharex=False, figsize=(8, 3), tight_layout=True)
+for i, df_b in enumerate(df_bests):
+    sns.barplot(data=df_b, x='Encoding', y='Datasets', ax=ax[i], palette=colour_dict)
+    if i != 0:
+        ax[i].yaxis.set_label_text("")
+    ax[i].xaxis.set_label_text("")
+
+# fig.suptitle("Pairwise Comparisons")
+# fig.text(0.5, 0.04, 'Encoding', ha='center')
+sns.despine()
+
+fig.savefig('figures/pmlb_pairwise_results.pdf')
+
+################################
+# Bootstrapping Best Encodings #
+################################
+
+# takes a while, disable by default
+if args.include_bootstrap:
+    print("Bootstrapping Best Encodings")
+
+    cache_fname = 'bootstrap_cache.csv'
+
+    if os.path.exists(cache_fname):
+        df_best = pd.read_csv(cache_fname)
+    else:
+
+        # df_orig = df_all.copy()
+
+        df_best = pd.DataFrame()
+
+        # seed_sets = [
+        #     [1, 2, 3],
+        #     [4, 5, 6],
+        #     [7, 8, 9],
+        #     [1, 4, 7],
+        #     [2, 5, 8],
+        #     [3, 6, 9],
+        #     [1, 5, 9],
+        #     [2, 6, 7],
+        #     [3, 4, 8],
+        #     [1, 8, 6],
+        #     [4, 2, 9],
+        #     [7, 5, 3],
+        # ]
+
+        rng = np.random.RandomState(seed=13)
+        seed_sets = rng.randint(low=1, high=10, size=(args.n_bootstrap_samples, 3))
+
+        for seed_set in seed_sets:
+
+            df = df_all[df_all['Seed'].isin(seed_set)]
+
+            # initialize dictionary with empty lists
+            best_dict = {}
+            for encoding in encodings:
+                best_dict[encoding] = []
+
+            if across_models:
+                accs = np.zeros((n_encodings, n_models, n_datasets))
+
+                for di, dataset_name in enumerate(datasets):
+                    for ei, encoding in enumerate(encodings):
+                        for mi, model in enumerate(models):
+                            accs[ei, mi, di] = df[(df['Dataset'] == dataset_name) & (df['Encoding'] == encoding) & (df['Model'] == model)][metric].mean()
+                            if np.isnan(accs[ei, mi, di]):
+                                accs[ei, mi, di] = 0
+
+                    if np.sum(accs[:, :, di]) != 0:
+                        # make sure there is some data
+                        ind_best = np.unravel_index(np.argmax(accs[:, :, di], axis=None), accs[:, :, di].shape)
+                        best_dict[encodings[ind_best[0]]].append(dataset_name)
+            else:
+                accs = np.zeros((n_encodings, n_datasets))
+
+                for di, dataset_name in enumerate(datasets):
+                    for ei, encoding in enumerate(encodings):
+                        accs[ei, di] = df[(df['Dataset'] == dataset_name) & (df['Encoding'] == encoding)][metric].mean()
+                        if np.isnan(accs[ei, di]):
+                            accs[ei, di] = 0
+
+                    if np.sum(accs[:, di]) != 0:
+                        # make sure there is some data
+                        ind_best = np.argmax(accs[:, di])
+                        best_dict[encodings[ind_best]].append(dataset_name)
+
+            for encoding in encodings:
+                df_best = df_best.append(
+                    {
+                        'Encoding': encoding,
+                        'Datasets': len(best_dict[encoding]),
+                    },
+                    ignore_index=True
+                )
+
+        df_best.to_csv(cache_fname)
+
+    fig, ax = plt.subplots(1, 1, figsize=(6, 3), tight_layout=True)
     sns.barplot(data=df_best, x='Encoding', y='Datasets', ax=ax, order=order)
     sns.despine()
     fig.savefig('figures/pmlb_bootstrapped_all_results.pdf')
+
+    for encoding in encodings:
+        print(encoding)
+        print(df_best[df_best['Encoding'] == encoding]['Datasets'].mean())
 
 plt.show()
