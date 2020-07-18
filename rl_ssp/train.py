@@ -4,7 +4,7 @@ import gridworlds
 import os
 import numpy as np
 
-from stable_baselines3 import PPO, A2C
+from stable_baselines3 import PPO, A2C, SAC, TD3
 from stable_baselines3.ppo import MlpPolicy
 from stable_baselines3.common.evaluation import evaluate_policy
 
@@ -20,10 +20,12 @@ parser.add_argument('--n-eval-episodes', type=int, default=100, help='how many e
 parser.add_argument('--n-demo-steps', type=int, default=1000, help='total timesteps to view demo for')
 parser.add_argument('--deterministic-demo', type=int, default=1, choices=[0, 1], help='demo with deterministic actions or not')
 parser.add_argument('--movement-type', type=str, default='holonomic', choices=['holonomic', 'directional'])
-parser.add_argument('--algo', type=str, default='ppo', choices=['ppo', 'a2c'])
+parser.add_argument('--algo', type=str, default='ppo', choices=['ppo', 'a2c', 'sac', 'td3'])
 parser.add_argument('--ssp-dim', type=int, default=256)
 parser.add_argument('--hidden-size', type=int, default=256)
 parser.add_argument('--hidden-layers', type=int, default=1)
+# parser.add_argument('--hidden-size', type=int, default=2048)
+# parser.add_argument('--hidden-layers', type=int, default=2)
 parser.add_argument('--n-sensors', type=int, default=0)
 parser.add_argument('--continuous', type=int, default=1, choices=[1, 0])
 parser.add_argument('--env-size', type=str, default='tiny', choices=['miniscule', 'tiny', 'small', 'medium', 'large'])
@@ -36,6 +38,8 @@ parser.add_argument('--verbose', action='store_true')
 parser.add_argument('--use-open-env', action='store_true', help='if true, env will have no interior walls')
 parser.add_argument('--discrete-actions', type=int, default=0,
                     help='if set, use this many discrete actions instead of continuous')
+# parser.add_argument('--discrete-actions', type=int, default=4,
+#                     help='if set, use this many discrete actions instead of continuous')
 
 parser.add_argument('--pseudoreward-mag', default=5)
 parser.add_argument('--pseudoreward-std', default=5)
@@ -50,7 +54,11 @@ eval_env = create_env(goal_distance=args.train_goal_distance, args=args, eval_mo
 if args.algo == 'ppo':
     Algo = PPO
 elif args.algo == 'a2c':
-    Algoo = A2C
+    Algo = A2C
+elif args.algo == 'sac':
+    Algo = SAC
+elif args.algo == 'td3':
+    Algo = TD3
 else:
     raise NotImplementedError
 
@@ -73,16 +81,18 @@ if args.fname == '':
         fname += '_2d'
     if args.discrete_actions > 0:
         fname += '_disc{}'.format(args.discrete_actions)
+    if args.continuous == 0:
+        fname += '_discobs'
 else:
     fname = args.fname
 
 # load or train model
 if os.path.exists(fname + '.zip'):
-    model = PPO.load(fname)
+    model = Algo.load(fname)
 else:
     # policy_kwargs = dict(layers=[args.ssp_dim])
     policy_kwargs = dict(net_arch=[args.hidden_size]*args.hidden_layers)
-    model = PPO('MlpPolicy', env, verbose=args.verbose, policy_kwargs=policy_kwargs)
+    model = Algo('MlpPolicy', env, verbose=args.verbose, policy_kwargs=policy_kwargs)
 
     n_evals = int(args.n_steps // args.eval_freq)
     steps_per_eval = int(args.n_steps // n_evals)

@@ -138,7 +138,7 @@ def create_env(args, goal_distance=0, eval_mode=False):
         'movement_cost':-.01,
         'goal_reward':10.,
         'goal_distance': goal_distance,
-        'normalize_actions': True,
+        'normalize_actions': args.continuous,
         'pseudoreward_mag': pseudoreward_mag,
         'pseudoreward_std': pseudoreward_std,
     }
