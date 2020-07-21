@@ -3,11 +3,6 @@ import time
 import gridworlds
 import os
 import numpy as np
-
-from stable_baselines3 import PPO, A2C, SAC, TD3
-from stable_baselines3.ppo import MlpPolicy
-from stable_baselines3.common.evaluation import evaluate_policy
-
 from envs import create_env, get_max_dist
 
 import argparse
@@ -46,8 +41,23 @@ parser.add_argument('--pseudoreward-std', default=5)
 
 parser.add_argument('--fname', type=str, default='')
 parser.add_argument('--save-periodically', action='store_true')
+parser.add_argument('--backend', type=str, default='tensorflow', choices=['tensorflow', 'pytorch'])
 
 args = parser.parse_args()
+
+
+if args.backend == 'pytorch':
+    from stable_baselines3 import PPO, A2C, SAC, TD3
+    # from stable_baselines3.ppo import MlpPolicy
+    from stable_baselines3.common.evaluation import evaluate_policy
+elif args.backend == 'tensorflow':
+    from stable_baselines import A2C, SAC, TD3
+    from stable_baselines import PPO2 as PPO
+    # from stable_baselines.ppo2 import MlpPolicy
+    from stable_baselines.common.evaluation import evaluate_policy
+else:
+    raise NotImplementedError
+
 
 env = create_env(goal_distance=args.train_goal_distance, args=args)
 eval_env = create_env(goal_distance=args.train_goal_distance, args=args, eval_mode=True)
@@ -64,12 +74,13 @@ else:
     raise NotImplementedError
 
 
-if not os.path.exists('models'):
-    os.makedirs('models')
+if not os.path.exists('models_{}'.format(args.backend)):
+    os.makedirs('models_{}'.format(args.backend))
 
 # If no model name specified, generate based on parameters
 if args.fname == '':
-    fname = 'models/{}_{}_{}dim_{}x{}_{}sensors_{}seed_{}steps_{}gd'.format(
+    fname = 'models_{}/{}_{}_{}dim_{}x{}_{}sensors_{}seed_{}steps_{}gd'.format(
+        args.backend,
         args.env_size, args.algo, args.ssp_dim,
         args.hidden_size, args.hidden_layers,
         args.n_sensors, args.seed, args.n_steps, args.train_goal_distance
@@ -89,8 +100,10 @@ else:
 
 # load or train model
 if os.path.exists(fname + '.zip'):
+    print("Loading {} Model".format(args.algo))
     model = Algo.load(fname)
 else:
+    print("Training {} Model".format(args.algo))
     # policy_kwargs = dict(layers=[args.ssp_dim])
     policy_kwargs = dict(net_arch=[args.hidden_size]*args.hidden_layers)
     model = Algo('MlpPolicy', env, verbose=args.verbose, policy_kwargs=policy_kwargs)
@@ -156,7 +169,7 @@ display = os.environ.get('DISPLAY')
 if display is None or 'localhost' in display:
     print("No Display detected, skipping demo view")
 else:
-    env = create_env(goal_distance=args.demo_goal_distance, args=args)
+    env = create_env(goal_distance=args.demo_goal_distance, args=args, max_steps=100)
     # demo model
     obs = env.reset()
     for i in range(args.n_demo_steps):

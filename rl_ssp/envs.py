@@ -59,7 +59,7 @@ env_sizes = {
 }
 
 
-def create_env(args, goal_distance=0, eval_mode=False):
+def create_env(args, goal_distance=0, eval_mode=False, max_steps=1000):
 
     map_array = env_sizes[args.env_size]
 
@@ -133,7 +133,7 @@ def create_env(args, goal_distance=0, eval_mode=False):
         'continuous': args.continuous,
         'movement_type': args.movement_type,
         'dt': 0.1,
-        'max_steps': 1000, #100,#1000,
+        'max_steps': max_steps, #100,#1000,
         'wall_penalty':-.02, #-.01,#-1.,
         'movement_cost':-.01,
         'goal_reward':10.,
