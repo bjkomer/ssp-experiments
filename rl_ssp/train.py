@@ -42,6 +42,7 @@ parser.add_argument('--pseudoreward-std', default=5)
 parser.add_argument('--fname', type=str, default='')
 parser.add_argument('--save-periodically', action='store_true')
 parser.add_argument('--backend', type=str, default='tensorflow', choices=['tensorflow', 'pytorch'])
+parser.add_argument('--max-steps', type=int, default=100, help='maximum steps per episode')
 
 args = parser.parse_args()
 
@@ -59,8 +60,8 @@ else:
     raise NotImplementedError
 
 
-env = create_env(goal_distance=args.train_goal_distance, args=args)
-eval_env = create_env(goal_distance=args.train_goal_distance, args=args, eval_mode=True)
+env = create_env(goal_distance=args.train_goal_distance, args=args, max_steps=args.max_steps)
+eval_env = create_env(goal_distance=args.train_goal_distance, args=args, eval_mode=True, max_steps=args.max_steps)
 
 if args.algo == 'ppo':
     Algo = PPO
@@ -79,11 +80,12 @@ if not os.path.exists('models_{}'.format(args.backend)):
 
 # If no model name specified, generate based on parameters
 if args.fname == '':
-    fname = 'models_{}/{}_{}_{}dim_{}x{}_{}sensors_{}seed_{}steps_{}gd'.format(
+    fname = 'models_{}/{}_{}_{}dim_{}x{}_{}sensors_{}seed_{}steps_{}gd_{}ms'.format(
         args.backend,
         args.env_size, args.algo, args.ssp_dim,
         args.hidden_size, args.hidden_layers,
-        args.n_sensors, args.seed, args.n_steps, args.train_goal_distance
+        args.n_sensors, args.seed, args.n_steps, args.train_goal_distance,
+        args.max_steps
     )
     if args.curriculum:
         fname += '_cur'
@@ -120,7 +122,7 @@ else:
         steps_per_dist = args.n_steps // (max_dist + 1)
         goal_distance = 1
         for i in range(1, max_dist):
-            cur_envs.append(create_env(goal_distance=i, args=args))
+            cur_envs.append(create_env(goal_distance=i, args=args, max_steps=args.max_steps))
         # env.close()
         # del env
         # env = create_env(goal_distance=goal_distance, args=args)
