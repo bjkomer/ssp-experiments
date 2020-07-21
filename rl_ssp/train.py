@@ -45,6 +45,7 @@ parser.add_argument('--pseudoreward-mag', default=5)
 parser.add_argument('--pseudoreward-std', default=5)
 
 parser.add_argument('--fname', type=str, default='')
+parser.add_argument('--save-periodically', action='store_true')
 
 args = parser.parse_args()
 
@@ -120,6 +121,11 @@ else:
         print("Total Steps: {}".format(total_steps))
         print(f"Mean Reward: {mean_reward:.2f} +/- {std_reward:.2f}")
         print("")
+
+        if args.save_periodically:
+            np.savez(fname + '.npz', eval_data=eval_data)
+            model.save(fname + '_steps_{}'.format(total_steps))
+
         model.learn(total_timesteps=steps_per_eval)
         total_steps += steps_per_eval
 
