@@ -107,7 +107,11 @@ if os.path.exists(fname + '.zip'):
 else:
     print("Training {} Model".format(args.algo))
     # policy_kwargs = dict(layers=[args.ssp_dim])
-    policy_kwargs = dict(net_arch=[args.hidden_size]*args.hidden_layers)
+    if args.backend == 'tensorflow' and args.algo == 'sac':
+        # parameter name is different in this case
+        policy_kwargs = dict(layers=[args.hidden_size] * args.hidden_layers)
+    else:
+        policy_kwargs = dict(net_arch=[args.hidden_size]*args.hidden_layers)
     model = Algo('MlpPolicy', env, verbose=args.verbose, policy_kwargs=policy_kwargs)
 
     n_evals = int(args.n_steps // args.eval_freq)
