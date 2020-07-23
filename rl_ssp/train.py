@@ -17,16 +17,18 @@ parser.add_argument('--deterministic-demo', type=int, default=1, choices=[0, 1],
 parser.add_argument('--movement-type', type=str, default='holonomic', choices=['holonomic', 'directional'])
 parser.add_argument('--algo', type=str, default='ppo', choices=['ppo', 'a2c', 'sac', 'td3'])
 parser.add_argument('--ssp-dim', type=int, default=256)
-parser.add_argument('--hidden-size', type=int, default=256)
-parser.add_argument('--hidden-layers', type=int, default=1)
-# parser.add_argument('--hidden-size', type=int, default=2048)
-# parser.add_argument('--hidden-layers', type=int, default=2)
+parser.add_argument('--ssp-scaling', type=float, default=0.5)
+# parser.add_argument('--hidden-size', type=int, default=256)
+# parser.add_argument('--hidden-layers', type=int, default=1)
+parser.add_argument('--hidden-size', type=int, default=2048)
+parser.add_argument('--hidden-layers', type=int, default=2)
 parser.add_argument('--n-sensors', type=int, default=0)
 parser.add_argument('--continuous', type=int, default=1, choices=[1, 0])
 parser.add_argument('--env-size', type=str, default='tiny', choices=['miniscule', 'tiny', 'small', 'medium', 'large'])
 parser.add_argument('--seed', type=int, default=13, help='seed for the SSP axis vectors')
 parser.add_argument('--curriculum', action='store_true', help='gradually increase goal distance during training')
 parser.add_argument('--regular-coordinates', action='store_true', help='use 2D coordinates instead of SSP')
+parser.add_argument('--st-ssp', action='store_true', help='use sub-toroid ssp')
 parser.add_argument('--demo-goal-distance', type=int, default=0, help='goal distance used for demo. 0 means any distance')
 parser.add_argument('--train-goal-distance', type=int, default=0, help='goal distance to use during training')
 parser.add_argument('--verbose', action='store_true')
@@ -93,6 +95,10 @@ if args.fname == '':
         fname += '_open'
     if args.regular_coordinates:
         fname += '_2d'
+    elif args.st_ssp:
+        fname += '_st'
+    if args.ssp_scaling != 1.0 and not args.regular_coordinates:
+        fname += '_scaling{}'.format(args.ssp_scaling)
     if args.discrete_actions > 0:
         fname += '_disc{}'.format(args.discrete_actions)
     if args.continuous == 0:

@@ -1,5 +1,5 @@
 from gridworlds.envs import GridWorldEnv, generate_obs_dict
-from spatial_semantic_pointers.utils import make_good_unitary
+from spatial_semantic_pointers.utils import make_good_unitary, get_fixed_dim_sub_toriod_axes
 import numpy as np
 from gym.core import Wrapper
 import gym
@@ -93,8 +93,11 @@ def create_env(args, goal_distance=0, eval_mode=False, max_steps=1000):
     }
 
     rng = np.random.RandomState(seed=args.seed)
-    X = make_good_unitary(args.ssp_dim, rng=rng)
-    Y = make_good_unitary(args.ssp_dim, rng=rng)
+    if args.st_ssp:
+        X, Y = get_fixed_dim_sub_toriod_axes(dim=args.ssp_dim, n_proj=3, scale_ratio=0, rng=rng)
+    else:
+        X = make_good_unitary(args.ssp_dim, rng=rng)
+        Y = make_good_unitary(args.ssp_dim, rng=rng)
 
     specific_params = {
         'csp_dim': args.ssp_dim,
@@ -141,6 +144,7 @@ def create_env(args, goal_distance=0, eval_mode=False, max_steps=1000):
         'normalize_actions': args.continuous,
         'pseudoreward_mag': pseudoreward_mag,
         'pseudoreward_std': pseudoreward_std,
+        'csp_scaling': args.ssp_scaling,
     }
 
     if args.discrete_actions > 0:
