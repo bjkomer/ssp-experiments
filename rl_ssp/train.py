@@ -149,7 +149,8 @@ else:
 
         if args.save_periodically:
             np.savez(fname + '.npz', eval_data=eval_data)
-            model.save(fname + '_steps_{}'.format(total_steps))
+            # model.save(fname + '_steps_{}'.format(total_steps))
+            model.save(fname + '_partial')
 
         model.learn(total_timesteps=steps_per_eval)
         total_steps += steps_per_eval
