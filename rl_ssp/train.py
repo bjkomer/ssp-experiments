@@ -7,7 +7,7 @@ from envs import create_env, get_max_dist
 
 import argparse
 
-parser = argparse.ArgumentParser('Train and RL agent on a gridworld task')
+parser = argparse.ArgumentParser('Train an RL agent on a gridworld task')
 
 parser.add_argument('--n-steps', type=int, default=1000000, help='total timesteps to train for')
 parser.add_argument('--eval-freq', type=int, default=100000, help='how many steps between eval runs')
@@ -38,8 +38,8 @@ parser.add_argument('--discrete-actions', type=int, default=0,
 # parser.add_argument('--discrete-actions', type=int, default=4,
 #                     help='if set, use this many discrete actions instead of continuous')
 
-parser.add_argument('--pseudoreward-mag', default=5)
-parser.add_argument('--pseudoreward-std', default=5)
+parser.add_argument('--pseudoreward-mag', type=float, default=5)
+parser.add_argument('--pseudoreward-std', type=float, default=5)
 
 parser.add_argument('--fname', type=str, default='')
 parser.add_argument('--save-periodically', action='store_true')
@@ -103,6 +103,8 @@ if args.fname == '':
         fname += '_disc{}'.format(args.discrete_actions)
     if args.continuous == 0:
         fname += '_discobs'
+    if args.pseudoreward_mag == 0:
+        fname += '_nopsrew'
 else:
     fname = args.fname
 
