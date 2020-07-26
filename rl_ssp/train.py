@@ -107,13 +107,13 @@ else:
     fname = args.fname
 
 # load or train model
-if os.path.exists(fname + '.zip'):
+if os.path.exists(fname + '.zip') or os.path.exists(fname):
     print("Loading {} Model".format(args.algo))
     model = Algo.load(fname)
 else:
     print("Training {} Model".format(args.algo))
     # policy_kwargs = dict(layers=[args.ssp_dim])
-    if args.backend == 'tensorflow' and args.algo == 'sac':
+    if args.backend == 'tensorflow' and (args.algo == 'sac' or args.algo == 'td3'):
         # parameter name is different in this case
         policy_kwargs = dict(layers=[args.hidden_size] * args.hidden_layers)
     else:
