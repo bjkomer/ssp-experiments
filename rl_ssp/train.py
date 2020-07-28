@@ -54,17 +54,20 @@ if args.backend == 'pytorch':
     from stable_baselines3 import PPO, A2C, SAC, TD3
     # from stable_baselines3.ppo import MlpPolicy
     from stable_baselines3.common.evaluation import evaluate_policy
+    from stable_baselines3.bench import Monitor
 elif args.backend == 'tensorflow':
     from stable_baselines import A2C, SAC, TD3
     from stable_baselines import PPO2 as PPO
     # from stable_baselines.ppo2 import MlpPolicy
     from stable_baselines.common.evaluation import evaluate_policy
+    from stable_baselines.bench import Monitor
 else:
     raise NotImplementedError
 
 
 env = create_env(goal_distance=args.train_goal_distance, args=args, max_steps=args.max_steps)
 eval_env = create_env(goal_distance=args.train_goal_distance, args=args, eval_mode=True, max_steps=args.max_steps)
+
 
 if args.algo == 'ppo':
     Algo = PPO
@@ -110,6 +113,15 @@ if args.fname == '':
         fname += '_fixedlength'
 else:
     fname = args.fname
+
+logdir = 'logdir/' + fname + '/'
+if not os.path.exists(logdir):
+    os.makedirs(logdir)
+    env = Monitor(env, logdir)
+    print("Using Monitor")
+else:
+    print("Logdir already exists, not using Monitor")
+    print(logdir)
 
 # load or train model
 if os.path.exists(fname + '.zip') or os.path.exists(fname):
