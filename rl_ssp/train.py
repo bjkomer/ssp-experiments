@@ -45,6 +45,7 @@ parser.add_argument('--fname', type=str, default='')
 parser.add_argument('--save-periodically', action='store_true')
 parser.add_argument('--backend', type=str, default='tensorflow', choices=['tensorflow', 'pytorch'])
 parser.add_argument('--max-steps', type=int, default=100, help='maximum steps per episode')
+parser.add_argument('--fixed-episode-length', action='store_true')
 
 args = parser.parse_args()
 
@@ -105,6 +106,8 @@ if args.fname == '':
         fname += '_discobs'
     if args.pseudoreward_mag == 0:
         fname += '_nopsrew'
+    if args.fixed_episode_length:
+        fname += '_fixedlength'
 else:
     fname = args.fname
 

@@ -145,6 +145,7 @@ def create_env(args, goal_distance=0, eval_mode=False, max_steps=1000):
         'pseudoreward_mag': pseudoreward_mag,
         'pseudoreward_std': pseudoreward_std,
         'csp_scaling': args.ssp_scaling,
+        'fixed_episode_length': args.fixed_episode_length,
     }
 
     if args.discrete_actions > 0:
