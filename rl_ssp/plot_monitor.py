@@ -7,6 +7,7 @@ import sys
 logdir = sys.argv[1]
 
 # Helper from the library
-results_plotter.plot_results([logdir], 1e5, results_plotter.X_TIMESTEPS, "Results")
+# results_plotter.plot_results([logdir], 1e5, results_plotter.X_TIMESTEPS, "Results")
+results_plotter.plot_results([logdir], 1e6, results_plotter.X_TIMESTEPS, "Results")
 
 plt.show()
