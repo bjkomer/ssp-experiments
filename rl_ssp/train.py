@@ -47,6 +47,9 @@ parser.add_argument('--backend', type=str, default='tensorflow', choices=['tenso
 parser.add_argument('--max-steps', type=int, default=100, help='maximum steps per episode')
 parser.add_argument('--fixed-episode-length', action='store_true')
 
+# default td3 learning rate
+parser.add_argument('--lr', type=float, default=0.0003)
+
 args = parser.parse_args()
 
 
@@ -101,6 +104,8 @@ if args.fname == '':
         fname += '_2d'
     elif args.st_ssp:
         fname += '_st'
+    if args.lr != 0.0003 and args.algo == 'td3':
+        fname += '_lr{}'.format(args.lr)
     if args.ssp_scaling != 1.0 and not args.regular_coordinates:
         fname += '_scaling{}'.format(args.ssp_scaling)
     if args.discrete_actions > 0:
@@ -135,7 +140,11 @@ else:
         policy_kwargs = dict(layers=[args.hidden_size] * args.hidden_layers)
     else:
         policy_kwargs = dict(net_arch=[args.hidden_size]*args.hidden_layers)
-    model = Algo('MlpPolicy', env, verbose=args.verbose, policy_kwargs=policy_kwargs)
+
+    if args.algo == 'td3':
+        model = Algo('MlpPolicy', env, verbose=args.verbose, policy_kwargs=policy_kwargs, learning_rate=args.lr)
+    else:
+        model = Algo('MlpPolicy', env, verbose=args.verbose, policy_kwargs=policy_kwargs)
 
     n_evals = int(args.n_steps // args.eval_freq)
     steps_per_eval = int(args.n_steps // n_evals)
