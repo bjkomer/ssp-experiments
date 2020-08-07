@@ -33,6 +33,8 @@ parser.add_argument('--shift-noise', type=float, default=0.2,
 
 parser.add_argument('--weight-reg', type=float, default=0.001)
 
+parser.add_argument('--neuron-type', type=str, default='lif', choices=['lif', 'relu'])
+
 parser = add_encoding_params(parser)
 
 args = parser.parse_args()
@@ -73,7 +75,13 @@ with nengo.Network(seed=args.net_seed) as net:
     # net.config[nengo.Ensemble].intercepts = nengo.dists.Choice([0])
     net.config[nengo.Connection].synapse = None
     net.config[nengo.Connection].transform = nengo_dl.dists.Glorot()
-    neuron_type = nengo.LIF(amplitude=0.01)
+
+    if args.neuron_type == 'lif':
+        neuron_type = nengo.LIF(amplitude=0.01)
+    elif args.neuron_type == 'relu':
+        neuron_type = nengo.RectifiedLinear()
+    else:
+        raise NotImplementedError
 
     nengo_dl.configure_settings(stateful=False)
     # nengo_dl.configure_settings(keep_history=True)
@@ -183,6 +191,9 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
     suffix = '{}dim_{}layer_{}_hs{}_{}samples_{}epochs_{}reg'.format(
         args.dim, args.n_layers, args.loss_function, args.hidden_size, args.n_train_samples, args.n_epochs, args.weight_reg
     )
+
+    if args.neuron_type == 'relu':
+        suffix += '_relu'
 
     param_file = "./saved_params/nengo_policy_params_{}".format(
         suffix
