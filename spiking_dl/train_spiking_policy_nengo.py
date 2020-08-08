@@ -33,7 +33,7 @@ parser.add_argument('--shift-noise', type=float, default=0.2,
 
 parser.add_argument('--weight-reg', type=float, default=0.001)
 
-parser.add_argument('--neuron-type', type=str, default='lif', choices=['lif', 'relu'])
+parser.add_argument('--neuron-type', type=str, default='lif', choices=['lif', 'relu', 'lifrate'])
 
 parser = add_encoding_params(parser)
 
@@ -80,6 +80,8 @@ with nengo.Network(seed=args.net_seed) as net:
         neuron_type = nengo.LIF(amplitude=0.01)
     elif args.neuron_type == 'relu':
         neuron_type = nengo.RectifiedLinear()
+    elif args.neuron_type == 'lifrate':
+        neuron_type = nengo.LIFRate(amplitude=0.01)
     else:
         raise NotImplementedError
 
@@ -194,6 +196,8 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
 
     if args.neuron_type == 'relu':
         suffix += '_relu'
+    if args.neuron_type == 'lifrate':
+        suffix += 'lifrate'
 
     param_file = "./saved_params/nengo_policy_params_{}".format(
         suffix
