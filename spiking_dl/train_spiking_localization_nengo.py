@@ -34,6 +34,8 @@ parser.add_argument('--max-dist', type=float, default=10, help='maximum distance
 
 parser.add_argument('--weight-reg', type=float, default=0.001)
 
+parser.add_argument('--neuron-type', type=str, default='lif', choices=['lif', 'relu', 'lifrate'])
+
 parser = add_encoding_params(parser)
 
 # parser.add_argument('--spatial-encoding', type=str, default='sub-toroid-ssp')
@@ -78,7 +80,15 @@ with nengo.Network(seed=args.net_seed) as net:
     # net.config[nengo.Ensemble].intercepts = nengo.dists.Choice([0])
     net.config[nengo.Connection].synapse = None
     net.config[nengo.Connection].transform = nengo_dl.dists.Glorot()
-    neuron_type = nengo.LIF(amplitude=0.01)
+
+    if args.neuron_type == 'lif':
+        neuron_type = nengo.LIF(amplitude=0.01)
+    elif args.neuron_type == 'relu':
+        neuron_type = nengo.RectifiedLinear()
+    elif args.neuron_type == 'lifrate':
+        neuron_type = nengo.LIFRate(amplitude=0.01)
+    else:
+        raise NotImplementedError
 
     nengo_dl.configure_settings(stateful=False)
     # nengo_dl.configure_settings(keep_history=True)
@@ -200,6 +210,11 @@ with nengo_dl.Simulator(net, minibatch_size=minibatch_size) as sim:
     suffix = '{}dim_{}layer_{}_hs{}_{}samples_{}epochs_{}reg'.format(
         args.dim, args.n_layers, args.loss_function, args.hidden_size, args.n_train_samples, args.n_epochs, args.weight_reg
     )
+
+    if args.neuron_type == 'relu':
+        suffix += '_relu'
+    if args.neuron_type == 'lifrate':
+        suffix += 'lifrate'
 
     param_file = "./saved_params/nengo_localization_params_{}".format(
         suffix

@@ -22,12 +22,15 @@ parser.add_argument('--net-seed', type=int, default=13)
 # parser.add_argument('--n-test-samples', type=int, default=50000, help='Number of testing samples')
 # parser.add_argument('--n-validation-samples', type=int, default=5000, help='Number of test samples for validation')
 parser.add_argument('--n-mazes', type=int, default=10)
-parser.add_argument('--hidden-size', type=int, default=1024)
-parser.add_argument('--n-layers', type=int, default=1, choices=[1, 2])
+parser.add_argument('--hidden-size', type=int, default=2048)
+parser.add_argument('--n-layers', type=int, default=2, choices=[1, 2])
 parser.add_argument('--n-epochs', type=int, default=25, help='Number of epochs to train for')
 parser.add_argument('--plot-vis-set', action='store_true')
 parser.add_argument('--loss-function', type=str, default='mse', choices=['mse', 'cosine', 'ang-rmse'])
-parser.add_argument('--param-file', type=str, default='')
+parser.add_argument('--param-file', type=str,
+                    default='saved_params/nengo_policy_obj_2layer_mse_hs2048_5000000samples_100epochs_1e-05reg.pkl')
+
+parser.add_argument('--neuron-type', type=str, default='lif', choices=['lif', 'relu', 'lifrate'])
 
 parser = add_encoding_params(parser)
 
@@ -38,6 +41,7 @@ if args.param_file == '':
     sys.exit(0)
 
 args.dim = 256
+# args.dim = 512
 args.spatial_encoding = 'sub-toroid-ssp'
 
 param_file = args.param_file
@@ -70,8 +74,15 @@ with nengo.Network(seed=args.net_seed) as net:
     # net.config[nengo.Ensemble].intercepts = nengo.dists.Choice([0])
     net.config[nengo.Connection].synapse = None
     net.config[nengo.Connection].transform = nengo_dl.dists.Glorot()
-    neuron_type = nengo.LIF(amplitude=0.01)
 
+    if args.neuron_type == 'lif':
+        neuron_type = nengo.LIF(amplitude=0.01)
+    elif args.neuron_type == 'relu':
+        neuron_type = nengo.RectifiedLinear()
+    elif args.neuron_type == 'lifrate':
+        neuron_type = nengo.LIFRate(amplitude=0.01)
+    else:
+        raise NotImplementedError
 
     # this is an optimization to improve the training speed,
     # since we won't require stateful behaviour in this example
@@ -246,58 +257,123 @@ print(type(sim))
 #
 # print("Angular RMSE after training:", final_eval["out_p_filt_angular_rmse"])
 
+calc_rmse = True
 
-print("Generating visualization set")
-
-vis_input, vis_output, batch_size = create_policy_vis_set(
-    data=data,
-    args=args,
-    n_mazes=args.n_mazes,
-    encoding_func=encoding_func,
-    maze_indices=[0, 1, 2, 3],
-    goal_indices=[0, 1],
-    # TEMP: for debugging
-    # maze_indices=[0, ],
-    # goal_indices=[2, 3, 4, 5, 6, 7, 8],
-    # x_offset=0.25,
-    # y_offset=0.25,
-)
-
-n_steps = 30
-vis_input = np.tile(vis_input[:, None, :], (1, n_steps, 1))
-# vis_output = np.tile(vis_output[:, None, :], (1, n_steps, 1))
-
-print("Running visualization")
-# viz_eval = sim.evaluate(test_input, {out_p_filt: test_output}, verbose=0)
-
-n_batches = 4*2
-
-for bi in range(n_batches):
-    viz_eval = sim.predict(vis_input[bi*batch_size:(bi+1)*batch_size])
-    # batch_data = viz_eval[out_p_filt][:, -1, :]
-    batch_data = viz_eval[out_p_filt][:, 10:, :].mean(axis=1)
-    directions = vis_output[bi*batch_size:(bi+1)*batch_size, :]
-
-    print('pred.shape', batch_data.shape)
-    print('directions.shape', directions.shape)
-
-    wall_overlay = (directions[:, 0] == 0) & (directions[:, 1] == 0)
-
-    print('wall_overlay.shape', wall_overlay.shape)
-
-    fig_truth, rmse = plot_path_predictions_image(
-        directions_pred=directions,
-        directions_true=directions,
-        wall_overlay=wall_overlay
+if calc_rmse:
+    print("Calculating RMSE on vis set")
+    vis_input, vis_output, batch_size = create_policy_vis_set(
+        data=data,
+        args=args,
+        n_mazes=args.n_mazes,
+        encoding_func=encoding_func,
+        maze_indices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+        goal_indices=[0,],
+        # maze_indices=[0, 1],
+        # goal_indices=[0, 1],
     )
 
-    fig_pred, rmse = plot_path_predictions_image(
-        directions_pred=batch_data,
-        directions_true=directions,
-        wall_overlay=wall_overlay
+    n_steps = 30
+    vis_input = np.tile(vis_input[:, None, :], (1, n_steps, 1))
+    # vis_output = np.tile(vis_output[:, None, :], (1, n_steps, 1))
+
+    print("Running visualization batches")
+    # viz_eval = sim.evaluate(test_input, {out_p_filt: test_output}, verbose=0)
+
+    n_batches = 10 * 10
+    n_batches = 10
+    # n_batches = 4
+    n_samples = 0
+    square_error = 0
+
+    for bi in range(n_batches):
+        print("Batch {} of {}".format(bi + 1, n_batches))
+        viz_eval = sim.predict(vis_input[bi * batch_size:(bi + 1) * batch_size])
+        # batch_data = viz_eval[out_p_filt][:, -1, :]
+        batch_data = viz_eval[out_p_filt][:, 10:, :].mean(axis=1)
+        directions = vis_output[bi * batch_size:(bi + 1) * batch_size, :]
+
+        free_spaces = (directions[:, 0] != 0) & (directions[:, 1] != 0)
+
+        batch_data = batch_data[free_spaces, :]
+        directions = directions[free_spaces, :]
+
+        # number of free space samples in this batch
+        n_samples += len(np.where(free_spaces)[0])
+
+        angles_flat_pred = np.arctan2(batch_data[:, 1], batch_data[:, 0])
+        angles_flat_true = np.arctan2(directions[:, 1], directions[:, 0])
+
+        # Create 3 possible offsets to cover all cases
+        angles_offset_true = np.zeros((len(angles_flat_true), 3))
+        angles_offset_true[:, 0] = angles_flat_true - 2 * np.pi
+        angles_offset_true[:, 1] = angles_flat_true
+        angles_offset_true[:, 2] = angles_flat_true + 2 * np.pi
+
+        angles_offset_true -= angles_flat_pred.reshape(len(angles_flat_pred), 1)
+        angles_offset_true = np.abs(angles_offset_true)
+
+        angle_error = np.min(angles_offset_true, axis=1)
+        angle_squared_error = angle_error ** 2
+
+        square_error += np.sum(angle_squared_error)
+
+    square_error /= n_samples
+    ang_rmse = np.sqrt(square_error)
+    print("Angular RMSE: {}".format(ang_rmse))
+
+else:
+
+    print("Generating visualization set")
+
+    vis_input, vis_output, batch_size = create_policy_vis_set(
+        data=data,
+        args=args,
+        n_mazes=args.n_mazes,
+        encoding_func=encoding_func,
+        maze_indices=[0, 1, 2, 3],
+        goal_indices=[0, 1],
+        # TEMP: for debugging
+        # maze_indices=[0, ],
+        # goal_indices=[2, 3, 4, 5, 6, 7, 8],
+        # x_offset=0.25,
+        # y_offset=0.25,
     )
 
-    plt.show()
+    n_steps = 30
+    vis_input = np.tile(vis_input[:, None, :], (1, n_steps, 1))
+    # vis_output = np.tile(vis_output[:, None, :], (1, n_steps, 1))
 
-    print(batch_data)
-    print(batch_data.shape)
+    print("Running visualization")
+    # viz_eval = sim.evaluate(test_input, {out_p_filt: test_output}, verbose=0)
+
+    n_batches = 4*2
+
+    for bi in range(n_batches):
+        viz_eval = sim.predict(vis_input[bi*batch_size:(bi+1)*batch_size])
+        # batch_data = viz_eval[out_p_filt][:, -1, :]
+        batch_data = viz_eval[out_p_filt][:, 10:, :].mean(axis=1)
+        directions = vis_output[bi*batch_size:(bi+1)*batch_size, :]
+
+        print('pred.shape', batch_data.shape)
+        print('directions.shape', directions.shape)
+
+        wall_overlay = (directions[:, 0] == 0) & (directions[:, 1] == 0)
+
+        print('wall_overlay.shape', wall_overlay.shape)
+
+        fig_truth, rmse = plot_path_predictions_image(
+            directions_pred=directions,
+            directions_true=directions,
+            wall_overlay=wall_overlay
+        )
+
+        fig_pred, rmse = plot_path_predictions_image(
+            directions_pred=batch_data,
+            directions_true=directions,
+            wall_overlay=wall_overlay
+        )
+
+        plt.show()
+
+        print(batch_data)
+        print(batch_data.shape)

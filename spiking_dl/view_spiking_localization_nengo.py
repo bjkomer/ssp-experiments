@@ -24,7 +24,7 @@ parser.add_argument('--n-train-samples', type=int, default=50000, help='Number o
 parser.add_argument('--n-test-samples', type=int, default=50000, help='Number of testing samples')
 parser.add_argument('--n-validation-samples', type=int, default=5000, help='Number of test samples for validation')
 parser.add_argument('--n-mazes', type=int, default=10)
-parser.add_argument('--hidden-size', type=int, default=1024)
+parser.add_argument('--hidden-size', type=int, default=4096)
 parser.add_argument('--n-layers', type=int, default=1, choices=[1, 2])
 parser.add_argument('--n-epochs', type=int, default=25, help='Number of epochs to train for')
 parser.add_argument('--plot-vis-set', action='store_true')
@@ -33,9 +33,18 @@ parser.add_argument('--n-sensors', type=int, default=36)
 parser.add_argument('--fov', type=int, default=360)
 parser.add_argument('--max-dist', type=float, default=10, help='maximum distance for distance sensor')
 
-parser.add_argument('--param-file', type=str, default='')
+parser.add_argument('--param-file', type=str,
+                    default='saved_params/nengo_localization_obj_1layer_mse_hs4096_3000000samples_25epochs_1e-05reg.pkl')
+
+parser.add_argument('--neuron-type', type=str, default='lif', choices=['lif', 'relu', 'lifrate'])
 
 parser = add_encoding_params(parser)
+
+# parser.add_argument('--spatial-encoding', type=str, default='sub-toroid-ssp')
+# parser.add_argument('--seed', type=int, default=13)
+# parser.add_argument('--scale-ratio', type=float, default=0.0)
+# parser.add_argument('--n-proj', type=int, default=3)
+# parser.add_argument('--ssp-scaling', type=float, default=0.5)
 
 args = parser.parse_args()
 
@@ -44,7 +53,8 @@ if args.param_file == '':
     print("Must specify --param-file")
     sys.exit(0)
 
-args.dim = 256
+# args.dim = 256
+args.dim = 512
 args.spatial_encoding = 'sub-toroid-ssp'
 
 if not os.path.exists('saved_params'):
@@ -68,7 +78,15 @@ with nengo.Network(seed=args.net_seed) as net:
     # net.config[nengo.Ensemble].max_rates = nengo.dists.Choice([100])
     # net.config[nengo.Ensemble].intercepts = nengo.dists.Choice([0])
     net.config[nengo.Connection].synapse = None
-    neuron_type = nengo.LIF(amplitude=0.01)
+
+    if args.neuron_type == 'lif':
+        neuron_type = nengo.LIF(amplitude=0.01)
+    elif args.neuron_type == 'relu':
+        neuron_type = nengo.RectifiedLinear()
+    elif args.neuron_type == 'lifrate':
+        neuron_type = nengo.LIFRate(amplitude=0.01)
+    else:
+        raise NotImplementedError
 
 
     # this is an optimization to improve the training speed,
@@ -231,7 +249,7 @@ for i, x in enumerate(xs):
 
 print("Generating visualization set")
 
-n_mazes_to_use = 4
+n_mazes_to_use = 10#4
 
 vis_input, vis_output = create_localization_viz_set(
     args=args,
@@ -250,6 +268,8 @@ print("Running visualization")
 
 fig, ax = plt.subplots(2, n_batches, tight_layout=True, figsize=(8, 5))
 
+n_samples = 0
+squared_error = 0
 
 for bi in range(n_batches):
     vis_batch_input = np.tile(vis_input[bi, :, None, :], (1, n_steps, 1))
@@ -262,6 +282,8 @@ for bi in range(n_batches):
     print('true_ssps.shape', true_ssps.shape)
 
     wall_overlay = np.sum(true_ssps, axis=1) == 0
+
+    n_samples += len(np.where(wall_overlay == False)[0])
 
     print('wall_overlay.shape', wall_overlay.shape)
 
@@ -281,6 +303,9 @@ for bi in range(n_batches):
         hmv, xs, ys
     )
 
+    squared_error = np.sum(np.linalg.norm(predictions[wall_overlay == False, :] - coords[wall_overlay == False, :], axis=1)**2)
+
+
     plot_predictions_v(
         predictions=predictions[wall_overlay == False, :], coords=coords[wall_overlay == False, :],
         ax=ax[1, bi],
@@ -299,5 +324,8 @@ for bi in range(n_batches):
 
     ax[0, bi].set_axis_off()
     ax[1, bi].set_axis_off()
+
+rmse = np.sqrt(squared_error / n_samples)
+print("Total RMSE: {}".format(rmse))
 
 plt.show()
