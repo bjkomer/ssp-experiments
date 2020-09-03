@@ -9,6 +9,8 @@ parser = argparse.ArgumentParser('')
 
 parser = add_encoding_params(parser)
 
+palette = sns.color_palette()
+
 encodings = [
     'ssp', 'hex-ssp', #'periodic-hex-ssp', 'grid-ssp', 'ind-ssp',
     # 'random', '2d',
@@ -21,6 +23,9 @@ encodings = [
     # 'pc-dog',
     'tile-coding'
 ]
+
+# encodings = ['tile-coding']
+# color = palette[4]
 
 labels = {
     'ssp': 'SSP',
@@ -56,10 +61,14 @@ for ei, e in enumerate(encodings):
 
     encoding_func, repr_dim = get_encoding_function(args, limit_low=-limit, limit_high=limit)
 
-    zero = encoding_func(0, 0)
+    # x_offset = -187.2
+    # y_offset = 32.2
+    x_offset = 0
+    y_offset = 0
+    zero = encoding_func(x_offset, y_offset)
     for i, x in enumerate(xs):
 
-        pt = encoding_func(x, 0)
+        pt = encoding_func(x+x_offset, y_offset)
 
         dists[ei, i] = np.linalg.norm(zero - pt)
         cosine_dists[ei, i] = cosine(zero, pt)
@@ -78,12 +87,14 @@ for e in encodings:
 fig, ax = plt.subplots(1, 2, figsize=(8, 4), tight_layout=True)
 
 ax[1].plot(xs, dists.T)
+# ax[1].plot(xs, dists.T, color=color)
 ax[1].set_title("Euclidean Distances")
 # ax[1].legend(legend)
 ax[1].set_xlabel('Position')
 ax[1].set_ylabel('Distance')
 
 ax[0].plot(xs, cosine_dists.T)
+# ax[0].plot(xs, cosine_dists.T, color=color)
 ax[0].set_title("Cosine Distances")
 ax[0].legend(legend)
 ax[0].set_xlabel('Position')
