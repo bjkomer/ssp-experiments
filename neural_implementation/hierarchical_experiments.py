@@ -8,28 +8,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 
-# def experiment(dim=512, n_hierarchy=3, n_items=16, seed=0):
-#     rng = np.random.RandomState(seed=seed)
-#
-#     if n_hierarchy == 1:  # no hierarchy case
-#         pass
-#     elif n_hierarchy == 2:
-#         # TODO: generate vocab and input sequences
-#
-#         avg_size = np.sqrt(n_items)
-#
-#         mem = '?'
-#
-#         model = nengo.Network(seed=seed)
-#         with model:
-#             mem_input = nengo.Node(mem, size_in=0, size_out=dim)
-#     elif n_hierarchy == 3:
-#         avg_size = np.cbrt(n_items)
-#     else:
-#         raise NotImplementedError
 
-
-def experiment_direct(dim=512, n_hierarchy=3, n_items=16, seed=0, limit=5, res=128, thresh=0.5,
+def experiment(dim=512, n_hierarchy=3, n_items=16, seed=0, limit=5, res=128, thresh=0.5,
                       neural=False, neurons_per_dim=25, time_per_item=1.0, max_items=100):
     rng = np.random.RandomState(seed=seed)
 
@@ -62,7 +42,6 @@ def experiment_direct(dim=512, n_hierarchy=3, n_items=16, seed=0, limit=5, res=1
 
         mem_sp = spa.SemanticPointer(data=mem)
 
-        # errors = np.zeros((n_items,))
         estims = np.zeros((n_items, dim, ))
         sims = np.zeros((n_items,))
         if neural:
@@ -222,11 +201,6 @@ def experiment_direct(dim=512, n_hierarchy=3, n_items=16, seed=0, limit=5, res=1
         # item_loc_inner_sums = np.zeros((n_ids*n_ids, dim))
         item_loc_inner_sums = np.zeros((n_ids_inner, dim))
         for i in range(n_items):
-            # id_outer_ind = min(i // (n_ids * n_ids), n_ids - 1)
-            # id_inner_ind = min(i // n_ids, n_ids * n_ids - 1)
-
-            # id_outer_ind = min(int(i / (f_n_ids * f_n_ids)), n_ids - 1)
-            # id_inner_ind = min(int(i / f_n_ids), n_ids * n_ids - 1)
 
             id_outer_ind = min(int(i / (f_n_ids * f_n_ids)), n_ids - 1)
             id_inner_ind = min(int(i / f_n_ids), n_ids_inner - 1)
@@ -252,15 +226,6 @@ def experiment_direct(dim=512, n_hierarchy=3, n_items=16, seed=0, limit=5, res=1
             mem_outer += (
                     spa.SemanticPointer(data=id_outer_vecs[i, :]) * spa.SemanticPointer(data=item_outer_sums[i, :])
             ).v
-
-            # for j in range(n_ids):
-            #     # normalize previous memories
-            #     item_inner_sums[i*n_ids+j, :] = item_inner_sums[i*n_ids+j, :] / np.linalg.norm(item_inner_sums[i*n_ids+j, :])
-            #     item_loc_inner_sums[i*n_ids+j, :] = item_loc_inner_sums[i*n_ids+j, :] / np.linalg.norm(item_loc_inner_sums[i*n_ids+j, :])
-            #
-            #     mem_inner[i, :] += (
-            #             spa.SemanticPointer(data=id_inner_vecs[i*n_ids+j, :]) * spa.SemanticPointer(data=item_inner_sums[i*n_ids+j, :])
-            #     ).v
 
         for j in range(n_ids_inner):
             # normalize previous memories
@@ -354,16 +319,10 @@ def experiment_direct(dim=512, n_hierarchy=3, n_items=16, seed=0, limit=5, res=1
 
         print(n_levels)
 
-        # level_id_str = '; '.join(['LevelID{}'.format(li) for li in range(n_levels)])
-        # vocab.populate(level_id_str)
-        #
-        # level_ids = []
-
         # Location Values, labelled SSP
         for i in range(n_items):
             # vocab.populate('Item{}'.format(i))
             vocab.add('Loc{}'.format(i), encode_point(locations[i, 0], locations[i, 1], X, Y).v)
-
 
         # level IDs, e.g. CITY, PROVINCE, COUNTRY
         for i in range(n_levels):
@@ -373,8 +332,6 @@ def experiment_direct(dim=512, n_hierarchy=3, n_items=16, seed=0, limit=5, res=1
         # Item IDs, e.g. Waterloo_ID
         for i in range(n_items):
             vocab.populate('ItemID{}.unitary()'.format(i))
-
-
 
         # level labels (fillers for level ID slots), e.g. Waterloo_ID, Ontario_ID, Canada_ID
         for i in range(n_levels):
@@ -432,9 +389,6 @@ def experiment_direct(dim=512, n_hierarchy=3, n_items=16, seed=0, limit=5, res=1
             filler_vocab = vocab.create_subset(keys=filler_keys)
             filler_all_vocab = vocab.create_subset(keys=filler_keys + filler_id_keys)
 
-            # print(filler_keys)
-            # print(len(filler_keys))
-
             model = nengo.Network(seed=seed)
             with model:
                 # The changing item query. Full expanded item, not just ID
@@ -459,14 +413,6 @@ def experiment_direct(dim=512, n_hierarchy=3, n_items=16, seed=0, limit=5, res=1
                     size_in=0,
                     size_out=dim
                 )
-                # level_slot_input_node = spa.Transcode(lambda t: 'LevelSlot{}'.format(n_levels - 1), output_vocab=vocab)
-
-                # noisy_level_filler_id = nengo.Ensemble(dimensions=dim, n_neurons=dim*neurons_per_dim)
-                # model.noisy_level_filler_id = spa.State(
-                #     # dimensions=dim,
-                #     filler_vocab,
-                #     # n_neurons=dim * neurons_per_dim
-                # )
 
                 model.cconv_noisy_level_filler = nengo.networks.CircularConvolution(
                     n_neurons=neurons_per_dim*2, dimensions=dim, invert_b=True
@@ -557,25 +503,15 @@ def experiment_direct(dim=512, n_hierarchy=3, n_items=16, seed=0, limit=5, res=1
 
 if __name__ == '__main__':
 
-    # rmse, accuracy = experiment_direct(dim=512, n_hierarchy=3, n_items=32, seed=0, limit=5, res=128)
-    # print("RMSE: {}".format(rmse))
-    # print("Accuracy: {}".format(accuracy))
-
     fname = 'data_hier.npz'
     fname = 'data_hier_multi.npz'
     fname = 'data_hier_multi_neural.npz'
-    # fname = 'data_hier_multi_neural_low.npz'
-    # fname = 'data_hier_multi_neural_test.npz'
 
-    # item_numbers = [8, 16, 32, 64, 128, 256, 512, 1024]
-    # item_numbers = [8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024]
     item_numbers = [4, 8, 16, 32, 64, 128, 256, 512, 1024]
     item_numbers = [16, 64, 256, 1024]
     item_numbers = [16, 64, 256]
     # item_numbers = [8, 12, 16, 24, 27, 32, 48, 64, 96, 125, 128, 192, 216, 256, 343, 384, 512, 729, 768, 1000, 1024]
     seeds = [0, 1, 2, 3, 4]
-    # seeds = [0]
-    # item_numbers = [16]
 
     hierarchies = [1, 2]
     # hierarchies = [4]
@@ -602,12 +538,12 @@ if __name__ == '__main__':
                     )
                     if n_items == 4 and n_hierarchy == 4:
                         # this case is the same as the non-hierarchy case
-                        rmse[hi, ni, si], acc[hi, ni, si], sim[hi, ni, si] = experiment_direct(
+                        rmse[hi, ni, si], acc[hi, ni, si], sim[hi, ni, si] = experiment(
                             dim=512, n_hierarchy=1, n_items=n_items, seed=seed, limit=5, res=128,
                             neural=True
                         )
                     else:
-                        rmse[hi, ni, si], acc[hi, ni, si], sim[hi, ni, si] = experiment_direct(
+                        rmse[hi, ni, si], acc[hi, ni, si], sim[hi, ni, si] = experiment(
                             dim=512, n_hierarchy=n_hierarchy, n_items=n_items, seed=seed, limit=5, res=128,
                             neural=True
                         )
@@ -636,7 +572,6 @@ if __name__ == '__main__':
         item_numbers = [4, 16, 64, 256]
         seeds = [0, 1, 2, 3, 4]
         hierarchies = [1, 4]
-
 
     df = pd.DataFrame()
 
@@ -671,12 +606,6 @@ if __name__ == '__main__':
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(handles=handles[1:], labels=labels[1:])
 
-        # fig, ax = plt.subplots(2, 1, tight_layout=True)
-        # sns.lineplot(data=df, x='Items', y='Accuracy', hue='Hierarchy', ax=ax[0])
-        # sns.lineplot(data=df, x='Items', y='RMSE', hue='Hierarchy', ax=ax[1])
-        #
-        # ax[0].set(xscale='log')
-        # ax[1].set(xscale='log')
     else:
         print(df)
         fig, ax = plt.subplots(3, 1, tight_layout=True)

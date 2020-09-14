@@ -2,11 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
-limit_low = -1.1#-5
-limit_high = 1.1#5
 limit_low = -5
 limit_high = 5
-res = 128#256#32#128
+res = 128
 
 # using res + 1 as endpoints, so there will be res bins between
 xs = np.linspace(limit_low, limit_high, res + 1)
@@ -18,13 +16,8 @@ diff = xs[1] - xs[0]
 if len(sys.argv) > 1:
     fname = sys.argv[1]
 else:
-    # fname = '/media/ctnuser/53f2c4b3-4b3b-4768-ba69-f0a3da30c237/ctnuser/data/neural_implementation_output/output_orth_hex_toroid_d25_mixed_5000s.npz'
     fname = '/media/ctnuser/53f2c4b3-4b3b-4768-ba69-f0a3da30c237/ctnuser/data/neural_implementation_output/output_orth_hex_toroid_d25_mixed_50hz_hilbert_traj_100s.npz'
 data = np.load(fname)
-
-# data = np.load('output_70s.npz')
-# data = np.load('/media/ctnuser/53f2c4b3-4b3b-4768-ba69-f0a3da30c237/ctnuser/data/neural_implementation_output/output_grid_cell_70s.npz')
-# data = np.load('output_band_70s.npz')
 
 spikes = data['spikes']
 pos = data['pos_2d']
@@ -41,8 +34,6 @@ traj_img = np.zeros((res, res))
 for i, x in enumerate(xs[:-1]):
     for j, y in enumerate(ys[:-1]):
         ind = np.where((pos[:, 0] >= x) & (pos[:, 0] < x + diff) & (pos[:, 1] >= y) & (pos[:, 1] < y + diff))
-        # print(ind[0])
-        # print(len(ind[0]))
         if len(ind[0]) > 0:
             img[:, i, j] = np.mean(spikes[ind[0], :], axis=0)
             traj_img[i, j] = 1
@@ -72,7 +63,7 @@ places_abc = np.where(metadata[:, 2] == PLACE)[0]
 inds = [
     [grids_a, grids_b, grids_c],
     [bands_a, bands_b, bands_c],
-    [places_abc[13], places_abc[15], places_abc[16]],
+    [places_abc[0], places_abc[4], places_abc[9]],
 ]
 
 fig, ax = plt.subplots(3, 3, tight_layout=True)

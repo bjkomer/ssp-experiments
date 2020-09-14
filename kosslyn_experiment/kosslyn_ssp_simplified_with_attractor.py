@@ -127,13 +127,10 @@ def decode_func(ssp):
 
 
 model = nengo.Network(seed=13)
-spiking_dir = False
-# model.config[nengo.Ensemble].neuron_type = nengo.LIFRate()
+spiking_dir = True
 model.config[nengo.Ensemble].neuron_type = nengo.LIF()
 with model:
     # currently visualized location
-    # current_loc = nengo.Ensemble(n_neurons=args.dim*args.neurons_per_dim, dimensions=args.dim)
-    model.current_loc = spa.State(args.dim, feedback=1)
     model.current_loc = SSPState(
         vocab=args.dim,
         phis=phis,
@@ -144,29 +141,21 @@ with model:
     )
 
     # direction to move
-    # direction = nengo.Ensemble(n_neurons=args.dim*args.neurons_per_dim, dimensions=args.dim)
     model.direction = spa.State(args.dim)
 
     # memory of the map layout
-    # memory = nengo.Ensemble(n_neurons=args.dim*args.neurons_per_dim, dimensions=args.dim)
     model.memory = spa.State(args.dim)
 
     # mental visual field (just using the output of the cconv directly)
     # vision = nengo.Ensemble(n_neurons=args.dim*args.neurons_per_dim, dimensions=args.dim)
 
     # the item to be scanned to
-    # queried_item = nengo.Ensemble(n_neurons=args.dim*args.neurons_per_dim, dimensions=args.dim)
     model.queried_item = spa.State(args.dim)
 
     mem_input = nengo.Node(
         lambda t: mem_sp.v
     )
     nengo.Connection(mem_input, model.memory.input, synapse=None)
-
-
-    # nengo.Connection(memory, cconv)
-    # nengo.Connection(queried_item, cconv)
-    # nengo.Connection(cconv, desired_loc)
 
     # computing what the agent is currently imagining
     cconv_view = nengo.networks.CircularConvolution(n_neurons=args.neurons_per_dim*2, dimensions=args.dim, invert_b=True)
@@ -230,8 +219,6 @@ with model:
 
     initial_kick = nengo.Node(lambda t: 1 if t < 0.01 else 0)
     nengo.Connection(initial_kick, model.current_loc.input[0])
-
-    # p_exp = nengo.Probe(exp_node)
 
     if __name__ != '__main__':
         # plots for debugging
