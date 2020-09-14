@@ -12,6 +12,7 @@ import nengo_spa as spa
 from spatial_semantic_pointers.networks.ssp_cleanup import SpatialCleanup
 # softlinked from neural_implementation
 from encoders import grid_cell_encoder, band_cell_encoder, orthogonal_hex_dir, SSPState
+import pickle
 
 parser = argparse.ArgumentParser('Run a mental map task with Nengo')
 
@@ -126,6 +127,7 @@ def decode_func(ssp):
 
 
 model = nengo.Network(seed=13)
+spiking_dir = False
 # model.config[nengo.Ensemble].neuron_type = nengo.LIFRate()
 model.config[nengo.Ensemble].neuron_type = nengo.LIF()
 with model:
@@ -203,12 +205,27 @@ with model:
         size_out=3 * args.dim,
     )
 
-    nengo.Connection(exp_node[:args.dim], model.direction.input)
+    if spiking_dir:
+        direction_params = pickle.load(open('dir_params.pkl', 'rb'))
+        direction_inp_params = direction_params[0]
+        direction_ens_params = direction_params[1]
+        direction_out_params = direction_params[2]
+        dir_comp_ens = nengo.Ensemble(
+            n_neurons=8192,
+            dimensions=1,
+            neuron_type=nengo.LIF(amplitude=0.01),
+            **direction_ens_params
+        )
+        nengo.Connection(dir_comp_ens.neurons, model.direction.input, **direction_out_params)
+        nengo.Connection(cconv_view.output, dir_comp_ens.neurons, **direction_inp_params)
+    else:
+        nengo.Connection(exp_node[:args.dim], model.direction.input)
+        nengo.Connection(cconv_view.output, exp_node[args.dim:])
+
     nengo.Connection(exp_node[args.dim:2*args.dim], model.queried_item.input)
     # drive the memory to the next start when the current task is finished
     nengo.Connection(exp_node[2 * args.dim:], model.current_loc.input)
-    # nengo.Connection(vision, exp_node[args.dim:])
-    nengo.Connection(cconv_view.output, exp_node[args.dim:])
+
     nengo.Connection(model.current_loc.output, exp_node[:args.dim])
 
     initial_kick = nengo.Node(lambda t: 1 if t < 0.01 else 0)
