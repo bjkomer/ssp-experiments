@@ -29,18 +29,21 @@ from collections import OrderedDict
 from utils import EncoderPlot, WeightPlot
 import argparse
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser("Run a model for the Kosslyn mental map task")
+parser = argparse.ArgumentParser("Run a model for the association learning task")
 
-    parser.add_argument('--seed', type=int, default=13)
-    parser.add_argument('--num-test-pairs', type=int, default=50)
-    parser.add_argument('--time-per-item', type=float, default=2.)
-    parser.add_argument('--dimensionality', type=int, default=7)
-    parser.add_argument('--ssp-dim', type=int, default=7, choices=[7, 13, 19, 25])
-    parser.add_argument('--phi', type=float, default=0.2)
-    parser.add_argument('--randomize_vectors', action='store_true')
-    parser.add_argument('--file-name', type=str, default="output/exp_data_kosslyn_low_dim_hex")
-    parser.add_argument('--item-seed', type=int, default=-1, help='Seed for random item locations')
+parser.add_argument('--seed', type=int, default=13)
+parser.add_argument('--num-test-pairs', type=int, default=50)
+parser.add_argument('--time-per-item', type=float, default=2.)
+parser.add_argument('--dimensionality', type=int, default=7)
+parser.add_argument('--ssp-dim', type=int, default=7, choices=[7, 13, 19, 25])
+parser.add_argument('--phi', type=float, default=0.2)
+parser.add_argument('--randomize_vectors', action='store_true')
+parser.add_argument('--file-name', type=str, default="output/exp_data_kosslyn_low_dim_hex")
+parser.add_argument('--item-seed', type=int, default=-1, help='Seed for random item locations')
+parser.add_argument('--save-encoders', action='store_true', help='Save the initial and learned encoders')
+
+
+if __name__ == "__main__":
 
     args = parser.parse_args()
 
@@ -53,6 +56,7 @@ if __name__ == "__main__":
     phi = np.pi * args.phi
     dim = args.ssp_dim
 else:
+    args = parser.parse_args([])
     seed = 13
     num_test_pairs = 50
     time_per_item = 2
@@ -320,6 +324,7 @@ intercept = 0  # calculated from another script
 intercept = .70  # calculated from another script
 intercept_item_to_loc = .7  # calculated from another script
 intercept_loc_to_item = .5  # 5.55111512313e-17 # calculated from another script
+cont_neuron_type = nengo.LIF()
 
 with model:
     # NOTE: FlavourLand is currently hardcoded for orthogonal non-random vectors
@@ -394,11 +399,10 @@ with model:
     task = nengo.Node(size_in=1, size_out=1)
 
     # The position that the agent will try to move to using its controller
-    desired_pos = nengo.Ensemble(n_neurons=200, dimensions=2, neuron_type=nengo.Direct())
+    desired_pos = nengo.Ensemble(n_neurons=200, dimensions=2, neuron_type=cont_neuron_type, radius=10)
 
-    # TODO: switch from direct mode once things work
-    working_loc = nengo.Ensemble(n_neurons=200, dimensions=2, neuron_type=nengo.Direct())
-    working_item = nengo.Ensemble(n_neurons=200, dimensions=D, neuron_type=nengo.Direct())
+    working_loc = nengo.Ensemble(n_neurons=200, dimensions=2, neuron_type=cont_neuron_type, radius=10)
+    working_item = nengo.Ensemble(n_neurons=50*D, dimensions=D, neuron_type=cont_neuron_type)
 
     if normalize:
         # NOTE: loc_to_surface already normalizes
@@ -429,8 +433,8 @@ with model:
 
     nengo.Connection(env[3:], learning, transform=1 * np.ones((1, D)))
 
-    recall_item = nengo.Ensemble(n_neurons=200, dimensions=D, neuron_type=nengo.Direct())
-    recall_loc = nengo.Ensemble(n_neurons=400, dimensions=dim, neuron_type=nengo.Direct())
+    recall_item = nengo.Ensemble(n_neurons=D*50, dimensions=D, neuron_type=cont_neuron_type)
+    recall_loc = nengo.Ensemble(n_neurons=dim*50, dimensions=dim, neuron_type=cont_neuron_type)
 
     conn_out_item = nengo.Connection(memory_loc, recall_item,
                                      learning_rule_type=nengo.PES(1e-3),
@@ -465,12 +469,12 @@ with model:
     scaled_recall_loc = nengo.Node(env_scale_node, size_in=2, size_out=2)
     nengo.Connection(recall_loc, scaled_recall_loc, function=surface_to_env)
 
-    vel_input = nengo.Ensemble(n_neurons=200, dimensions=2, neuron_type=nengo.Direct())
+    vel_input = nengo.Ensemble(n_neurons=200, dimensions=2, neuron_type=cont_neuron_type, radius=5)
 
     # This is only relevant when using velocity commands from a controller
     nengo.Connection(vel_input, env[:2])
 
-    pos_error = nengo.Ensemble(n_neurons=300, dimensions=3, neuron_type=nengo.Direct())
+    pos_error = nengo.Ensemble(n_neurons=300, dimensions=3, neuron_type=cont_neuron_type, radius=10)
 
     nengo.Connection(env[:3], pos_error, transform=1)
     nengo.Connection(desired_pos, pos_error[:2], transform=-1)
@@ -557,3 +561,17 @@ def on_step(sim):
 if __name__ == "__main__":
     sim = nengo.Simulator(model)
     sim.run((len(items) + num_test_pairs + 1) * time_per_item)
+    if args.save_encoders:
+        enc_item_initial = sim.data[plot_item.encoder_probe][0]
+        enc_item_final = sim.data[plot_item.encoder_probe][-1]
+        enc_loc_initial = sim.data[plot_loc.encoder_probe][0]
+        enc_loc_final = sim.data[plot_loc.encoder_probe][-1]
+        np.savez(
+            file_name + '_encoders.npz',
+            enc_item_initial=enc_item_initial,
+            enc_item_final=enc_item_final,
+            enc_loc_initial=enc_loc_initial,
+            enc_loc_final=enc_loc_final,
+            heatmap_vectors=heatmap_vectors,
+            item_locs=locs,
+        )
