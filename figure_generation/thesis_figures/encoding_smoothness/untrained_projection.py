@@ -16,6 +16,14 @@ parser = add_encoding_params(parser)
 
 args = parser.parse_args()
 
+args.dim = 256
+args.seed = 0
+args.n_tiles = 4
+args.n_bins = 8
+args.res = 64
+args.hilbert_points = 0
+args.pc_gauss_sigma = 0.25
+
 encodings = [
     '2d',
     'ssp',
@@ -87,7 +95,7 @@ for ei, enc in enumerate(encodings):
             max_val=args.limit * 1.1,
             fixed_axes=False,
         )
-        ax_pred.set_title(enc_names[enc])
+        ax_pred.set_title(enc_names[enc], fontsize=24)
         fig_pred.savefig("figures/untrained_{}_limit{}_dim{}.pdf".format(enc, int(args.limit), args.dim))
         # only record the ground truth once
         if ei == 0:
@@ -99,7 +107,7 @@ for ei, enc in enumerate(encodings):
                 max_val=args.limit * 1.1,
                 fixed_axes=False,
             )
-            ax_truth.set_title("Coord Locations")
+            ax_truth.set_title("Coord Locations", fontsize=24)
             fig_truth.savefig("figures/untrained_ground_truth_limit{}.pdf".format(args.limit))
 
 # plt.show()
