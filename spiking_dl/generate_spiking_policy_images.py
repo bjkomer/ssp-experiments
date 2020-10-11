@@ -250,8 +250,8 @@ print(type(sim))
 
 print("Generating visualization set")
 
-maze_indices = np.arange(10)
-goal_indices = np.arange(100)
+maze_indices = np.arange(2)
+goal_indices = np.arange(2)
 
 res = 64
 policy_images = np.zeros((len(maze_indices), len(goal_indices), res, res, 2))

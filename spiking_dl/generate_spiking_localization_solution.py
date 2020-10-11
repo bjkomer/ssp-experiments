@@ -38,6 +38,12 @@ parser.add_argument('--param-file', type=str,
 
 parser = add_encoding_params(parser)
 
+# parser.add_argument('--spatial-encoding', type=str, default='sub-toroid-ssp')
+# parser.add_argument('--seed', type=int, default=13)
+# parser.add_argument('--scale-ratio', type=float, default=0.0)
+# parser.add_argument('--n-proj', type=int, default=3)
+# parser.add_argument('--ssp-scaling', type=float, default=0.5)
+
 args = parser.parse_args()
 
 
@@ -233,11 +239,13 @@ for i, x in enumerate(xs):
 print("Generating visualization set")
 
 n_mazes_to_use = 10#4
+res = 128
 
 vis_input, vis_output = create_localization_viz_set(
     args=args,
     n_mazes_to_use=n_mazes_to_use,  # 10
     encoding_func=encoding_func,
+    res=res,
 )
 
 n_batches = vis_input.shape[0]
@@ -254,7 +262,7 @@ fig, ax = plt.subplots(2, n_batches, tight_layout=True, figsize=(8, 5))
 n_samples = 0
 squared_error = 0
 
-res = 64
+
 # incoming sensor data
 sensor_inputs = np.zeros((n_mazes_to_use, res, res, 36*4))
 

@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import argparse
 from ssp_navigation.utils.encodings import add_encoding_params, get_encoding_function, get_encoding_heatmap_vectors
 from spatial_semantic_pointers.utils import encode_point, get_heatmap_vectors, ssp_to_loc_v
+# from sklearn.metrics.pairwise import cosine_similarity
+from scipy.spatial.distance import cdist
 
 parser = argparse.ArgumentParser()
 
@@ -13,8 +15,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--res', type=int, default=256)  # 512
 parser.add_argument('--encoder-type', type=str, default='mixed', choices=['mixed', 'grid', 'band', 'place', 'random'])
 parser.add_argument('--new-dataset', action='store_true', help='generate a new random dataset to evaluate on')
-parser.add_argument('--n-samples', type=int, default=1000)
+parser.add_argument('--n-samples', type=int, default=2000)
 parser.add_argument('--n-items', type=int, default=7)
+parser.add_argument('--sigma', type=float, default=0.005, help='additional gaussian noise to add')
 
 
 parser = add_encoding_params(parser)
@@ -43,15 +46,23 @@ pytorch_pred_vec = np.load(pytorch_fname)['pred_vec']
 
 
 cache_fname = 'neural_cleanup_dataset_{}.npz'.format(args.dim)
+# if args.new_dataset:
+#     # output_fname = 'neural_cleanup_output_test_{}_{}.npz'.format(args.encoder_type, args.dim)
+#     output_fname = 'neural_cleanup_output_test_{}_{}_{}items_{}samples.npz'.format(
+#         args.encoder_type, args.dim, args.n_items, args.n_samples
+#     )
+# else:
+#     # output_fname = 'neural_cleanup_output_{}_{}.npz'.format(args.encoder_type, args.dim)
+#     output_fname = 'neural_cleanup_output_{}_{}_{}items_{}samples.npz'.format(
+#         args.encoder_type, args.dim, args.n_items, args.n_samples
+#     )
 if args.new_dataset:
-    # output_fname = 'neural_cleanup_output_test_{}_{}.npz'.format(args.encoder_type, args.dim)
-    output_fname = 'neural_cleanup_output_test_{}_{}_{}items_{}samples.npz'.format(
-        args.encoder_type, args.dim, args.n_items, args.n_samples
+    output_fname = 'neural_cleanup_output_test_{}_{}_{}items_{}samples_{}sigma.npz'.format(
+        args.encoder_type, args.dim, args.n_items, args.n_samples, args.sigma,
     )
 else:
-    # output_fname = 'neural_cleanup_output_{}_{}.npz'.format(args.encoder_type, args.dim)
-    output_fname = 'neural_cleanup_output_{}_{}_{}items_{}samples.npz'.format(
-        args.encoder_type, args.dim, args.n_items, args.n_samples
+    output_fname = 'neural_cleanup_output_{}_{}_{}items_{}samples_{}sigma.npz'.format(
+        args.encoder_type, args.dim, args.n_items, args.n_samples, args.sigma,
     )
 
 cache_data = np.load(cache_fname)
@@ -86,7 +97,9 @@ for i in range(n_samples):
     error[i] = np.linalg.norm(truth_coord_pred[i, :] - coords[i, :])
 n_close = len(np.where(error < .5)[0])
 print("truth fraction within 0.5 is {}".format(1.0*n_close / n_samples))
-
+print("true ssp cosine dist is {}".format(
+    np.diagonal(cdist(clean_true[:n_samples, :], clean_true[:n_samples, :], metric='cosine')).mean()
+))
 
 
 
@@ -103,8 +116,12 @@ n_close = len(np.where(error < .5)[0])
 print("noisy fraction within 0.5 is {}".format(1.0*n_close / n_samples))
 noisy_ssp_rmse = np.sqrt((np.linalg.norm(noisy[:n_samples, :] - clean_true[:n_samples, :], axis=1) ** 2).mean())
 print("noisy ssp rmse is {}".format(noisy_ssp_rmse))
+print("noisy ssp cosine dist is {}".format(
+    np.diagonal(cdist(noisy[:n_samples, :], clean_true[:n_samples, :], metric='cosine')).mean()
+))
 noisy_coord_rmse = np.sqrt((np.linalg.norm(noisy_coord_pred - coords[:n_samples, :], axis=1) ** 2).mean())
 print("noisy coord rmse", noisy_coord_rmse)
+
 
 
 
@@ -129,6 +146,9 @@ n_close = len(np.where(error < .5)[0])
 print("fraction within 0.5 is {}".format(1.0*n_close / n_samples))
 ssp_rmse = np.sqrt((np.linalg.norm(clean_pred[:n_samples, :] - clean_true[:n_samples, :], axis=1) ** 2).mean())
 print("spiking ssp rmse is {}".format(ssp_rmse))
+print("spiking ssp cosine dist is {}".format(
+    np.diagonal(cdist(clean_pred[:n_samples, :], clean_true[:n_samples, :], metric='cosine')).mean()
+))
 
 # coord_rmse = np.sqrt((error**2).mean())
 coord_rmse = np.sqrt((np.linalg.norm(coord_pred - coords[:n_samples, :], axis=1) ** 2).mean())
@@ -152,7 +172,9 @@ n_close = len(np.where(error < .5)[0])
 print("pytorch fraction within 0.5 is {}".format(1.0*n_close / n_samples))
 pytorch_ssp_rmse = np.sqrt((np.linalg.norm(pytorch_pred_vec[:n_samples, :] - clean_true[:n_samples, :], axis=1) ** 2).mean())
 print("pytorch ssp rmse is {}".format(pytorch_ssp_rmse))
-
+print("pytorch ssp cosine dist is {}".format(
+    np.diagonal(cdist(pytorch_pred_vec[:n_samples, :], clean_true[:n_samples, :], metric='cosine')).mean()
+))
 
 pytorch_coord_rmse = np.sqrt((np.linalg.norm(pytorch_coord_pred - coords[:n_samples, :], axis=1) ** 2).mean())
 print("pytorch coord rmse", pytorch_coord_rmse)

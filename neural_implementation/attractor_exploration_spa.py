@@ -8,12 +8,26 @@ import os
 
 dim = 7#272
 dim = 6*12+1
+# dim = 6*36+1
+# dim = 6*36+2
+# dim = 7
+# dim = 13
 
 T = (dim+1)//2
 n_toroid = T // 3
 axis_rng = np.random.RandomState(seed=14)
-phis = axis_rng.uniform(-np.pi, np.pi, size=n_toroid)
-angles = axis_rng.uniform(-np.pi, np.pi, size=n_toroid)
+if dim == 7 or dim == 8 :
+    phis = np.array([np.pi/2.])
+    angles = np.array([0])
+elif dim == 13 or dim == 14:
+    phis = np.array([np.pi/2., np.pi/3.])
+    angles = np.array([0, 1])
+elif dim == 19 or dim == 20:
+    phis = np.array([np.pi/2., np.pi/3., np.pi/5.])
+    angles = np.array([0, 1, 2])
+else:
+    phis = axis_rng.uniform(-np.pi, np.pi, size=n_toroid)
+    angles = axis_rng.uniform(-np.pi, np.pi, size=n_toroid)
 # phis = np.array([np.pi/2., np.pi/3., np.pi/5.])
 # angles = np.array([0, 1, 2])
 X, Y = orthogonal_hex_dir(phis=phis, angles=angles, even_dim=dim%2==0)
@@ -26,14 +40,15 @@ res = 256
 xs = np.linspace(-limit, limit, res)
 ys = np.linspace(-limit, limit, res)
 
-hmv = get_heatmap_vectors(xs, xs, X, Y)
+# hmv = get_heatmap_vectors(xs, xs, X, Y)
 
-# if not os.path.exists('hmv_exp_{}.npz'.format(dim)):
-#     # hmv = get_heatmap_vectors_hex(xs, xs, X, Y, Z)
-#     hmv = get_heatmap_vectors(xs, xs, X, Y)
-#     np.savez('hmv_exp_{}.npz'.format(dim), hmv=hmv)
-# else:
-#     hmv = np.load('hmv_exp_{}.npz'.format(dim))['hmv']
+if not os.path.exists('hmv_exp_{}.npz'.format(dim)):
+    print("Generating heatmap vectors")
+    hmv = get_heatmap_vectors(xs, xs, X, Y)
+    np.savez('hmv_exp_{}.npz'.format(dim), hmv=hmv)
+else:
+    print("Loading heatmap vectors")
+    hmv = np.load('hmv_exp_{}.npz'.format(dim))['hmv']
 
 
 def input_ssp(v):
@@ -79,4 +94,5 @@ with model:
         size_in=dim,
         size_out=0
     )
+    # nengo.Connection(model.current_loc.input, heatmap_true_node)
     nengo.Connection(ssp_input, heatmap_true_node, function=input_ssp)

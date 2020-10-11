@@ -115,13 +115,14 @@ def orthogonal_hex_dir_7dim(phi=np.pi / 2., angle=0):
 
 
 limit = 10
-res = 256
+res = 128#256
 xs = np.linspace(-limit, limit, res)
 ys = np.linspace(-limit, limit, res)
 
 # dim = 5
 # dim = 7
-dim = 'many'
+# dim = 'many'
+dim = 'test'
 
 gs = GridSpec(1, 41, left=0.02, right=0.96)#, left=0.05, right=0.48, wspace=0.05)
 fig = plt.figure(figsize=(41/3., 10/3.))#, tight_layout=True)
@@ -191,6 +192,32 @@ elif dim == 'many':
         hmv = get_heatmap_vectors(xs, ys, X, Y)
         im = ax[i].imshow(hmv[:, :, 0], origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1]), vmin=None, vmax=1)
         ax[i].set_title('Dim = {}'.format(dim), fontsize=fontsize)
+        ax[i].xaxis.set_major_locator(loc)
+        ax[i].yaxis.set_major_locator(loc)
+
+    fig.colorbar(im, cax=ax[-1])
+elif dim == 'test':
+    dim = 5
+    phi_axs = [(np.pi / 2.)*np.cos(0), np.pi / 4., np.pi / 4., np.pi / 4.]
+    phi_bxs = [(np.pi / 2.)*np.sin(0),         0., np.pi / 4., np.pi / 2.]
+    phi_ays = [(np.pi / 2.)*np.cos(np.pi/3.),         0.,-np.pi / 4., -np.pi / 6]
+    phi_bys = [(np.pi / 2.)*np.sin(np.pi/3.), np.pi / 4., np.pi / 4., np.pi / 4]
+    titles = [
+        'X = [\u03C0/2, 0], Y = [0, \u03C0/2]',
+        'X = [\u03C0/4, 0], Y = [0, \u03C0/4]',
+        'X = [\u03C0/4, \u03C0/4], Y = [-\u03C0/4, \u03C0/4]',
+        'X = [\u03C0/4, \u03C0/2], Y = [-\u03C0/6, \u03C0/4]',
+    ]
+    phis = [np.pi/2., np.pi/3., np.pi/4, np.pi/5.]
+    angles = [0, np.pi/2., np.pi/3., np.pi/8.]
+    fontsize = 14
+    loc = plticker.MultipleLocator(base=5)  # this locator puts ticks at regular intervals
+    for i in range(4):
+        X = unitary_5d(dim=dim, phi_a=phis[i]*np.cos(angles[i]), phi_b=phis[i]*np.sin(angles[i]))
+        Y = unitary_5d(dim=dim, phi_a=phis[i]*np.cos(angles[i]+2*np.pi/3.), phi_b=phis[i]*np.sin(angles[i]+2*np.pi/3.))
+        hmv = get_heatmap_vectors(xs, ys, X, Y)
+        im = ax[i].imshow(hmv[:, :, 0], origin='lower', interpolation='none', extent=(xs[0], xs[-1], ys[0], ys[-1]), vmin=None, vmax=1)
+        ax[i].set_title(titles[i], fontsize=fontsize)
         ax[i].xaxis.set_major_locator(loc)
         ax[i].yaxis.set_major_locator(loc)
 

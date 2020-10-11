@@ -27,13 +27,14 @@ rng = np.random.RandomState(seed=args.seed)
 
 # phis = (np.pi / 2., np.pi/3., np.pi/5., np.pi/7.)
 # phis = (np.pi / 2., np.pi/3., np.pi/5.)
-phis = (np.pi*.75, np.pi / 2., np.pi/3., np.pi/5., np.pi*.4, np.pi*.6)
-angles = rng.uniform(0, 2*np.pi, size=len(phis))#(0, np.pi/3., np.pi/5.)
+phis = (np.pi*.75, np.pi / 2., np.pi/3., np.pi/5., np.pi*.4, np.pi*.6, np.pi*.15)
+# angles = rng.uniform(0, 2*np.pi, size=len(phis))#(0, np.pi/3., np.pi/5.)
+angles = (0, np.pi*.3, np.pi*.2, np.pi*.4, np.pi*.1, np.pi*.5, np.pi*.7)
 X, Y = orthogonal_hex_dir(phis=phis, angles=angles)
 dim = len(X.v)
 
 noise_process = nengo.processes.WhiteNoise(
-    dist=nengo.dists.Gaussian(0, 0.001), seed=1)
+    dist=nengo.dists.Gaussian(0, 0.0001), seed=1)
 
 
 def to_ssp(v):
@@ -178,7 +179,7 @@ for n in range(n_neurons):
     mix_ind = rng.randint(0, 3)
     if mix_ind == 0:
         encoders_mixed[n, :] = encoders_place_cell[n, :]
-        mixed_intercepts.append(.3)
+        mixed_intercepts.append(.4)
     elif mix_ind == 1:
         encoders_mixed[n, :] = encoders_grid_cell[n, :]
         mixed_intercepts.append(.2)

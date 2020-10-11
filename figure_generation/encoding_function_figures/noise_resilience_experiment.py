@@ -209,10 +209,20 @@ display = os.environ.get('DISPLAY')
 if display is None or 'localhost' in display:
     print("No Display detected, skipping plot")
 else:
-    # df = df[df['Noise Level'] == 0.001]
-    ax = sns.lineplot(data=df, x='Limit', y='RMSE', hue='Encoding')
-    # df = df[df['Limit'] == 8]
-    # ax = sns.lineplot(data=df, x='Noise Level', y='RMSE', hue='Encoding')
-    ax.set_xscale('log')
+    df = df.replace('Size', 'Environment Length')
+    df = df.replace('ssp', 'SSP')
+    df = df.replace('pc-gauss', 'RBF')
+
+    # df = df[df['Noise Level'] == 0.1]
+    # df = df[df['Noise Level'] != 1.0]
+    fig, ax = plt.subplots(1, 3, figsize=(8, 3), tight_layout=True)
+    # noise_levels = [0.001, 0.005, 0.01, 0.05, 0.1]
+    noise_levels = [0.001, 0.01, 0.1]
+    for i, noise_level in enumerate(noise_levels):
+        df_n = df[df['Noise Level'] == noise_level]
+        sns.lineplot(data=df_n, x='Size', y='RMSE', hue='Encoding', ax=ax[i])
+        ax[i].set_xscale('log')
+        ax[i].set_title('\u03C3 = {}'.format(noise_level))
+    sns.despine()
 
     plt.show()

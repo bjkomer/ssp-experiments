@@ -5,7 +5,10 @@ import sys
 # plot_type = 'scan'
 plot_type = 'final'
 
-fname = sys.argv[1]
+if len(sys.argv) > 1:
+    fname = sys.argv[1]
+else:
+    fname = 'output/encoder_data_encoders.npz'
 
 data = np.load(fname)
 
@@ -39,20 +42,44 @@ dim = enc_loc_initial.shape[1]
 #     plt.show()
 
 if plot_type == 'final':
-    vmin=.2
-    vmax=1
-    neuron_indices = [0, 82, 94, 98, 162, 175, 197, 205, 287, 316, 331, 374, 385]
-    # neuron_indices = [35, 111, 230, 351, 352]
+    # vmin=.25
+    # vmax=1
+    # # neuron_indices = [0, 82, 94, 98, 162, 175, 197, 205, 287, 316, 331, 374, 385]
+    # # neuron_indices = [35, 111, 230, 351, 352]
+    # # neuron_indices = [35, 111, 351, 352]
     # neuron_indices = [0, 162, 205, 374]
-    fig, ax = plt.subplots(2, len(neuron_indices))
+    # fig, ax = plt.subplots(2, len(neuron_indices))
+    # for i, n in enumerate(neuron_indices):
+    #     # sim_initial = np.tensordot(enc_item_initial[n, :], heatmap_vectors, axes=([0], [2]))
+    #     # sim_final = np.tensordot(enc_item_final[n, :], heatmap_vectors, axes=([0], [2]))
+    #     sim_initial = np.tensordot(enc_loc_initial[n, :]/np.linalg.norm(enc_loc_initial[n, :]), heatmap_vectors, axes=([0], [2]))
+    #     sim_final = np.tensordot(enc_loc_final[n, :]/np.linalg.norm(enc_loc_final[n, :]), heatmap_vectors, axes=([0], [2]))
+    #
+    #     ax[0, i].imshow(sim_initial.T, vmin=vmin, vmax=vmax, origin='lower')
+    #     ax[1, i].imshow(sim_final.T, vmin=vmin, vmax=vmax, origin='lower')
+
+
+    vmin=.5
+    vmax=1
+    # non_pc_neuron_indices = [35, 111, 351, 352]
+    # pc_neuron_indices = [0, 162, 205, 374]
+    non_pc_neuron_indices = [35, 28, 351]
+    pc_neuron_indices = [162, 205, 374]
+    # fig, ax = plt.subplots(4, 4)
+    neuron_indices = non_pc_neuron_indices + pc_neuron_indices
+    fig, ax = plt.subplots(2, len(neuron_indices), tight_layout=True, figsize=(8, 3))
     for i, n in enumerate(neuron_indices):
-        # sim_initial = np.tensordot(enc_item_initial[n, :], heatmap_vectors, axes=([0], [2]))
-        # sim_final = np.tensordot(enc_item_final[n, :], heatmap_vectors, axes=([0], [2]))
         sim_initial = np.tensordot(enc_loc_initial[n, :]/np.linalg.norm(enc_loc_initial[n, :]), heatmap_vectors, axes=([0], [2]))
         sim_final = np.tensordot(enc_loc_final[n, :]/np.linalg.norm(enc_loc_final[n, :]), heatmap_vectors, axes=([0], [2]))
 
         ax[0, i].imshow(sim_initial.T, vmin=vmin, vmax=vmax, origin='lower')
         ax[1, i].imshow(sim_final.T, vmin=vmin, vmax=vmax, origin='lower')
+
+        ax[0, i].set_axis_off()
+        ax[1, i].set_axis_off()
+
+
+
 
     # figure of the item locations
     fig, ax = plt.subplots()
@@ -64,7 +91,7 @@ if plot_type == 'final':
     plt.show()
 
 if plot_type == 'scan':
-    vmin=.5#0
+    vmin=.25#0
     vmax=1
     for k in range(40):
         neuron_indices = np.arange(10)+k*10

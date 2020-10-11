@@ -94,8 +94,12 @@ xs = np.linspace(0, 4, res)
 for i, u in enumerate(unitaries):
     if i == 3:
         xs = np.linspace(0, 16, res*2)
+    # base_point = np.fft.ifft(np.fft.fft(u) ** xs[1])
+    # cur_point = base_point
     for x in xs:
         ux = np.fft.ifft(np.fft.fft(u) ** x).real
+        # cur_point = np.fft.ifft(np.fft.fft(cur_point) * np.fft.fft(base_point) )
+        # ux = cur_point.real
         ax[i].scatter(ux[0], ux[1], ux[2], color=palette[i])
 
 

@@ -17,12 +17,16 @@ seeds = np.arange(5)
 #
 # print(np.mean(suc))
 
+folder = 'output'
+# folder = 'output_256'
+# folder = 'output_512'
+folder = 'output_512_noise'
 
 fnames = [
-    'output/maze{}_seed{}_spiking_data.npz',
-    'output/maze{}_seed{}_spiking_data_loc_gt.npz',
-    'output/maze{}_seed{}_spiking_data_cleanup_gt.npz',
-    'output/maze{}_seed{}_spiking_data_loc_gt_cleanup_gt.npz',
+    folder + '/maze{}_seed{}_spiking_data.npz',
+    folder + '/maze{}_seed{}_spiking_data_loc_gt.npz',
+    folder + '/maze{}_seed{}_spiking_data_cleanup_gt.npz',
+    folder + '/maze{}_seed{}_spiking_data_loc_gt_cleanup_gt.npz',
 ]
 
 # for the overall percent plot with the four conditions

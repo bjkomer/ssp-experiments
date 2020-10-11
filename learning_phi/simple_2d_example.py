@@ -10,7 +10,7 @@ import argparse
 parser = argparse.ArgumentParser('Simple example learning phis with pytorch')
 parser.add_argument('--n-epochs', type=int, default=25)
 parser.add_argument('--batch-size', type=int, default=32)
-parser.add_argument('--loss-function', type=str, default='mse', choices=['mse', 'cosine'])
+parser.add_argument('--loss-function', type=str, default='mse', choices=['mse', 'cosine', 'combined'])
 parser.add_argument('--optimizer', type=str, default='adam')
 parser.add_argument('--lr', type=float, default=0.001)
 parser.add_argument('--momentum', type=float, default=0.9)
@@ -118,6 +118,8 @@ for epoch in range(args.n_epochs):
             mse_loss.backward()
         elif args.loss_function == 'cosine':
             cosine_loss.backward()
+        elif args.loss_function == 'combined':
+            (mse_loss + cosine_loss).backward()
 
         optimizer.step()
 

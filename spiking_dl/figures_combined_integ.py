@@ -7,7 +7,8 @@ blocks_indices = [0, 4, 6, 7, 8, 9]
 maze_indices = [1, 2, 3, 5]
 
 mazes = np.arange(10)
-seeds = np.arange(5)
+# seeds = np.arange(5)
+seeds = np.arange(10)
 
 # suc = np.zeros((10,))
 #
@@ -20,6 +21,8 @@ seeds = np.arange(5)
 folder = 'output'
 folder = 'output_256'
 folder = 'output_512'
+folder = 'output_512_noise'
+folder = 'output_512_noise_more_trials'
 
 fnames = [
     folder + '/maze{}_seed{}_spiking_data.npz',

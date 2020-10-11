@@ -195,7 +195,8 @@ with model:
     )
 
     if spiking_dir:
-        direction_params = pickle.load(open('dir_params.pkl', 'rb'))
+        # direction_params = pickle.load(open('dir_params.pkl', 'rb'))
+        direction_params = pickle.load(open('dir_rel_params.pkl', 'rb'))
         direction_inp_params = direction_params[0]
         direction_ens_params = direction_params[1]
         direction_out_params = direction_params[2]
@@ -205,8 +206,12 @@ with model:
             neuron_type=nengo.LIF(amplitude=0.01),
             **direction_ens_params
         )
+        cur_dir = nengo.Node(size_in=args.dim*2, size_out=args.dim*2)
+        nengo.Connection(cconv_view.output, cur_dir[:args.dim])
+        nengo.Connection(model.current_loc.output, cur_dir[args.dim:])
         nengo.Connection(dir_comp_ens.neurons, model.direction.input, **direction_out_params)
-        nengo.Connection(cconv_view.output, dir_comp_ens.neurons, **direction_inp_params)
+        # nengo.Connection(cconv_view.output, dir_comp_ens.neurons, **direction_inp_params)
+        nengo.Connection(cur_dir, dir_comp_ens.neurons, **direction_inp_params)
     else:
         nengo.Connection(exp_node[:args.dim], model.direction.input)
         nengo.Connection(cconv_view.output, exp_node[args.dim:])

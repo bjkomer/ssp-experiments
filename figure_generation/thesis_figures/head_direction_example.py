@@ -24,13 +24,15 @@ for seed in [3, 1, 2]:
     raw_noise += process.run_steps(res)[:, 0]
 
 # add a flipped version so the start and end are at the same point
-noise = raw_noise + raw_noise[::-1] + 5
+noise = raw_noise + raw_noise[::-1] + 1
 
 
 val = cyclic_1d_gaussian(xs, center, sigma)*75 + cyclic_1d_gaussian(xs, center, sigma*2)*noise*15 #+ noise*15
 
 mx = np.max(val)
 val = val / mx * 82
+
+val = np.clip(val, 0, 82)
 
 # polar plot
 xs_rad = xs * np.pi/180.

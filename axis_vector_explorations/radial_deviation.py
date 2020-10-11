@@ -153,7 +153,14 @@ if use_pandas:
     # plt.title('Standard Deviation of Radial Deviation')
 
     # sns.lineplot(data=df[df['Seed'] == 0], x='Radius', y='Similarity', hue='Generation', ci='sd')
-    sns.lineplot(data=df, x='Radius', y='Similarity', hue='Generation', ci='sd')
+
+    fig, ax = plt.subplots(1, 1, figsize=(8, 8), tight_layout=True)
+
+    # df = df[df['Seed'] == 2]
+
+    sns.lineplot(data=df, x='Radius', y='Similarity', hue='Generation', ci='sd', ax=ax)
+
+    sns.despine()
 
 else:
 

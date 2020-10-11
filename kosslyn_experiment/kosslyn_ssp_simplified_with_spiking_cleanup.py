@@ -13,6 +13,7 @@ from spatial_semantic_pointers.networks.ssp_cleanup import SpatialCleanup
 # softlinked from neural_implementation
 from encoders import grid_cell_encoder, band_cell_encoder, orthogonal_hex_dir, SSPState
 from utils import generate_cleanup_dataset
+import pickle
 
 
 parser = argparse.ArgumentParser('Run a mental map task with Nengo')
@@ -200,6 +201,7 @@ for n in range(n_neurons):
 
 
 tau = 0.01
+spiking_dir = True
 model = nengo.Network(seed=13)
 # model.config[nengo.Ensemble].neuron_type = nengo.LIFRate()
 model.config[nengo.Ensemble].neuron_type = nengo.LIF()
@@ -222,10 +224,12 @@ with model:
     )
 
     spatial_cleanup.encoders = encoders_mixed
+    # spatial_cleanup.encoders = encoders_grid_cell
     spatial_cleanup.eval_points = np.vstack([encoders_place_cell, encoders_band_cell, encoders_grid_cell])
     spatial_cleanup.intercepts = mixed_intercepts
 
     current_loc.encoders = encoders_mixed
+    # current_loc.encoders = encoders_grid_cell
     current_loc.eval_points = np.vstack([encoders_place_cell, encoders_band_cell, encoders_grid_cell])
     current_loc.intercepts = mixed_intercepts
 
@@ -265,6 +269,8 @@ with model:
     nengo.Connection(current_loc, cconv_move.input_a)
     nengo.Connection(model.direction.output, cconv_move.input_b)
     nengo.Connection(cconv_move.output, spatial_cleanup)
+    # nengo.Connection(cconv_move.output, spatial_cleanup, transform=tau)
+    # nengo.Connection(current_loc, current_loc)
     # nengo.Connection(cconv_move.output, current_loc, transform=tau)
 
     # Cleanup a potentially noisy spatial semantic pointer to a clean version
@@ -305,12 +311,26 @@ with model:
         size_out=3 * args.dim,
     )
 
-    nengo.Connection(exp_node[:args.dim], model.direction.input)
+    if spiking_dir:
+        direction_params = pickle.load(open('dir_params.pkl', 'rb'))
+        direction_inp_params = direction_params[0]
+        direction_ens_params = direction_params[1]
+        direction_out_params = direction_params[2]
+        dir_comp_ens = nengo.Ensemble(
+            n_neurons=8192,
+            dimensions=1,
+            **direction_ens_params
+        )
+        nengo.Connection(dir_comp_ens.neurons, model.direction.input, **direction_out_params)
+        nengo.Connection(cconv_view.output, dir_comp_ens.neurons, **direction_inp_params)
+    else:
+        nengo.Connection(exp_node[:args.dim], model.direction.input)
+        nengo.Connection(cconv_view.output, exp_node[args.dim:])
     nengo.Connection(exp_node[args.dim:2*args.dim], model.queried_item.input)
     # drive the memory to the next start when the current task is finished
     nengo.Connection(exp_node[2 * args.dim:], current_loc)
     # nengo.Connection(vision, exp_node[args.dim:])
-    nengo.Connection(cconv_view.output, exp_node[args.dim:])
+
     nengo.Connection(current_loc, exp_node[:args.dim])
 
     initial_kick = nengo.Node(lambda t: 1 if t < 0.02 else 0)
@@ -335,6 +355,14 @@ with model:
             size_out=0
         )
         nengo.Connection(model.direction.output, dir_heatmap_node)
+
+        cleanup_heatmap = SpatialHeatmap(heatmap_vectors=hmv, xs=xs, ys=xs, cmap='plasma', vmin=-1, vmax=1)
+        cleanup_heatmap_node = nengo.Node(
+            heatmap,
+            size_in=args.dim,
+            size_out=0
+        )
+        nengo.Connection(spatial_cleanup, cleanup_heatmap_node)
 
 if __name__ == '__main__':
     sim = nengo.Simulator(model)

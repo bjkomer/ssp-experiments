@@ -98,7 +98,8 @@ if args.gaussian_rmse:
 
     meshgrid = np.meshgrid(xs, ys)
 
-    sigma = .7
+    sigma = 1/np.sqrt(2)#.7
+    # sigma = .7
     gauss = gaussian_2d(0, 0, sigma, meshgrid)
 
     fig, ax = plt.subplots(3, 3, figsize=(10, 9))

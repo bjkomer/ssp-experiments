@@ -10,7 +10,7 @@ import pandas as pd
 exp_folder = 'final_loc'
 # exp_folder = 'final_loc_tiled'
 
-base_folder = '/home/ctnuser/ssp-navigation/ssp_navigation/datasets/mixed_style_100mazes_100goals_64res_13size_13seed/36sensors_360fov/snapshot_network/{}/'.format(exp_folder)
+base_folder = '/home/ctnuser/ssp-navigation/ssp_navigation/datasets/mixed_style_100mazes_100goals_64res_13size_13seed//{}/'.format(exp_folder)
 
 # summary_paths = {
 #     'mse': glob.glob('ssp_cleanup_thesis/epochs250/mse/*/*/events*'),
@@ -25,11 +25,7 @@ n_mazes = [10]
 seeds = [1, 2, 3, 4, 5]
 
 encodings = [
-    'hex-ssp',
-    'one-hot',
-    'tile-coding',
     'pc-gauss',
-    'random',
     'ssp',
 ]
 

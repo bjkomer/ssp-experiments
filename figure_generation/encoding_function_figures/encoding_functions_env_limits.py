@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser('Evaluate encoding methods under various levels
 
 parser.add_argument('--dim', type=int, default=512)
 parser.add_argument('--res', type=int, default=64)
-# parser.add_argument('--ssp-scaling', type=float, default=1.0)
+parser.add_argument('--ssp-scaling', type=float, default=1.0)
 # parser.add_argument('--limit-low', type=float, default=-5)
 # parser.add_argument('--limit-high', type=float, default=5)
 # parser.add_argument('--train-limit-low', type=float, default=-5)
@@ -53,7 +53,8 @@ for limit in limits:
     ssp_configs = [
         argparse.Namespace(
             spatial_encoding='ssp', dim=args.dim, seed=seed,
-            limit_low=-limit, limit_high=limit
+            limit_low=-limit, limit_high=limit,
+            ssp_scaling=args.ssp_scaling,
         ) for seed in seeds
     ]
 
@@ -62,6 +63,7 @@ for limit in limits:
             spatial_encoding='pc-gauss', dim=args.dim, seed=seed,
             limit_low=-limit, limit_high=limit,
             pc_gauss_sigma=0.75*(limit/5),
+            hilbert_points=1,
         ) for seed in seeds
     ]
 

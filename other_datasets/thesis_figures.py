@@ -4,6 +4,7 @@ import seaborn as sns
 import sys
 import os
 import numpy as np
+import glob
 from constants import full_continuous, small_continuous_regression
 
 # this just determines whether the label is accuracy or R2
@@ -18,15 +19,33 @@ meta_df = pd.read_csv('metadata.csv')
 if len(sys.argv) > 1:
     # one or more files given, load them all into one dataframe
     fnames = sys.argv[1:]
-    df = pd.DataFrame()
-    for fname in fnames:
-        df = df.append(pd.read_csv(fname))
+else:
+    fnames = []
+    # results on the majority of the encodings for classification (51)
+    fnames += glob.glob('process_output/enc_all_results_600iters_*')
+    # results on the majority of the encodings for regression (72)
+    fnames += glob.glob('regression_no_target_scaling/enc_all_results_600iters_*')
+    # results on legendre encoding for classification (51)
+    fnames += glob.glob('legendre_output/*')
+    # results on legendre encoding for regression (72)
+    fnames += glob.glob('legendre_regression/*')
+    # results with SSP Proj encoding (hex ssp) (120)
+    fnames += glob.glob('ssp_proj_output/*')
+
+df = pd.DataFrame()
+for fname in fnames:
+    df = df.append(pd.read_csv(fname))
+
 
 # df = df.merge(meta_df, on='Dataset')
 
 if not os.path.exists('figures'):
     os.makedirs('figures')
 
+order = [
+    'Hex SSP', 'SSP', 'Combined SSP', 'Simplex SSP',
+    'RBF', 'Tile Coding', 'One Hot', 'Normalized', 'Legendre'
+]
 
 # optional pairwise views
 
@@ -46,6 +65,7 @@ df = df.replace(
         'SSP Normalized': 'SSP',
         'Combined SSP Normalized': 'Combined SSP',
         'Combined Simplex SSP Normalized': 'Simplex SSP',
+        'SSP Projected Axis': 'Hex SSP'
     }
 )
 
@@ -75,7 +95,7 @@ elif data_to_plot == 'regression':
 ####################
 
 plt.figure()
-sns.barplot(data=df, x='Encoding', y=metric)
+sns.barplot(data=df, x='Encoding', y=metric, order=order)
 sns.despine()
 
 ##############################
@@ -139,7 +159,7 @@ for encoding in encodings:
     )
 
 plt.figure(figsize=(4, 4))
-sns.barplot(data=df_best, x='Encoding', y='Datasets')
+sns.barplot(data=df_best, x='Encoding', y='Datasets', order=order)
 sns.despine()
 
 ########################
@@ -163,11 +183,18 @@ pairs = [
     # ['Combined SSP', 'Normalized'],
     # ['Simplex SSP', 'Normalized'],
 
-    ['SSP Projected Axis', 'Normalized'],
-    ['SSP Projected Axis', 'Tile Coding'],
-    ['SSP Projected Axis', 'One Hot'],
-    ['SSP Projected Axis', 'RBF'],
-    ['SSP Projected Axis', 'SSP'],
+    # ['SSP Projected Axis', 'Normalized'],
+    # ['SSP Projected Axis', 'Tile Coding'],
+    # ['SSP Projected Axis', 'One Hot'],
+    # ['SSP Projected Axis', 'RBF'],
+    # ['SSP Projected Axis', 'SSP'],
+
+    ['Hex SSP', 'Normalized'],
+    ['Hex SSP', 'Tile Coding'],
+    ['Hex SSP', 'One Hot'],
+    ['Hex SSP', 'RBF'],
+    ['Hex SSP', 'Legendre'],
+    ['Hex SSP', 'SSP'],
 
 ]
 

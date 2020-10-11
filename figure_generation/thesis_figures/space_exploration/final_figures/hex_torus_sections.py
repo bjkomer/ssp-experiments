@@ -118,11 +118,6 @@ def random_unitary(n_samples=1000, dim=3, version=1):
 # style = 'surface'
 style = 'lines'
 
-palette = sns.color_palette("hls", 4)
-
-# for shading the space
-unitary_points = random_unitary(n_samples=2000)
-
 fig = plt.figure(tight_layout=True, figsize=(16, 4))
 ax = []
 plot_limit = 1
@@ -137,6 +132,12 @@ for i in range(4):
         ax[i].yaxis.set_major_locator(loc)
         ax[i].zaxis.set_major_locator(loc)
     elif style == 'surface':
+        # ax[i].set_xlim([.2, 1])
+        # ax[i].set_ylim([-.4, .4])
+        # ax[i].set_zlim([-.4, .4])
+        # ax[i].set_xlim([0, 1])
+        # ax[i].set_ylim([-.5, .5])
+        # ax[i].set_zlim([-.5, .5])
         ax[i].xaxis.set_major_locator(plticker.MultipleLocator(base=.10))
         ax[i].yaxis.set_major_locator(plticker.MultipleLocator(base=.10))
         ax[i].zaxis.set_major_locator(plticker.MultipleLocator(base=.25))
@@ -150,8 +151,8 @@ X, Y, sv, transform_mat = orthogonal_hex_dir_7dim(phi=phi, angle=0)
 X = X.v
 Y = Y.v
 
-res = 32#16
-limit = 0.5
+res = 32#64#32#16
+limit = 0.5#8#0.5
 xs = np.linspace(-limit, limit, res)
 ys = np.linspace(-limit, limit, res)
 zs = np.linspace(-limit, limit, res)
@@ -184,10 +185,10 @@ if style == 'surface':
         z_ring[k, :] =np.fft.ifft((np.fft.fft(X) ** vec[0, 0]*sv) *(np.fft.fft(Y) ** vec[0, 1]*sv)).real
 
     for n in range(4):
-        ax[n].scatter(ux[:, 0], ux[:, 1], ux[:, 2], color='green', alpha=0.25)
-        ax[n].scatter(x_ring[:, 0], x_ring[:, 1], x_ring[:, 2], color='blue', alpha=0.75)
-        ax[n].scatter(y_ring[:, 0], y_ring[:, 1], y_ring[:, 2], color='red', alpha=0.75)
-        ax[n].scatter(z_ring[:, 0], z_ring[:, 1], z_ring[:, 2], color='orange', alpha=0.75)
+        ax[n].scatter(ux[:, 0]/sv, ux[:, 1]/sv, ux[:, 2]/sv, color='green', alpha=0.15)
+        ax[n].scatter(x_ring[:, 0]/sv, x_ring[:, 1]/sv, x_ring[:, 2]/sv, color='blue', alpha=0.75)
+        ax[n].scatter(y_ring[:, 0]/sv, y_ring[:, 1]/sv, y_ring[:, 2]/sv, color='red', alpha=0.75)
+        ax[n].scatter(z_ring[:, 0]/sv, z_ring[:, 1]/sv, z_ring[:, 2]/sv, color='orange', alpha=0.75)
 
     ax[0].view_init(elev=-13, azim=-18)
     ax[1].view_init(elev=-38, azim=-33)
@@ -201,6 +202,12 @@ else:
     xs = np.linspace(0, 2*sv*4, res)
     ys = np.linspace(0, 2*sv*4, res)
     zs = np.linspace(0, 2*sv*4, res)
+
+    ux = np.zeros((res * res, dim))
+    for i, x in enumerate(xs):
+        for j, y in enumerate(ys):
+            ux[i*res+j] = np.fft.ifft((np.fft.fft(X) ** x*sv) * (np.fft.fft(Y) ** y*sv)).real
+
     # mark the initial axis in a different colour
     x_ring = np.zeros((res, dim))
     for i, xh in enumerate(xs):
@@ -216,9 +223,15 @@ else:
         z_ring[k, :] =np.fft.ifft((np.fft.fft(X) ** vec[0, 0]*sv) *(np.fft.fft(Y) ** vec[0, 1]*sv)).real
 
     for n in range(4):
-        ax[n].scatter(x_ring[:, 0], x_ring[:, 1], x_ring[:, 2], color='blue', alpha=0.75)
-        ax[n].scatter(y_ring[:, 0], y_ring[:, 1], y_ring[:, 2], color='red', alpha=0.75)
-        ax[n].scatter(z_ring[:, 0], z_ring[:, 1], z_ring[:, 2], color='orange', alpha=0.75)
+        if n == 3:
+            ax[n].scatter(ux[:, 0] / sv, ux[:, 1] / sv, ux[:, 2] / sv, color='green', alpha=0.01)
+            ax[n].scatter(x_ring[:, 0]/sv, x_ring[:, 1]/sv, x_ring[:, 2]/sv, color='blue', alpha=0.25)
+            ax[n].scatter(y_ring[:, 0]/sv, y_ring[:, 1]/sv, y_ring[:, 2]/sv, color='red', alpha=0.25)
+            ax[n].scatter(z_ring[:, 0]/sv, z_ring[:, 1]/sv, z_ring[:, 2]/sv, color='orange', alpha=0.25)
+        else:
+            ax[n].scatter(x_ring[:, 0] / sv, x_ring[:, 1] / sv, x_ring[:, 2] / sv, color='blue', alpha=0.75)
+            ax[n].scatter(y_ring[:, 0] / sv, y_ring[:, 1] / sv, y_ring[:, 2] / sv, color='red', alpha=0.75)
+            ax[n].scatter(z_ring[:, 0] / sv, z_ring[:, 1] / sv, z_ring[:, 2] / sv, color='orange', alpha=0.75)
 
     # ax[0].view_init(elev=-13, azim=-18)
     # ax[1].view_init(elev=-38, azim=-33)

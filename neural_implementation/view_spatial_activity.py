@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
+limit_low = -1.1
+limit_high = 1.1
 limit_low = -5
 limit_high = 5
 res = 32#128
@@ -29,6 +31,8 @@ n_neurons = spikes.shape[1]
 # spatial firing for each neuron
 img = np.zeros((n_neurons, res, res))
 
+traj_img = np.zeros((res, res))
+
 for i, x in enumerate(xs[:-1]):
     for j, y in enumerate(ys[:-1]):
         ind = np.where((pos[:, 0] >= x) & (pos[:, 0] < x + diff) & (pos[:, 1] >= y) & (pos[:, 1] < y + diff))
@@ -36,6 +40,7 @@ for i, x in enumerate(xs[:-1]):
         # print(len(ind[0]))
         if len(ind[0]) > 0:
             img[:, i, j] = np.mean(spikes[ind[0], :], axis=0)
+            traj_img[i, j] = 1
 
 # print(pos)
 # print(pos.shape)
@@ -50,10 +55,13 @@ for i, x in enumerate(xs[:-1]):
 #     plt.imshow(img[i, :, :])
 #     plt.show()
 
+fig = plt.figure()
+plt.imshow(traj_img)
+
 
 fig, ax = plt.subplots(10, 10)
 
-for i in range(100):
+for i in range(min(100, img.shape[0])):
     ax[i // 10, i % 10].imshow(img[i, 1:-1, 1:-1])
 
 plt.show()
